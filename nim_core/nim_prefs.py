@@ -12,16 +12,18 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+#rohtau 0.1, python 3 port
+
 
 #  General Imports :
 import os, sys, re, traceback
-import urlparse
+import urllib.parse
 
 #  NIM Imports :
-import nim_api as Api
-import nim_file as F
-import nim_print as P
-import nim_win as Win
+from . import nim_api as Api
+from . import nim_file as F
+from . import nim_print as P
+from . import nim_win as Win
 
 '''
 isGUI = True
@@ -48,7 +50,7 @@ prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
 version='v4.0.61'
 winTitle='NIM_'+version
-nim_URL='http://hostname/nimAPI.php'
+nim_URL='http://nim.rohtau.com/nimAPI.php'
 nim_useSLL='False'
 nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir))
 nim_user, nim_userID='', ''
@@ -65,7 +67,7 @@ def get_user() :
     usr=False
     #_prefs=Prefs.read()
     _prefs=read()
-    if _prefs and 'NIM_User' in _prefs.keys() :
+    if _prefs and 'NIM_User' in list(_prefs.keys()) :
         usr=_prefs['NIM_User']
     return usr
 
@@ -134,7 +136,7 @@ def get_url() :
     
     if not nim_URL or nim_URL == 'http://hostname/nimAPI.php':
         _prefs=read()
-        if _prefs and 'NIM_URL' in _prefs.keys() :
+        if _prefs and 'NIM_URL' in list(_prefs.keys()) :
             nim_URL=_prefs['NIM_URL']
     
     url = nim_URL
@@ -196,7 +198,7 @@ def _inputURL() :
     if isGUI :
         url=Win.popup( title=winTitle+' - Get URL', msg=msg, type='input', defaultInput=nim_URL )
     else :
-        url=raw_input(msg)
+        url=input(msg)
     #P.info( 'NIM URL Set to: %s' % url ) 
     if url : 
         # Check for '/nimAPI.php?' at end of URL
@@ -224,7 +226,7 @@ def _verifyURL( url='' ) :
     if not url : return False
 
     # Validate URL Pattern
-    parsedURL = urlparse.urlparse(url)
+    parsedURL = urllib.parse.urlparse(url)
     min_attributes = ('scheme', 'netloc')
     if not all([getattr(parsedURL, attr) for attr in min_attributes]):
         #error = "'{url}' string has no scheme or netloc.".format(url=parsedURL.geturl())
@@ -399,7 +401,7 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                         msg='Preferences already exist.\nWould you like to re-create your preferences?', \
                         type='okCancel' )
                 else :
-                    recreate=raw_input("Preferences already exist. Would you like to re-create your preferences? (Y\N) ")
+                    recreate=input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
                     if recreate == 'Y' or recreate == 'y':
                         recreate='OK'
 
@@ -407,7 +409,7 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                     P.info( 'Deleting previous preferences file...' )
                     try :
                         os.remove( prefsFile )
-                    except Exception, e :
+                    except Exception as e :
                         P.error( 'Unable to delete preferences' )
                         P.error( '    %s' % traceback.print_exc() )
                         return False
@@ -433,7 +435,7 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                 if isGUI :
                     keepGoing=Win.popup( title=winTitle+' - Get URL', msg=msg, type='okCancel' )
                 else :
-                    keepGoing=raw_input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
+                    keepGoing=input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
                     if keepGoing == 'Y' or keepGoing == 'y' :
                         keepGoing = 'OK'
 
@@ -518,9 +520,9 @@ def read() :
             if name !='' and name !='\n' :
                 _prefs[name.strip()]=var
         #  Remove empty dictionary entries :
-        prefs=dict( [(k,v) for k,v in _prefs.items() if len(k)>0])
+        prefs=dict( [(k,v) for k,v in list(_prefs.items()) if len(k)>0])
         return prefs
-    except Exception, e :
+    except Exception as e :
         P.error( 'Unable to read preferences.' )
         return False
 
@@ -628,4 +630,3 @@ def Dbug_toggle() :
 
 
 #  End
-

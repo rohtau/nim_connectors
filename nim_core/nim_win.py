@@ -12,12 +12,14 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+# rohtau v0.1, python 3 port
+
 import os, sys
 #  NIM Imports :
-import nim_api as Api
-import nim_file as F
-import nim_prefs as Prefs
-import nim_print as P
+from . import nim_api as Api
+from . import nim_file as F
+from . import nim_prefs as Prefs
+from . import nim_print as P
 
 qt_import=True
 
@@ -250,7 +252,7 @@ def userInfo( url='', apiUser='', newUser=False ) :
     if isGUI :
         user=popup( title='Enter NIM Login', msg='Please enter your NIM username:', type='input', defaultInput=apiUser )
     else :
-        user=raw_input('Please enter your NIM username: ')
+        user=input('Please enter your NIM username: ')
 
     if user is None :
         return False
@@ -283,7 +285,7 @@ def userInfo( url='', apiUser='', newUser=False ) :
             if isGUI :
                 response = popup( title='User Not Found', msg='The username entered is not a valid NIM user.\n\n Would you like to enter a new username?', type='okCancel')
             else :
-                response=raw_input('The username entered is not a valid NIM user. Would you like to enter a new username? (Y/N)')
+                response=input('The username entered is not a valid NIM user. Would you like to enter a new username? (Y/N)')
                 if response == 'Y' or response == 'y' :
                     response = 'OK'
 
@@ -324,7 +326,7 @@ def setApiKey( url='' ) :
         print('Failed to validate user.\n \
                 NIM Security is set to require the use of API Keys.\n \
                 Please obtain a valid NIM API KEY from your NIM Administrator.')
-        api_key=raw_input('Enter the NIM API Key for your user: ')
+        api_key=input('Enter the NIM API Key for your user: ')
 
     if api_key is None :
         return False
@@ -341,7 +343,7 @@ def setApiKey( url='' ) :
                         response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                     else :
                         print('The NIM API Key entered is invalid.')
-                        response=raw_input('Re-enter API Key? (Y/N): ')
+                        response=input('Re-enter API Key? (Y/N): ')
                         if response == 'Y' or response == 'y' :
                             response = 'OK'
 
@@ -351,11 +353,11 @@ def setApiKey( url='' ) :
                         return False
                 else :
                     #  Update NIM Key File :
-                    print "Key Valid: %s" % testAPI[0]['keyValid']
+                    print("Key Valid: %s" % testAPI[0]['keyValid'])
                     if testAPI[0]['keyValid'] == 'true' :
                         try :
                             keyFile = os.path.normpath( os.path.join( Prefs.get_home(), 'nim.key' ) )
-                            print keyFile
+                            print(keyFile)
                             ''' #Python 2.7
                             with open(keyFile, 'r+') as f:
                                 f.seek(0)
@@ -387,7 +389,7 @@ def setApiKey( url='' ) :
                             response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                         else :
                             print('The NIM API Key entered is invalid.')
-                            response=raw_input('Re-enter API Key? (Y/N): ')
+                            response=input('Re-enter API Key? (Y/N): ')
                             if response == 'Y' or response == 'y' :
                                 response = 'OK'
 
@@ -401,7 +403,7 @@ def setApiKey( url='' ) :
                     response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                 else :
                     print('The NIM API Key entered is invalid.')
-                    response=raw_input('Re-enter API Key? (Y/N): ')
+                    response=input('Re-enter API Key? (Y/N): ')
                     if response == 'Y' or response == 'y' :
                         response = 'OK'
 

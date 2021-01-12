@@ -12,22 +12,23 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+# rohtau 0.1, python 3 port
 
 #  General Imports :
-import glob, os, platform, re, sys, traceback, urllib, urllib2, time
+import glob, os, platform, re, sys, traceback, urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, time
 try:
     import ssl
 except :
-    print "NIM UI: Failed to load SSL"
+    print("NIM UI: Failed to load SSL")
     pass
 
 #  NIM Imports :
-import nim as Nim
-import nim_api as Api
-import nim_file as F
-import nim_prefs as Prefs
-import nim_print as P
-import nim_win as Win
+from . import nim as Nim
+from . import nim_api as Api
+from . import nim_file as F
+from . import nim_prefs as Prefs
+from . import nim_print as P
+from . import nim_win as Win
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -38,7 +39,7 @@ except ImportError :
     except ImportError :
         try : from PyQt4 import QtCore, QtGui
         except ImportError : 
-            print "NIM UI: Failed to UI Modules"
+            print("NIM UI: Failed to UI Modules")
 
 #  Variables :
 WIN=''
@@ -71,14 +72,14 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                     from shiboken2 import wrapInstance
                 except :
                     from shiboken import wrapInstance
-                import nim_maya as M
+                from . import nim_maya as M
                 win_parent=M.get_mainWin()
                 WIN=GUI( parent=win_parent, mode=mode )
                 #  Make the window dockable :
                 #allowedAreas=['right', 'left']
                 #mc.dockControl( area='left', content=str(Singleton._inst), \
                 #    allowedAreas=allowedAreas )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -93,7 +94,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 #from nukescripts import panels
                 #panels.registerWidgetAsPanel( WIN, 'NIM_v%s File UI' % version, \
                 #    'usa.la.nim.fileUI' )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -103,7 +104,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
             try :
                 import hiero.core
                 WIN=GUI( mode=mode )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -114,7 +115,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 import MaxPlus
                 WIN=GUI( mode=mode )
                 MaxPlus.CUI.DisableAccelerators()
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -124,7 +125,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
             try :
                 import hou
                 WIN=GUI( mode=mode )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -133,7 +134,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
         elif app=='Flame' :
             try :
                 WIN=GUI( mode=mode )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -187,7 +188,7 @@ class GUI(QtGui.QMainWindow) :
                 print 'stored failed'
                 return
             '''              
-        except Exception, e :
+        except Exception as e :
             P.error( 'Sorry, unable to get NIM preferences, cannot run NIM GUI' )
             P.debug( '    %s' % traceback.print_exc() )
             Win.popup( title='NIM Error', msg='Sorry, unable to get NIM preferences, cannot run NIM GUI' )
@@ -246,8 +247,8 @@ class GUI(QtGui.QMainWindow) :
         if not self.prefs :
             return False
         #  Get debug mode :
-        if 'NIM_DebugMode' in self.prefs.keys() : self.debug=self.prefs['NIM_DebugMode']
-        elif 'DebugMode' in self.prefs.keys() : self.debug=self.prefs['DebugMode']
+        if 'NIM_DebugMode' in list(self.prefs.keys()) : self.debug=self.prefs['NIM_DebugMode']
+        elif 'DebugMode' in list(self.prefs.keys()) : self.debug=self.prefs['DebugMode']
         else : return False
         if self.debug : P.debug( 'Preferences being read...' )
         
@@ -285,19 +286,19 @@ class GUI(QtGui.QMainWindow) :
         if self.mode.lower() in ['ver', 'verup', 'version', 'versionup', 'pub', 'publish'] :
             self.nimPrefs=Nim.NIM()
             if self.app=='Maya' :
-                import nim_maya as M
+                from . import nim_maya as M
                 M.get_vars( nim=self.nimPrefs )
             elif self.app=='Nuke' :
-                import nim_nuke as N
+                from . import nim_nuke as N
                 N.get_vars( nim=self.nimPrefs )
             elif self.app=='3dsMax' :
-                import nim_3dsmax as Max
+                from . import nim_3dsmax as Max
                 Max.get_vars( nim=self.nimPrefs )
             elif self.app=='Houdini' :
-                import nim_houdini as Houdini
+                from . import nim_houdini as Houdini
                 Houdini.get_vars( nim=self.nimPrefs )
             elif self.app=='Flame' :
-                import nim_flame as Flame
+                from . import nim_flame as Flame
                 Flame.get_vars( nim=self.nimPrefs )
         else :
             self.nimPrefs=Nim.NIM().ingest_prefs()
@@ -1020,19 +1021,19 @@ class GUI(QtGui.QMainWindow) :
         self.pubWin.setChecked( True )
         
         if self.nim.app()=='Maya' :
-            import nim_maya as M
+            from . import nim_maya as M
             M.get_vars( nim=self.nim )
             M.get_vars( nim=self.nimPrefs )
         elif self.nim.app()=='Nuke' :
-            import nim_nuke as N
+            from . import nim_nuke as N
             N.get_vars( nim=self.nim )
             N.get_vars( nim=self.nimPrefs )
         if self.nim.app()=='3dsMax' :
-            import nim_3dsmax as Max
+            from . import nim_3dsmax as Max
             Max.get_vars( nim=self.nim )
             Max.get_vars( nim=self.nimPrefs )
         if self.nim.app()=='Houdini' :
-            import nim_houdini as Houdini
+            from . import nim_houdini as Houdini
             Houdini.get_vars( nim=self.nim )
             Houdini.get_vars( nim=self.nimPrefs )
             pass
@@ -1937,7 +1938,7 @@ class GUI(QtGui.QMainWindow) :
             return None
         
         # Get domain name from URL
-        from urlparse import urlparse
+        from urllib.parse import urlparse
         #parsed_uri = urlparse( self.prefs['NIM_URL'] )
         #updated to use global vars
         connect_info = Api.get_connect_info()
@@ -1970,9 +1971,9 @@ class GUI(QtGui.QMainWindow) :
                 myssl = ssl.create_default_context()
                 myssl.check_hostname=False
                 myssl.verify_mode=ssl.CERT_NONE
-                _data=urllib.urlopen( img_loc,context=myssl ).read()
+                _data=urllib.request.urlopen( img_loc,context=myssl ).read()
             except :
-                _data=urllib.urlopen( img_loc ).read()
+                _data=urllib.request.urlopen( img_loc ).read()
             
             if _data is not None :
                 try :
@@ -2362,9 +2363,9 @@ class GUI(QtGui.QMainWindow) :
             try :
                 import maya.cmds as mc
                 import maya.mel as mm
-                import nim_maya as M
+                from . import nim_maya as M
                 mc.file( filePath, force=True, open=True, ignoreVersion=True, prompt=False )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2381,9 +2382,9 @@ class GUI(QtGui.QMainWindow) :
             
             #  Set Variables :
             try :
-                import nim_maya as M
+                from . import nim_maya as M
                 M.set_vars( nim=self.nim )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed adding NIM attributes to Project Settings node...' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2393,7 +2394,7 @@ class GUI(QtGui.QMainWindow) :
             #  Open :
             try :
                 import nuke
-                import nim_nuke as N
+                from . import nim_nuke as N
                 #  Attempt to get Variables from the current file :
                 nimCheck=Nim.NIM()
                 N.get_vars( nim=nimCheck )
@@ -2431,16 +2432,16 @@ class GUI(QtGui.QMainWindow) :
                 PS=nuke.root()
                 knob=PS.knob('name')
                 knob.setValue( filePath.replace( '\\', '/' ) )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
             
             #  Set Variables :
             try :
-                import nim_nuke as N
+                from . import nim_nuke as N
                 N.set_vars( nim=self.nim )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed adding NIM attributes to Project Settings node...' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2450,7 +2451,7 @@ class GUI(QtGui.QMainWindow) :
             try :
                 import hiero.core
                 hiero.core.openProject( filePath )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2462,9 +2463,9 @@ class GUI(QtGui.QMainWindow) :
                 import MaxPlus
                 mpFM = MaxPlus.FileManager
                 mpPM = MaxPlus.PathManager
-                import nim_3dsmax as Max
+                from . import nim_3dsmax as Max
                 mpFM.Open(filePath)
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2481,9 +2482,9 @@ class GUI(QtGui.QMainWindow) :
             
             #  Set Variables :
             try :
-                import nim_3dsmax as Max
+                from . import nim_3dsmax as Max
                 Max.set_vars( nim=self.nim )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed adding NIM attributes to Project Settings node...' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2493,7 +2494,7 @@ class GUI(QtGui.QMainWindow) :
             #  Open :
             try :
                 import hou
-                import nim_houdini as Houdini
+                from . import nim_houdini as Houdini
                 #TODO: check for unsaved file change RuntimeError
                 #if hou.hipFile.hasUnsavedChanges():
                 #    raise RuntimeError
@@ -2501,7 +2502,7 @@ class GUI(QtGui.QMainWindow) :
                 P.error('Loading file in UI-2451')
                 filePath=filePath.replace( '\\', '/' )
                 hou.hipFile.load(file_name=str(filePath))
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2522,9 +2523,9 @@ class GUI(QtGui.QMainWindow) :
             
             #  Set Variables :
             try :
-                import nim_houdini as Houdini
+                from . import nim_houdini as Houdini
                 Houdini.set_vars( nim=self.nim )
-            except Exception, e :
+            except Exception as e :
                 P.error( 'Failed adding NIM attributes to Project Settings node...' )
                 P.debug( '    %s' % traceback.print_exc() )
                 return False
@@ -2832,11 +2833,11 @@ class GUI(QtGui.QMainWindow) :
                     knob=PS.knob('name')
                     knob.setValue( ver_filePath.replace( '\\', '/' ) )
                 elif self.nim.app().lower()=='c4d' :
-                    print ver_filePath
-                    print 'No Open protocal defined yet'
+                    print(ver_filePath)
+                    print('No Open protocal defined yet')
                 elif self.nim.app().lower()=='hiero' :
-                    print ver_filePath
-                    print 'No Open protocal defined yet'
+                    print(ver_filePath)
+                    print('No Open protocal defined yet')
                 if self.nim.app().lower()=='3dsmax' :
                     P.info( 'Publishing Step #5 - Opening work file...\n    %s' % ver_filePath )
                     import MaxPlus
@@ -2858,13 +2859,13 @@ class GUI(QtGui.QMainWindow) :
                 import nim_maya as M
                 M.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='nuke' :
-                import nim_nuke as N
+                from . import nim_nuke as N
                 N.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='3dsmax' :
-                import nim_3dsmax as Max
+                from . import nim_3dsmax as Max
                 Max.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='houdini' :
-                import nim_houdini as Houdini
+                from . import nim_houdini as Houdini
                 Houdini.set_vars( nim=self.nim )
             
             #  Close window upon completion :
@@ -2944,7 +2945,7 @@ class GUI(QtGui.QMainWindow) :
                 P.info("File Referenced")
             else:
                 P.error("Filepath: %s" % filePath)
-                print value.Get()
+                print(value.Get())
             pass
 
         #  Close window upon completion :

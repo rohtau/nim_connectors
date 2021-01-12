@@ -12,9 +12,11 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+#rohtau v0.1, python3 port
+
 
 #  NIM Imports :
-import nim_prefs as Prefs
+from . import nim_prefs as Prefs
 
 
 def debug( msg='' ) :
@@ -35,9 +37,9 @@ def debug( msg='' ) :
     if debug =='True' and msg :
         tokens=msg.rstrip().split( '\n' )
         for toke in tokens :
-            print 'NIM.D-bug ~> %s' % toke
+            print('NIM.D-bug ~> %s' % toke)
         if msg[-1:]=='\n' :
-            print 'NIM.D-bug ~>'
+            print('NIM.D-bug ~>')
     return
 
 
@@ -45,9 +47,9 @@ def info( msg='' ) :
     'Custom info printer'
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
-        print 'NIM ~> %s' % toke
+        print('NIM ~> %s' % toke)
     if msg[-1:]=='\n' :
-        print 'NIM ~>'
+        print('NIM ~>')
     return
 
 
@@ -55,9 +57,9 @@ def log( msg='' ) :
     'Custom info logger'
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
-        print 'NIM.Log ~> %s' % toke
+        print('NIM.Log ~> %s' % toke)
     if msg[-1:]=='\n' :
-        print 'NIM.Log ~>'
+        print('NIM.Log ~>')
     return
 
 
@@ -65,9 +67,9 @@ def warning( msg='' ) :
     'Custom warning printer'
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
-        print 'NIM.Warning ~> %s' % toke
+        print('NIM.Warning ~> %s' % toke)
     if msg[-1:]=='\n' :
-        print 'NIM.Warning ~>'
+        print('NIM.Warning ~>')
     return
 
 
@@ -76,11 +78,11 @@ def error( msg='' ) :
     if msg :
         tokens=msg.rstrip().split( '\n' )
         for toke in tokens :
-            print 'NIM.Error ~> %s' % toke
+            print('NIM.Error ~> %s' % toke)
         if msg[-1:]=='\n' :
-            print 'NIM.Error ~>'
+            print('NIM.Error ~>')
     else : 
-        print 'NIM.Error ~> An error was logged but no message was received.'
+        print('NIM.Error ~> An error was logged but no message was received.')
     return
 
 

@@ -12,11 +12,13 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+# rohtau v0.1, python 3 port
+
 import ntpath, os, traceback
-import nim_api as Api
-import nim_file as F
-import nim_prefs as Prefs
-import nim_print as P
+from . import nim_api as Api
+from . import nim_file as F
+from . import nim_prefs as Prefs
+from . import nim_print as P
 
 
 class NIM( object ) :
@@ -61,7 +63,7 @@ class NIM( object ) :
         #  Attempt to set User information :
         self.nim['user']={'name': '', 'ID': '' }
         if self.prefs :
-            if 'NIM_User' in self.prefs.keys() :
+            if 'NIM_User' in list(self.prefs.keys()) :
                 self.nim['user']['name']=self.prefs['NIM_User']
                 if self.nim['user']['name'] :
                     self.nim['user']['ID']=Api.get_userID( user=self.nim['user']['name'] )
@@ -149,12 +151,12 @@ class NIM( object ) :
         'Clears the dictionary of a given element'
         label, pic='', ''
         
-        if elem in ['asset', 'shot'] and elem in self.nim.keys() :
-            if 'img_pix' in self.nim[elem].keys() :
+        if elem in ['asset', 'shot'] and elem in list(self.nim.keys()) :
+            if 'img_pix' in list(self.nim[elem].keys()) :
                 pic=self.nim[elem]['img_pix']
-            if 'img_label' in self.nim[elem].keys() :
+            if 'img_label' in list(self.nim[elem].keys()) :
                 label=self.nim[elem]['img_label']
-        if elem in self.nim.keys() and 'input' in self.nim[elem].keys() and self.nim[elem]['input'] :
+        if elem in list(self.nim.keys()) and 'input' in list(self.nim[elem].keys()) and self.nim[elem]['input'] :
             #  Preserve job dictionary, if it exists :
             if elem=='job' and len(self.nim[elem]['Dict']) :
                 self.nim[elem]={'name': '', 'ID': None, 'Dict': self.nim[elem]['input'], \
@@ -164,7 +166,7 @@ class NIM( object ) :
         else :
             self.nim[elem]={'name': '', 'ID': None, 'Dict': {}, 'input': None, 'inputID': None}
         #  Re-set image pixmap and label :
-        if elem in ['asset', 'shot'] and elem in self.nim.keys() :
+        if elem in ['asset', 'shot'] and elem in list(self.nim.keys()) :
             if pic : self.nim[elem]['img_pix']=pic
             if label : self.nim[elem]['img_label']=label
         #  Add Task folder :
@@ -720,4 +722,3 @@ class NIM( object ) :
 
 
 #  END
-

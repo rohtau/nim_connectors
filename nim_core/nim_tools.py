@@ -11,6 +11,9 @@
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
+
+# rohtau v01, python 3 port
+
 import os
 
 qt_import=True
@@ -27,8 +30,8 @@ except :
             # print "NIM: Failed to load UI Modules - Tools"
             qt_import=False
 
-import nim_print
-import nim_win
+from . import nim_print
+from . import nim_win
 
 #This part of the scripts checks the output path and if it doesn't exist it creates it for you
 def CheckOutputPath():
