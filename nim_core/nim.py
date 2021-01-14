@@ -417,6 +417,7 @@ class NIM( object ) :
 
 
         #  Comp Path :
+        pathInfo=""
         if self.tab()=='SHOT' and self.ID('shot') :
             pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(self.ID('shot'))} )
         elif self.tab()=='ASSET' and self.ID('asset') :
