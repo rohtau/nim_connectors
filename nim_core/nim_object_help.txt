@@ -1,0 +1,166 @@
+
+Help on NIM in module nim_core.nim object:
+
+class NIM(__builtin__.object)
+ |  Methods defined here:
+ |  
+ |  Dict(self, elem='job')
+ |      Gets the dictionary associated with a given element
+ |  
+ |  ID(self, elem='job')
+ |      Returns the item ID of the specified element
+ |  
+ |  Input(self, elem='job')
+ |      Retrieves the input widget for a given element
+ |  
+ |  Print(self, indent=4, debug=False)
+ |      Prints the NIM dictionary
+ |  
+ |  __init__(self)
+ |      Initializes the NIM attributes
+ |  
+ |  app(self)
+ |      Returns the application that NIM is running from
+ |  
+ |  clear(self, elem='job')
+ |      Clears the dictionary of a given element
+ |  
+ |  compPath(self)
+ |      Returns the comp directory path
+ |  
+ |  fileDir(self)
+ |      Returns the file directory
+ |  
+ |  fileName(self)
+ |      Returns the file name
+ |  
+ |  filePath(self)
+ |      Returns the file path
+ |  
+ |  fileType(self)
+ |      Returns the file extension setting
+ |  
+ |  get_comboBoxes(self)
+ |      Returns the list of GUI combo box elements
+ |  
+ |  get_elemList(self)
+ |      Returns the list of valid GUI elements
+ |  
+ |  get_listViews(self)
+ |      Returns the list of GUI list view elements
+ |  
+ |  get_nim(self)
+ |      Returns the current NIM dictionary
+ |  
+ |  get_printElem(self, elem='job')
+ |      Gets the printable name for a given element
+ |  
+ |  get_printElemList(self)
+ |      Returns the list of printable GUI element names
+ |  
+ |  ingest_filePath(self, filePath='', pub=False)
+ |      Sets NIM dictionary from current file path
+ |  
+ |  ingest_prefs(self)
+ |      Sets NIM dictionary from preferences
+ |  
+ |  label(self, elem='asset')
+ |      Retrieves the label that a pixmap is assigned to, for a given element (only assets and shots)
+ |  
+ |  menuID(self, elem='job')
+ |      Returns the dictionary of menu IDs.
+ |  
+ |  mode(self)
+ |      Gets the mode of the window
+ |  
+ |  name(self, elem='job')
+ |      Gets the name of the item that an element is set to
+ |  
+ |  pix(self, elem='asset')
+ |      Retrieves the pixmap image associated with an element (only assets and shots)
+ |  
+ |  pub(self)
+ |      Gets the state of the publishing checkbox
+ |  
+ |  server(self, get='')
+ |      Gets server information
+ |  
+ |  set_ID(self, elem='job', ID=None)
+ |      Sets the ID of the selected element item
+ |  
+ |  set_baseDict(self, Dict={})
+ |      Sets the basename dictionary directly.
+ |  
+ |  set_compPath(self, compPath='')
+ |      Sets the comp directory path for the project
+ |  
+ |  set_dict(self, elem='job', pub=False)
+ |      Sets the dictionary for a given element
+ |  
+ |  set_filePath(self)
+ |      Sets the file path
+ |  
+ |  set_fileType(self, fileType='Maya Binary')
+ |      Sets the current file type the window is set to
+ |  
+ |  set_input(self, elem='job', widget=None)
+ |      Sets the input widget for a given element
+ |  
+ |  set_label(self, elem='asset', widget=None)
+ |      Sets the label, to apply a pixmap image to, for a given element (only assets and shots)
+ |  
+ |  set_menuID(self, elem='job', Dict={})
+ |  
+ |  set_mode(self, mode='FILE')
+ |      Sets the current mode that the window is in
+ |  
+ |  set_name(self, elem='job', name=None)
+ |      Sets the name of the selected element item
+ |  
+ |  set_pic(self, elem='asset', widget=None)
+ |      Sets the pixmap image for a given element (only assets and shots)
+ |  
+ |  set_pub(self, pub=False)
+ |      Sets the publishing state
+ |  
+ |  set_server(self, _input=None, name=None, path=None, Dict=None, ID=None)
+ |      Sets the server path in NIM
+ |  
+ |  set_tab(self, _type='SHOT')
+ |      Sets whether tab is set to "SHOT", or "ASSET"
+ |  
+ |  set_taskFolder(self, folder='')
+ |      Sets the Task Folder.
+ |  
+ |  set_user(self, userName='')
+ |      Sets the User Name
+ |  
+ |  set_userID(self, userID='')
+ |      Sets the User ID
+ |  
+ |  set_userInfo(self, userName='', userID='')
+ |      Sets the User Name and ID
+ |  
+ |  set_version(self, version='')
+ |      Sets the file version number
+ |  
+ |  tab(self)
+ |      Retrieves whether the tab is set to "SHOT", or "ASSET"
+ |  
+ |  taskFolder(self)
+ |      Returns the current task folder.
+ |  
+ |  userInfo(self)
+ |      Gets the user information - user name and ID
+ |  
+ |  version(self)
+ |      Returns the file version number
+ |  
+ |  ----------------------------------------------------------------------
+ |  Data descriptors defined here:
+ |  
+ |  __dict__
+ |      dictionary for instance variables (if defined)
+ |  
+ |  __weakref__
+ |      list of weak references to the object (if defined)

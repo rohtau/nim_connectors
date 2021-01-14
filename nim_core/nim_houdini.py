@@ -12,12 +12,14 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+# rohtau v0.2
 
 #  General Imports :
 import os, sys, traceback
 import nim as Nim
 import nim_file as F
 import nim_print as P
+import nim_api as Api
 #  Houdini Imports :
 import hou
 #  Import Python GUI packages :
@@ -37,10 +39,19 @@ def get_mainWin() :
     #return maxWin
     return True
 
-def set_vars( nim=None ) :
+# def set_vars( nim=None ) :
+def set_vars( nim ) :
     'Add variables to Houdini Globals'
     
     P.info( '\nHoudini - Setting Globals variables...' )
+
+    if nim is None:
+        raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publing information into hip file")
+
+    # help(nim)
+    # print("================================")
+    # from pprint import pprint
+    # pprint(nim.get_nim())
 
     #  User :
     userInfo=nim.userInfo()
@@ -74,10 +85,194 @@ def set_vars( nim=None ) :
     h_root.setUserData("nim_typeFolder", str(nim.taskFolder())) 
     h_root.setUserData("nim_tag", str(nim.name('tag'))) 
     h_root.setUserData("nim_fileType", str(nim.fileType())) 
-    P.info("Root attributes added")
+    h_root.setUserData("nim_jobPath", str(nim.jobPath())) 
+    h_root.setUserData("nim_shotPath", str(nim.shotPath())) 
+    h_root.setUserData("nim_renderPath", str(nim.renderPath())) 
+    h_root.setUserData("nim_compPath", str(nim.compPath())) 
+    h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
+    h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
+    # Try to find a valid task for the task type and user in the shot/asset
+    tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    taskfound = False
+    for task in tasks:
+        if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(userInfo['ID']):
+            # print("Found task %d!"%int(task['taskID']))
+            # print(task)
+            h_root.setUserData("nim_task", str(task['taskName']))
+            h_root.setUserData("nim_taskID", str(task['taskID'])) 
+            taskfound = True
+            break
+    if not taskfound and hou.isUIAvailable():
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
+        h_root.setUserData("nim_task", '')
+        h_root.setUserData("nim_taskID", '0') 
+
+    
+    P.info("Publishing information added to HIP")
+
+    # Set env vars used by nodes:
+    hou.putenv( 'SHOW', h_root.userData('nim_jobName'))
+    hou.putenv( 'SHOT', h_root.userData('nim_name'))
+    hou.putenv( 'SHOWPATH', h_root.userData('nim_jobPath'))
+    hou.putenv( 'SHOTPATH', h_root.userData('nim_shotPath'))
+    hou.putenv( 'SHOTRENDERSPATH', h_root.userData('nim_renderPath'))
+    hou.putenv( 'SHOTCOMPSPATH', h_root.userData('nim_compPath'))
+    hou.putenv( 'SHOTPLATESPATH', h_root.userData('nim_platesPath'))
+    hou.putenv( 'TASK', h_root.userData('nim_task'))
+
+    P.info("Session env vars updated with Publishing data")
 
     return
+
+def dump_vars( ):
+    from pprint import pformat
     
+    dump = "HIP file Publishing data from NIM:\n"
+    dump += pformat( hou.node('/').userDataDict(), indent=2, depth=4 )
+    dump += "\n\n Session environment variables:\n"
+    sessionvars = ('SHOW', 'SHOT', 'SHOWPATH', 'SHOTPATH', 'SHOTRENDERSPATH', 'SHOTCOMPSPATH', 'SHOTPLATESPATH', 'TASK')
+    # sessionvarssrc = ('nim_jobName', 'nim_name', 'nim_jobPath', 'nim_shotPath', 'nim_renderPath', 'nim_compPath', 'nim_platesPath', 'nim_task')
+    for var in sessionvars:
+        dump += "%s %s %s\n"%(var, "=>".rjust(25), hou.getenv(var))
+    
+    title = "NIM Publish info for: %s"%hou.expandString('HIPFILE')
+    if hou.isUIAvailable():
+        ret = hou.ui.displayMessage( dump, title=title, buttons=('OK','Check Publish Info'), close_choice=0 )
+        if ret == 1:
+            # Call check data
+            check_vars()
+    else:
+        print( title )
+        print( dump )
+        print( '####################' )
+            
+    
+    return True
+    
+def check_vars():
+    'Check current nim dict in hip file agains the publish data returned by NIM'
+
+    #  Get API values from file name :
+    nimpubdata=Nim.NIM().ingest_filePath( hou.hipFile.name() )
+    if nimpubdata is None:
+        hou.ui.displayMessage('Error gathering publish info from File Name', title='Publishing error', severity=hou.severityType.Error)
+    # print("Nim Pub Data")
+    # from pprint import pprint
+    # pprint( nimpubdata.get_nim(), indent=4)
+
+    # Get hip NIM data
+    nimhipdata = hou.node('/').userDataDict()
+    #  User :
+    userInfo=nimpubdata.userInfo()
+
+    errors = ""
+    iserror = False
+    entityIsCorrect = True
+
+    # Job
+    if nimpubdata.name('job') != nimhipdata['nim_jobName'] or nimpubdata.ID('job') != nimhipdata['nim_jobID']:
+        errors += "Job information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('job'), nimpubdata.ID('job'), nimhipdata['nim_jobName'], nimhipdata['nim_jobID'])
+        iserror = True
+    # Job path
+    nimpubjobpath  = os.path.normpath(os.path.join(os.path.normpath(nimpubdata.name('server')), nimpubdata.name('job').split()[0]))
+    # nimpubjobpath = nimpubdata.name('server') + '/' + nimpubdata.name('job').split()[0]
+    if nimpubjobpath != nimhipdata['nim_jobPath']:
+        errors += "Job Path information doesn't match. NIM data %s -> HIP data %s\n"%(nimpubjobpath, nimhipdata['nim_jobPath'])
+        iserror = True
+    # Show
+    if nimpubdata.name('show') != nimhipdata['nim_showName'] or nimpubdata.ID('show') != nimhipdata['nim_showID']:
+        errors += "Show/Seq information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('show'), nimpubdata.ID('show'), nimhipdata['nim_showName'], nimhipdata['nim_showID'])
+        iserror = True
+    # Shot/Asset
+    if (len(nimpubdata.name('asset')) > 0) !=  (len(nimhipdata['nim_asset']) > 0):
+        errors += "Publish data mismatch for entity type, one is set as asset and the other not\n"
+        iserror = True
+        entityIsCorrect = False
+    if (len(nimpubdata.name('shot')) > 0) !=  (len(nimhipdata['nim_shot']) > 0):
+        errors += "Publish data mismatch for entity type, one is set as shot and the other not\n"
+        iserror = True
+        entityIsCorrect = False
+    if entityIsCorrect:
+        if nimhipdata['nim_asset']:
+            # Asset
+            if nimpubdata.name('asset') != nimhipdata['nim_asset'] or nimpubdata.ID('asset') != nimhipdata['nim_assetID']:
+                errors += "Asset information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('asset'), nimpubdata.ID('asset'), nimhipdata['nim_asset'], nimhipdata['nim_assetID'])
+                iserror = True
+        elif nimhipdata['nim_shot']:
+            # Shot
+            if nimpubdata.name('shot') != nimhipdata['nim_shot'] or nimpubdata.ID('shot') != nimhipdata['nim_shotID']:
+                errors += "Shot information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('shot'), nimpubdata.ID('shot'), nimhipdata['nim_shot'], nimhipdata['nim_shotID'])
+                iserror = True
+        else:
+            errors += "HIP Publish data doesn't have information about asset or shot\n"
+            iserror = True
+    # TODO: shotPath, platesPath, compsPath, rendersPath
+    # Task
+    if nimpubdata.name('task') != nimhipdata['nim_type'] or nimpubdata.ID('task') != nimhipdata['nim_typeID']:
+        errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('task'), nimpubdata.ID('task'), nimhipdata['nim_type'], nimhipdata['nim_typeID'])
+        iserror = True
+    # Try to find a valid task for the task type and user in the shot/asset
+    tasks = Api.get_taskInfo( itemClass=nimpubdata.get_nim()['class'].lower(), itemID=int(nimpubdata.ID('shot')) if nimpubdata.get_nim()['class'] == 'SHOT' else int(nimpubdata.ID('asset')))
+    taskfound = False
+    for task in tasks:
+        if task['typeID'] == nimpubdata.ID('task') and task['userID'] == str(nimpubdata.ID('user')):
+            print("Found task %d!"%int(task['taskID']))
+            if 'nim_taskID' not in nimhipdata:
+                errors += "HIP data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimpubdata.name('task')
+                iserror = True
+            elif (task(['taskID']) != nimhipdata['nim_taskID']) or (task(['taskName']) != nimhipdata['nim_task']):
+                errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(task['taskName'], task['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
+                iserror = True
+            taskfound = True
+            break
+    if not taskfound and hou.isUIAvailable():
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nimpubdata.name('task'), userInfo['name'], nimpubdata.name('shot')), severity= hou.severityType.Warning)
+    # Version
+    if nimpubdata.ID('ver') != nimhipdata['nim_fileID']:
+        errors += "File version ID information doesn't match. NIM data %s -> HIP data %s\n"%( nimpubdata.ID('ver'),  nimhipdata['nim_fileID'])
+        iserror = True
+    
+
+
+    if iserror:
+        if hou.isUIAvailable():
+            ret = hou.ui.displayMessage( "Some HIP file publish data failed tests against NIM online publish data:", title='Check HIP Publish Info',\
+                buttons= ('OK', 'Reset Publish Data'), default_choice=0, close_choice=0, details=errors, details_label='Failed Publish Data',\
+                    severity= hou.severityType.Error)
+            if ret == 1:
+                reset_vars( confirm=False )
+        else:
+            print("Some HIP file publish data failed tests against NIM online publish data:")
+            print (errors)
+
+    else:
+        if hou.isUIAvailable():
+            hou.ui.displayMessage( "HIP publish data correct", title='Check HIP Publishing data' )
+        else:
+            print("HIP publish data correct")
+
+    return True
+
+def reset_vars( confirm=True ):
+
+    if confirm:
+        msg = "Do you want to reset scene's publishing data?"
+        helpmsg = "Publish information will be worked out using file name and path"
+        title = "Reset Scene Publishing Data"
+        if not hou.ui.displayConfirmation( msg, severity=hou.severityType.Warning, help=helpmsg, title=title):
+            return
+    #  Get API values from file name :
+    nimpubdata=Nim.NIM().ingest_filePath( hou.hipFile.name() )
+    if nimpubdata is None:
+        hou.ui.displayMessage('Error gathering publish info from File Name', title='Publishing error', severity=hou.severityType.Error)
+        return False
+
+    set_vars( nimpubdata )
+
+    if hou.isUIAvailable():
+        hou.ui.setStatusMessage( "HIP file publish data updated ", severity= hou.severityType.ImportantMessage)
+
+    return True
 
 def get_vars( nim=None ) :
     'Gets NIM settings from the root node in Houdini.'
@@ -289,6 +484,18 @@ def get_vars( nim=None ) :
 
     
     #  File ID :
+    nim_fileID = h_root.userData("nim_fileID")
+    if nim_fileID is not None:
+        nim.set_ID( elem='file', ID=nim_fileID )
+        P.info('Reading nim_fileID')
+    else:
+        P.error('Failed reading nim_fileID')
+    '''
+    if mc.objExists( 'defaultRenderGlobals.nim_assetID' ) :
+        value=mc.getAttr( 'defaultRenderGlobals.nim_assetID' )
+        P.debug( 'Asset ID = %s' % value )
+        nim.set_ID( elem='asset', ID=value )
+    '''
     '''
     if mc.attributeQuery( 'defaultRenderGlobals.nim_fileID' ) :
         value=mc.attributeQuery( 'nim_fileID', node='defaultRenderGlobals' )
@@ -555,4 +762,3 @@ def mk_proj( path='', renPath='' ) :
 
 
 #  End
-

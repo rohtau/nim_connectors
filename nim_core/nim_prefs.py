@@ -12,6 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
+# rohtau v0.2
 
 #  General Imports :
 import os, sys, re, traceback
@@ -48,7 +49,7 @@ prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
 version='v4.0.61'
 winTitle='NIM_'+version
-nim_URL='http://hostname/nimAPI.php'
+nim_URL='http://nim.rohtau.com/nimAPI.php'
 nim_useSLL='False'
 nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir))
 nim_user, nim_userID='', ''
@@ -498,6 +499,7 @@ def read() :
     'Reads and stores preferences'
 
     #P.info('nim_prefs.read')
+    # TODO: detect if we are in a Rez environment, in that case init job and shot according
 
     prefsFile=get_path()
     _prefs={}
