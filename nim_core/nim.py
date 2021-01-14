@@ -15,6 +15,9 @@
 # rohtau v0.2, python 3 port
 
 import ntpath, os, traceback
+from sys import path
+from pprint import pprint
+
 from . import nim_api as Api
 from . import nim_file as F
 from . import nim_prefs as Prefs
@@ -232,15 +235,17 @@ class NIM( object ) :
         #  Get and set jobs dictionary :
         
         jobsfolders=Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
+        jobsfolders={ key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
         jobs=Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
+        jobs={ key.decode():value.decode() for (key,value) in jobs.items()}
         # jobsfolders = {'barcelona_20-0006 _ barcelona_20-0006': '11', 'gousto_20001 _ gousto_20001': '16', 'exodus_20007 _ <job_number>': '23'}
         # jobsfolder = { jobnumber _ jobfolder : ID}
         # jobs = {'gousto_20001 Gousto': '16', 'barcelona_20-0006 Barcelona': '11', 'exodus_20007 Plant Centre': '23'}
         # jobs = { jobnumber jobname : ID }
-        # print("Jobs:")
-        # print(jobs)
-        # print("Jobs Folders:")
-        # print(jobsfolders)
+        print("Jobs:")
+        print(jobs)
+        print("Jobs Folders:")
+        print(jobsfolders)
         #P.info('ingest_filePath')
         self.set_dict('job')
         
@@ -276,7 +281,7 @@ class NIM( object ) :
                 for job in jobsfolders :
                     jobfolder = job.split()[2].strip()
                     jobnumber = job.split()[0].strip()
-                    # print("Comparing job name: %s,  with path token: %s"%(jobfolder, tok))
+                    print("Comparing job name: %s,  with path token: %s"%(jobfolder, tok))
                     '''
                     if tok==job:
                         self.set_name( elem='job', name=job )
@@ -287,6 +292,7 @@ class NIM( object ) :
                         break
                     '''
                     if tok==jobfolder :
+                        print("Set job from path")
                         self.set_ID( elem='job', ID=jobsfolders[job] )
                         for jobfullname in jobs:
                             if jobs[jobfullname] == jobsfolders[job]:
@@ -327,6 +333,9 @@ class NIM( object ) :
                                 self.set_dict('shot')
                                 break
                 #  Find Shot, once Show is found :
+                # TODO: this function only support the name convention for DCC apps files. is expecting to 
+                # find the task folder after the shot/asset folder. But for published elements we will find "elements folder"
+                # Implement these elements folders
                 if showFound and not taskFound :
                     if not shotFound :
                         for shot in self.Dict('shot') :
@@ -339,6 +348,7 @@ class NIM( object ) :
                                     self.set_name( elem='filter', name='Published' )
                                 else :
                                     self.set_name( elem='filter', name='Work' )
+                                # pprint(self.get_nim())
                                 self.set_dict('task')
                                 break
                 if assetFound or showFound :
@@ -359,7 +369,7 @@ class NIM( object ) :
                                 self.set_ID( elem='task', ID=task['ID'] )
                                 self.set_taskFolder(task['folder'])
                                 taskFound=True
-                                # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
                                 # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
                                 #  Get Basenames :
                                 if taskFound and assetFound==True :
