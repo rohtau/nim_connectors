@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.1, python 3 port
+# rohtau v0.2, python 3 port
 
 
 # EXAMPLE:
@@ -36,6 +36,7 @@
 
 #  General Imports :
 import json, os, re, sys, traceback
+from pprint import pformat
 import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 try :
     import ssl
@@ -2104,6 +2105,19 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     user, job, asset, show, shot, basename, task='', '', '', '', '', '', ''
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
+
+    # print("Passed NIM:")
+    # print("================================")
+    # print(nim)
+    # import pprint
+    # import json
+    # with open('C:\\tmp\\nim_dict.json', 'w') as fp:
+        # json.dump(nim.get_nim(), fp)
+    # pp = pprint.PrettyPrinter(indent=2)    
+    # output = pp.pformat( nim.get_nim() )
+    # with open('C:\\tmp\\nim_dict.py', 'w') as fp:
+        # fp.write( output )
+    # pp.pprint(nim.get_nim())
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2156,6 +2170,14 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         int(nim.ID('asset'))
         assetCheck=True
     except : pass
+
+    # print("================================")
+    # print("Target NIM settings")
+    # print(nim)
+    # import pprint
+    # pp = pprint.PrettyPrinter(indent=2)    
+    # pp.pprint(nim.get_nim())
+
     if not shotCheck and not assetCheck :
         msg='Sorry, unable to retrieve Shot/Asset IDs from the current file.'
         if not win_launch :
@@ -2170,13 +2192,15 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  [AS] returning nim object from verUp to update if loading exported file
     verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink )
     filePath = verUpResult['filepath']
+    projPath = verUpResult['projpath']
     verUpNim = verUpResult['nim']
     P.info('Filepath: %s' % filePath)
     P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
     #  [AS] END
     
     #  Add file to API :
-    if filePath and os.path.isfile( filePath ) :
+    # if filePath and os.path.isfile( filePath ) :
+    if verUpResult:
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
         if result_addFile :
             action=''
@@ -2186,6 +2210,10 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                 action='Saved'
             elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
                 action='Versioned Up'
+            # Update nim dictionary with version info from API
+            nim.set_ID('ver', result_addFile)
+
+            
             P.info( 'File has been %s successfully.\n' % action )
             if not pub :
                 if nim.mode().lower() in ['save', 'saveas'] :
@@ -2356,6 +2384,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             P.error( '    %s' % traceback.print_exc() )
                             return False
             
+            # Update host app vars to keep NIM data consistent and actually save files and create dirs
+            # Pass empty string for projpath to avoid creating projects paths.
+            if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
+                return False
+             
             return filePath
     
     #  If not successful, fail :
@@ -2463,12 +2496,12 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'api.add_file function needs to be given either a shot, or asset, ID number...  Exiting.' )
         return False
     if not nim.name( 'comment' ) :
-        nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1 ) )
+        nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
             P.warning( '\nNo comment entered.  Tsk, tsk...\n' )
-    
+
     #  Get Asset information :
-    if nim.ID( 'asset' ) and nim.ID( 'asset' ) != 'None' :
+    if nim.ID( 'asset' ) and nim.ID( 'asset' ) != 'None' and nim.ID('asset') != '0' :
         P.info('Retrieving Asset Information')
         assetInfo=get( {'q': 'getAssetInfo', 'ID': nim.ID( 'asset' )} )
         basenameInfo=get( {'q':'getBasenameVersion', 'class':'ASSET', \
@@ -2488,7 +2521,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         assetName=assetInfo[0]['assetName']
     
     #  Get Shot information :
-    elif nim.ID( 'shot' ) and nim.ID( 'shot' ) != 'None' :
+    elif nim.ID( 'shot' ) and nim.ID( 'shot' ) != 'None' and nim.ID('shot') != '0' :
         P.info('Retrieving Shot Information')
         shotInfo=get( {'q': 'getShotInfo', 'ID':nim.ID( 'shot' )} )
         basenameInfo=get( {'q': 'getBasenameVersion', 'class': 'SHOT', \
@@ -2546,6 +2579,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
                 'userID': str(usrID), 'basename': fileBase, 'filename': os.path.basename(filePath),
                 'filepath': fileDir, 'ext': ext, 'version': str(ver), 'note': nim.name( 'comment' ),
                 'serverID': str(nim.server( get='ID' )), 'isPub': 1, 'isWork': 0} )
+
     if  not result :
         P.error( 'File saved, but there was a problem writing to the NIM database.' )
         P.error( '    Database has not been populated with your file.' )
@@ -2555,7 +2589,8 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.info( 'NIM API updated with new file.' )
         P.info( '      File ID = %s' % result )
     
-    return True
+    # return True
+    return result['ID']
 
 def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID=0, basename='', filename='', \
     path='', ext='', version='', comment='', serverID=0, pub=False, forceLink=1, work=True, metadata=None, customKeys=None ) :

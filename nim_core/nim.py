@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.1, python 3 port
+# rohtau v0.2, python 3 port
 
 import ntpath, os, traceback
 from . import nim_api as Api
@@ -47,7 +47,9 @@ class NIM( object ) :
             self.nim[elem]['img_label']=''
         
         #  Set file attributes :
-        self.nim['file']={'path': '', 'filename': '', 'dir': '', 'basename': '', 'compPath': '', 'version': ''}
+        # self.nim['file']={'path': '', 'filename': '', 'dir': '', 'basename': '', 'compPath': '', 'version': ''}
+        # Add renderPath and platesPath
+        self.nim['file']={'path': '', 'filename': '', 'dir': '', 'basename': '', 'jobPath': '', 'shotPath': '', 'compPath': '', 'renderPath': '', 'platesPath': '', 'version': ''}
         self.set_filePath()
         
         #  Extra NIM attributes :
@@ -67,6 +69,9 @@ class NIM( object ) :
                 self.nim['user']['name']=self.prefs['NIM_User']
                 if self.nim['user']['name'] :
                     self.nim['user']['ID']=Api.get_userID( user=self.nim['user']['name'] )
+
+        # Publishing elements types:
+        self.nim['elements'] = Api.get_elementTypes()
         
         #  App Specific :
         if self.nim['app']=='C4D' :
@@ -226,7 +231,16 @@ class NIM( object ) :
         jobs, assets, shows, shots, tasks, basenames, version={}, {}, {}, {}, {}, {}, {}
         #  Get and set jobs dictionary :
         
-        jobs=Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
+        jobsfolders=Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
+        jobs=Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
+        # jobsfolders = {'barcelona_20-0006 _ barcelona_20-0006': '11', 'gousto_20001 _ gousto_20001': '16', 'exodus_20007 _ <job_number>': '23'}
+        # jobsfolder = { jobnumber _ jobfolder : ID}
+        # jobs = {'gousto_20001 Gousto': '16', 'barcelona_20-0006 Barcelona': '11', 'exodus_20007 Plant Centre': '23'}
+        # jobs = { jobnumber jobname : ID }
+        # print("Jobs:")
+        # print(jobs)
+        # print("Jobs Folders:")
+        # print(jobsfolders)
         #P.info('ingest_filePath')
         self.set_dict('job')
         
@@ -259,10 +273,25 @@ class NIM( object ) :
         #  Find Job :
         for tok in toks :
             if not jobFound :
-                for job in jobs :
-                    if tok==job :
+                for job in jobsfolders :
+                    jobfolder = job.split()[2].strip()
+                    jobnumber = job.split()[0].strip()
+                    # print("Comparing job name: %s,  with path token: %s"%(jobfolder, tok))
+                    '''
+                    if tok==job:
                         self.set_name( elem='job', name=job )
                         self.set_ID( elem='job', ID=jobs[job] )
+                        jobFound=True
+                        self.set_dict('asset')
+                        self.set_dict('show')
+                        break
+                    '''
+                    if tok==jobfolder :
+                        self.set_ID( elem='job', ID=jobsfolders[job] )
+                        for jobfullname in jobs:
+                            if jobs[jobfullname] == jobsfolders[job]:
+                                self.set_name( elem='job', name=jobfullname )
+                                
                         jobFound=True
                         self.set_dict('asset')
                         self.set_dict('show')
@@ -315,20 +344,33 @@ class NIM( object ) :
                 if assetFound or showFound :
                     if not taskFound :
                         for task in self.Dict('task') :
+                            # Tasks names will be matched agains full task name, shot task name or folder name.
+                            # This is for backwards compatibility with older shows.
+                            # The convention is to use the task short name as the task name in the path.
+                            # So short task name is need as the task path.
                             #  Substitute Task names, if necessary :
                             task_name=F.task_toAbbrev( task['name'] )
+                            folder_task = task['folder']
+                            if folder_task.count('/') > 0:
+                                folder_task = folder_task.split('/')[1]  # If folder task include a subfolder, like tasks/fx, then use fx
                             #  Try to find Tasks :
-                            if tok==task_name or tok==task['name'] :
+                            if tok==task_name or tok==task['name'] or tok == folder_task :
                                 self.set_name( elem='task', name=task['name'] )
                                 self.set_ID( elem='task', ID=task['ID'] )
+                                self.set_taskFolder(task['folder'])
                                 taskFound=True
+                                # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
                                 #  Get Basenames :
                                 if taskFound and assetFound==True :
                                     basenames=Api.get_bases( assetID=self.ID( 'asset' ), \
                                         task=self.name( 'task' ).upper() )
                                 elif taskFound and shotFound==True :
-                                    basenames=Api.get_bases( shotID=self.ID( 'shot' ), \
-                                        task=self.name( 'task' ).upper() )
+                                    # basenames=Api.get_bases( shotID=self.ID( 'shot' ), \
+                                        # task=self.name( 'task' ).upper() )
+                                    basenames=Api.get_bases( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ),\
+                                        task=self.name( 'task' ).upper(), taskID=self.ID('task') )
+                                self.set_dict('base')
                                 break
                     elif not basenameFound :
                         for basename in basenames :
@@ -341,7 +383,8 @@ class NIM( object ) :
                                 if assetFound==True :
                                     versions=Api.get_vers( assetID=self.ID( 'asset' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
                                 if shotFound==True :
-                                    versions=Api.get_vers( shotID=self.ID( 'shot' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
+                                    versions=Api.get_vers( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
+                                self.set_dict('ver')
                                 break
                     elif not versionFound :
                         for version in versions :
@@ -349,18 +392,61 @@ class NIM( object ) :
                             ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
                             if tok==version['filename'] or tok==ver_abbrev :
-                                self.set_name( elem='ver', name=version['filename'] )
+                                # self.set_name( elem='ver', name=version['filename'] )
+                                self.set_name( elem='ver', name=version['version'] )
                                 self.set_ID( elem='ver', ID=version['fileID'] )
+                                self.set_version( version['version'])
+                                self.get_nim()['file']['basename'] = version['basename']
+                                self.get_nim()['file']['filename'] = version['filename']
+                                # Extract user info from file version:
+                                self.set_name( elem='user', name=version['username'])
+                                self.set_ID( elem='user', ID=version['userID'])
                                 versionFound=True
                                 break
         
         #  Derive Server :
         if self.name( 'job' ) :
-            self.set_name( elem='server', name=filePath.split( self.name( 'job' ) )[0] )
+            # self.set_name( elem='server', name=filePath.split( self.name( 'job' ).split()[0] )[0] )
+            server = Api.get_servers( self.ID())[0]
+            self.set_server(path=filePath.split( self.name( 'job' ).split()[0] )[0], name=server['server'], Dict=server, ID=server['ID'], _input=None )
+
         
         #  Derive file extension :
         if F.get_ext( filePath ) :
             self.set_name( elem='fileExt', name=F.get_ext( filePath ) )
+
+
+        #  Comp Path :
+        if self.tab()=='SHOT' and self.ID('shot') :
+            pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(self.ID('shot'))} )
+        elif self.tab()=='ASSET' and self.ID('asset') :
+            pathInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(self.ID('asset'))} )
+        if not pathInfo :
+            P.warning( 'No Path Information found in the NIM API!' )
+        else:
+            #  Set Comp Path :
+            if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
+                compPath=os.path.normpath( os.path.join( self.server(), pathInfo['comps'] ) )
+                self.set_compPath( compPath=compPath )
+            
+            #  Set Render Path :
+            if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
+                renderPath=os.path.normpath( os.path.join( self.server(), pathInfo['renders'] ) )
+                self.set_renderPath( renderPath=renderPath )
+
+            #  Set Plates Path :
+            if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
+                platesPath=os.path.normpath( os.path.join( self.server(), pathInfo['plates'] ) )
+                self.set_platesPath( platesPath=platesPath )
+
+            # Shot/Asset path
+            if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+                shotPath=os.path.normpath( os.path.join( self.server(), pathInfo['root'] ) )
+                self.set_shotPath( shotPath=shotPath )
+
+            jobnumber = str(self.name().split()[0])
+            jobpath = os.path.normpath(os.path.join(self.server(), jobnumber ))
+            self.set_jobPath( jobPath=jobpath )
         
         P.debug( 'Derived the following API information from filepath...' )
         P.debug( '    %s' % self.Print( debug=True ) )
@@ -424,6 +510,11 @@ class NIM( object ) :
     
     def name( self, elem='job' ) :
         'Gets the name of the item that an element is set to'
+        # if elem == 'job' and self.nim[elem]['name']:
+            # Job name is an exception since it is in the form of 'jobnumber jobshortname'. We only care about the first jobnumber.
+            # XXX:This can break the UI
+            # return self.nim[elem]['name'].split()[0]
+        # else:
         return self.nim[elem]['name']
     
     def menuID( self, elem='job' ) :
@@ -490,6 +581,30 @@ class NIM( object ) :
     def compPath(self) :
         'Returns the comp directory path'
         return self.nim['file']['compPath']
+    
+    # Added to support new renderPath and platesPath
+    def renderPath(self) :
+        'Returns the render directory path'
+        return self.nim['file']['renderPath']
+    
+    def platesPath(self) :
+        'Returns the plates directory path'
+        return self.nim['file']['platesPath']
+
+    # Add job and shot/asset path
+    def jobPath(self) :
+        'Returns the job root directory path'
+        return self.nim['file']['jobPath']
+    
+    def shotPath(self) :
+        'Returns the shot/asset directory path'
+        return self.nim['file']['shotPath']
+
+    # Get elements type list
+    def get_elementTypes( self ):
+        'Returns dictioney with available elements types for publishing'
+        return self.nim['elements']
+    
     
     #  Set Attributes :
     #===------------------
@@ -720,5 +835,21 @@ class NIM( object ) :
         self.nim['file']['compPath']=compPath
         return
 
+    # Added to support new renderPath and platesPath
+    def set_renderPath( self, renderPath='' ) :
+        'Sets the render directory path for the project'
+        self.nim['file']['renderPath']=renderPath
+        return
+
+    def set_platesPath( self, platesPath='' ) :
+        'Sets the plates directory path for the project'
+        self.nim['file']['platesPath']=platesPath
+        return
+
+    # Add set job and show/asset path
+    def set_jobPath( self, jobPath='' ) :
+        'Sets the job root directory path for the project'
+        self.nim['file']['jobPath']=jobPath
+        return
 
 #  END

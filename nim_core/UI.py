@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau 0.1, python 3 port
+# rohtau 0.2, python 3 port
 
 #  General Imports :
 import glob, os, platform, re, sys, traceback, urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, time
@@ -48,6 +48,8 @@ version='v4.0.61'
 winTitle='NIM_'+version
 _os=platform.system().lower()
 _osCap=platform.system()
+# Global padding used for file versions.
+padding = 3
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
@@ -820,6 +822,14 @@ class GUI(QtGui.QMainWindow) :
         self.verForm.labelForField( self.nim.Input('comment') ).setVisible( True )
         self.nim.Input('comment').setVisible( True )
         self.nim.Input('comment').clear()
+        # Set default comment for Save:
+        filepath = self.nim.filePath()
+        filename = self.nim.fileName()
+        if filename != 'untitled.hip':
+            self.nim.Input('comment').setText("Save from: %s"%filepath)
+        else:
+            self.nim.Input('comment').setText("Initial scene")
+            
         
         #  Check Boxes :
         self.checkBox.setText( 'Selected' )
@@ -2309,9 +2319,9 @@ class GUI(QtGui.QMainWindow) :
         if open_file_versionInfo:
             open_file_serverID = open_file_versionInfo[0]['serverID']
             self.nim.set_server( ID=open_file_serverID )
-            P.info("ServerID: %s" % open_file_serverID)
+            P.debug("ServerID: %s" % open_file_serverID)
             serverOsPathInfo = Api.get_serverOSPath( open_file_serverID, platform.system() )
-            P.info("Server OS Path Info: %s" % serverOsPathInfo)
+            P.debug("Server OS Path Info: %s" % serverOsPathInfo)
             serverOSPath = serverOsPathInfo[0]['serverOSPath']
             P.info("Server OS Path: %s" % serverOSPath)
             self.nim.set_server( path=serverOSPath )
@@ -2330,6 +2340,7 @@ class GUI(QtGui.QMainWindow) :
         ver=F.get_ver( filePath=filePath )
         self.nim.set_version( version=str(ver) )
         
+        # XXX: All paths needs to be updated also in nim_file.verUp() in nim_file.py
         #  Comp Path :
         if self.nim.tab()=='SHOT' and self.nim.ID('shot') :
             pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(self.nim.ID('shot'))} )
@@ -2343,6 +2354,26 @@ class GUI(QtGui.QMainWindow) :
             compPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['comps'] ) )
             self.nim.set_compPath( compPath=compPath )
         
+        #  Set Render Path :
+        if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
+            renderPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['renders'] ) )
+            self.nim.set_renderPath( renderPath=renderPath )
+
+        #  Set Plates Path :
+        if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
+            platesPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['plates'] ) )
+            self.nim.set_platesPath( platesPath=platesPath )
+
+        # Shot/Asset path
+        if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+            shotPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['root'] ) )
+            self.nim.set_shotPath( shotPath=shotPath )
+
+        jobnumber = str(self.nim.get_nim()['job']['name'].split()[0])
+        jobpath = os.path.normpath(os.path.join(serverOSPath, jobnumber ))
+        self.nim.set_jobPath( jobPath=jobpath )
+
+            
         #  Error check :
         if not filePath :
             P.error('Sorry, no file specified, aborting.')
@@ -2416,7 +2447,7 @@ class GUI(QtGui.QMainWindow) :
                     elif result.lower()=='verup' :
                         P.info('\nVersioning file up...\n')
                         try :
-                            Api.versionUp()
+                            Api.versionUp( padding=padding)
                         except :
                             P.error('Problem running version up command.  Nothing done.')
                             return False
@@ -2499,7 +2530,9 @@ class GUI(QtGui.QMainWindow) :
                 #if hou.hipFile.hasUnsavedChanges():
                 #    raise RuntimeError
                 #hou.hipFile.load(file_name=str(filePath), suppress_save_prompt=True)
-                P.error('Loading file in UI-2451')
+                # P.error('Loading file in UI-2451')
+                # P.info("NIM Dictionary for opened file")
+                # self.nim.Print()
                 filePath=filePath.replace( '\\', '/' )
                 hou.hipFile.load(file_name=str(filePath))
             except Exception as e :
@@ -2649,6 +2682,8 @@ class GUI(QtGui.QMainWindow) :
     def file_saveAs(self) :
         'Function called when Save As button is activated.'
         
+        global padding
+
         #  Set Selected flag for saving only the selected objects :
         selected=False
         if self.app in ['Maya', 'Nuke', '3dsMax','Houdini'] :
@@ -2692,7 +2727,8 @@ class GUI(QtGui.QMainWindow) :
         
         #  Version up file and add to API :
         try : 
-            Api.versionUp( nim=self.nim, selected=selected, win_launch=True )
+            # Padding changed from default 2 to 3
+            Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except :
             P.error("Failed to Save File")
         
@@ -2780,7 +2816,7 @@ class GUI(QtGui.QMainWindow) :
 
         #  Version up file and add to API :
         try :
-            ver_filePath=Api.versionUp( nim=self.nim, win_launch=True )
+            ver_filePath=Api.versionUp( nim=self.nim, win_launch=True, padding=padding )
         except :
             P.error("Failed to Save Working File")
 
@@ -3009,4 +3045,3 @@ class GUI(QtGui.QMainWindow) :
 
 
 #  END
-

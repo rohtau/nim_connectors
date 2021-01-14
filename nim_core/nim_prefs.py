@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-#rohtau 0.1, python 3 port
+#rohtau 0.2, python 3 port
 
 
 #  General Imports :
@@ -500,6 +500,7 @@ def read() :
     'Reads and stores preferences'
 
     #P.info('nim_prefs.read')
+    # TODO: detect if we are in a Rez environment, in that case init job and shot according
 
     prefsFile=get_path()
     _prefs={}

@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.1, python 3 port
+# rohtau v0.2, python 3 port
 
 #  General Imports :
 import os, platform, re, shutil, stat, traceback, time
@@ -133,7 +133,7 @@ def get_ver( filePath='' ) :
     'Retrieves the version number of a file'
     global end_srch, num_srch
     ext=get_ext( filePath )
-    
+
     #  Derive version number :
     end_result=end_srch.search( filePath )
     if end_result :
@@ -292,7 +292,7 @@ def os_filePath( path='', nim=None, serverID=None ) :
     
     return filePath
 
-#DEPRICATED
+#DEPRECATED
 def task_toAbbrev( task='' ) :
     'Returns the short version of a given task' 
     return_task=task
@@ -308,8 +308,267 @@ def task_toAbbrev( task='' ) :
     '''
     return return_task
 
+def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLink=True ) :
+    '''
+    Save the new version file on the file system.
+    It can also create the project dirs for various apps
+
+    Arguments:
+        filepath {str} -- Path to new file
+        nim {nim object} -- NIM object with all the publishing information
+
+    Keyword Arguments:
+        projpath {str} -- path to project. If empty no project will be created.
+        selected {bool} -- Whether or not to save only selected (default: {False})
+        pub {bool} -- Whether or not to publish file (default: {False})
+        symLink {bool} -- Use symlinks when publishing (default: {True})
+
+    Returns:
+        [str] -- path to new file
+    '''
+
+    #  Directories :
+    #===---------------
+    
+    #  Make basename directory :
+    if projpath and not os.path.isdir( projpath ) :
+        P.info( 'Creating basename directory within...\n    %s' % projpath )
+        og_umask=os.umask(0)
+        os.makedirs( projpath )
+        os.umask(og_umask)
+        if os.path.isdir( projpath ) :
+            P.info( '  Successfully created the basename directory!' )
+        else :
+            P.warning( '  Unable to create basename directory' )
+    
+    #  Make render directory :
+    renDir = nim.renderPath()
+    if renDir and not os.path.isdir( renDir ) :
+        P.info( 'Creating render directory...\n      %s' % renDir )
+        
+        og_umask=os.umask(0)
+        os.makedirs( renDir )
+        os.umask(og_umask)
+        
+        if os.path.isdir( renDir ) :
+            P.info( '    Successfully created the render directory!' )
+        else :
+            P.warning( '    Unable to create project directories.' )
+    elif renDir :
+        P.debug( 'Render directory already exists.\n' )
+    
+    #  Make Maya Project directory :
+    if os.path.isdir( projpath ) and nim.app()=='Maya' :
+        import nim_maya as M
+        if M.makeProject( projectLocation=projpath, renderPath=renDir ) :
+            P.info( 'Created Maya project directorires within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create Maya project directories.' )
+    elif nim.app()=='Maya' :
+        P.warning( 'Didn\'t create Maya project directories.' )
+
+    #  Make 3dsMax Project directory :
+    if os.path.isdir( projpath ) and nim.app()=='3dsMax' :
+        import nim_3dsmax as Max
+        if Max.mk_proj( path=projpath, renPath=renDir ) :
+            P.info( 'Created 3dsMax project directorires within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create 3dsMax project directories.' )
+    elif nim.app()=='3dsMax' :
+        P.warning( 'Didn\'t create 3dsMax project directories.' )
+
+    #  Make Houdini Project directory :
+    # TODO: this wil be removed
+    if os.path.isdir( projpath ) and nim.app()=='Houdini' :
+        import nim_houdini as Houdini
+        if Houdini.mk_proj( path=projpath, renPath=renDir ) :
+            P.info( 'Created Houdini project directorires within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create Houdini project directories.' )
+    elif nim.app()=='Houdini' :
+        P.warning( 'Didn\'t create Houdini project directories.' )
+    
+    
+    #  Save :
+    #===------
+    P.info('APP = %s' % nim.app())
+    filename = os.path.basename( filepath )
+
+    #  Maya :
+    if nim.app()=='Maya' :
+        import maya.cmds as mc
+        
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            import nim_maya as M
+            M.set_vars( nim=nim )
+            
+            P.info( 'Saving file as %s \n' % filepath )
+            mc.file(rename=filepath)
+            if ext=='.mb' :
+                mc.file( save=True, type='mayaBinary' )
+            elif ext=='.ma' :
+                mc.file( save=True, type='mayaAscii' )
+        else :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            if ext=='.mb' :
+                mc.file( filepath, exportSelected=True, type='mayaBinary' )
+            elif ext=='.ma' :
+                mc.file( filepath, exportSelected=True, type='mayaAscii' )
+    
+    #  Nuke :
+    elif nim.app()=='Nuke' :
+        
+        import nuke
+        
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            import nim_nuke as N
+            N.set_vars( nim=nim )
+            P.info( 'Saving file as %s \n' % filepath )
+            nuke.scriptSaveAs( filepath )
+        elif selected :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            try :
+                nuke.nodeCopy( filepath )
+            except RuntimeError:
+                P.info( 'Failed to selected items... Possibly no items selected.' )
+                return False
+
+    
+    #  Cinema 4D :
+    elif nim.app()=='C4D' :
+        import c4d
+        
+        #  Set Vars :
+        nim_plugin_ID=1032427
+        
+        #  Save File :
+        if not selected :
+            P.info( 'Saving file as %s \n' % filepath )
+            import nim_c4d as C
+            C.set_vars( nim=nim, ID=nim_plugin_ID )
+            doc=c4d.documents.GetActiveDocument()
+            doc.SetDocumentName( filename )
+            doc.SetDocumentPath( fileDir )
+            c4d.documents.SaveDocument( doc, str(filepath),
+                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
+                c4d.FORMAT_C4DEXPORT )
+            P.info( 'Saving File Complete')
+        #  Save Selected :
+        else :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            doc=c4d.documents.GetActiveDocument()
+            sel=doc.GetActiveObjects( False )
+            baseDoc=c4d.documents.IsolateObjects(doc, sel)
+            c4d.documents.SaveDocument( baseDoc, str(filepath),
+                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
+                c4d.FORMAT_C4DEXPORT)
+    
+    #  Hiero :
+    elif nim.app()=='Hiero' :
+        import hiero.core
+        projects=hiero.core.projects()
+        proj=projects[0]
+        curFilePath=proj.path()
+        proj.saveAs( filepath )
+        #proj=hiero.core.project( projName )
+        #proj=hiero.core.Project
+        #proj=self._get_current_project()
+    
+    #  3dsMax :
+    if nim.app()=='3dsMax' :
+        import MaxPlus
+        maxFM = MaxPlus.FileManager
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            import nim_3dsmax as Max
+            Max.set_vars( nim=nim )
+            #Save File
+            P.info( 'Saving file as %s \n' % filepath )
+            maxFM.Save(filepath)
+        else :
+            #Save Selected Items
+            P.info( 'Saving selected items as %s \n' % filepath )
+            maxFM.SaveSelected(filepath)
+
+    #  Houdini :
+    if nim.app()=='Houdini' :
+        import hou
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            import nim_houdini as Houdini
+            Houdini.set_vars( nim=nim )
+            #Save File
+            if _os.lower() in ['windows', 'win32'] :
+                hipFilePath = filepath.replace('\\','/')
+            P.info( 'Saving file as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
+            #Set $HIP var to location of current file
+            if _os.lower() in ['windows', 'win32'] :
+                hipProj = projpath.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
+            #Set $HIPNAME var to current file
+            hipName = os.path.splitext(filename)[0]
+            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
+        else :
+            #Save Selected Items
+            #TODO: set to saveSelect items... currently saving entire scene
+            if _os.lower() in ['windows', 'win32'] :
+                hipFilePath = filepath.replace('\\','/')
+            P.info( 'Saving selected items as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
+            #Set $HIP var to location of current file
+            if _os.lower() in ['windows', 'win32'] :
+                hipProj = projpath.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
+            #Set $HIPNAME var to current file
+            hipName = os.path.splitext(filename)[0]
+            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
+
+    #  Make a copy of the file, if publishing :
+    if pub and not symLink :
+        pub_fileName=basename+ext
+        pub_fileDir=Api.to_nimDir( nim=nim )
+        pub_filePath=os.path.join( pub_fileDir, pub_fileName )
+        #  Delete any pre-existing published file :
+        if os.path.isfile( pub_filePath ) :
+            os.chmod( pub_filePath, stat.S_IWRITE )
+            os.remove( pub_filePath )
+        #  Copy fiile and make it read-only :
+        shutil.copyfile( filepath, pub_filePath )
+        os.chmod( pub_filePath, stat.S_IREAD )
+        
+    #  Print save success :
+    P.info( '\nFile successfully saved to...\n    %s\n' % filepath )
+    return filepath
+
+
+# FIXME: win_launch is not used.
+# selected can be removed or deprecated
 def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
-    'Versions up a file - Does NOT add it to the NIM API'
+    '''
+    Versions up a file - Does NOT add it to the NIM API. 
+    Work out new file path and projDir, but not save any file and not create anything in the file system.
+    That is for verUpsaveFile()
+
+    Keyword Arguments:
+        nim {nim Dict} : NIM dictionarywit publishing info (default: {None})
+        padding {int} : Version number padding (default: {2})
+        selected {bool} : Whether or not save only selected (default: {False})
+        pub {bool} : Is this a publishing (default: {False})
+        symLink {bool} : Whether or not do symlink when publishing (default: {True})
+
+    Returns:
+        dict : {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
+
+    '''
+
+    # print("DEBUG: In File Ver Up")
     
     #  Variables :
     cur_filePath, cur_fileDir, cur_fileName='', '', ''
@@ -354,6 +613,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         fileDir=api_fileDir
    
     #  Project Directory :
+    #XXX: What?? This scenes folder is hardcoded???
     if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
     else : projDir=fileDir
     
@@ -364,7 +624,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( 'File Directory = %s' %  fileDir )
     projDir=os_filePath( path=projDir, nim=nim )
     P.info( 'Project Directory = %s' %  projDir )
-    
     
     #  Version Number :
     baseInfo=''
@@ -386,6 +645,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
                     if int(numSrch.group()) >verNum :
                         verNum=int(numSrch.group())
     except : pass
+
     nim.set_version( version=str(verNum) )
     
     #  Set Extension :
@@ -417,7 +677,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     temp_filePath=os.path.normpath( os.path.join( fileDir, new_fileName ) )
     new_filePath=os_filePath( path=temp_filePath, nim=nim )
     
-    
     #  Construct Render Directory :
     if nim.tab()=='SHOT' and nim.ID('shot') :
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
@@ -425,9 +684,12 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
     if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
         renDir=os.path.normpath( os.path.join( nim.server(), pathInfo['renders'] ) )
+        # Add render path to nim object
+        nim.set_renderPath( renderPath=renDir)
     else :
         #  Use old method, if path information can't be derived :
         renDir=Api.to_renPath( nim )
+        nim.set_renderPath( renderPath=renDir)
     renDir=os_filePath( path=renDir, nim=nim )
     
     #  Comp Path :
@@ -436,6 +698,23 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         nim.set_compPath( compPath=compPath )
     compPath=os_filePath( path=compPath, nim=nim )
     
+    #  Add Plates Path :
+    if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
+        platesPath=os.path.normpath( os.path.join( nim.server(), pathInfo['plates'] ) )
+        nim.set_platesPath( platesPath=platesPath )
+    platesPath=os_filePath( path=platesPath, nim=nim )
+
+    # Add job ans shot/asset path
+    if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+        shotPath=os.path.normpath( os.path.join( nim.server(), pathInfo['root'] ) )
+        nim.set_shotPath( shotPath=shotPath )
+
+    # jobpath = os.path.normpath(os.path.join(serverOsPathInfo, nim.Dict(elem='job')['name']))
+    nimdict = nim.get_nim()
+    if 'job' in nimdict:
+        jobpath = os.path.normpath(os.path.join(os.path.normpath(serverOSPath), nimdict['job']['name'].split()[0]))
+        nim.set_jobPath( jobPath=jobpath )
+
     P.info( '\nVariables:' )
     P.info( '  Initial File Path = %s' % cur_filePath )
     P.info( '  Basename = %s' % basename )
@@ -443,8 +722,11 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( '  New File Path = %s' % new_filePath )
     P.info( '  Render Directory = %s' % renDir )
     P.info( '  Comp Directory = %s\n' % compPath )
+    P.info( '  Plates Directory = %s\n' % platesPath )
+
+    # TODO: check that file path and projDir are writable
     
-    
+    '''
     #  Directories :
     #===---------------
     
@@ -495,6 +777,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         P.warning( 'Didn\'t create 3dsMax project directories.' )
 
     #  Make Houdini Project directory :
+    # TODO: this wil be removed
     if os.path.isdir( projDir ) and nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         if Houdini.mk_proj( path=projDir, renPath=renDir ) :
@@ -618,7 +901,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
             #  Set Vars :
             from . import nim_houdini as Houdini
             Houdini.set_vars( nim=nim )
-
             #Save File
             if _os.lower() in ['windows', 'win32'] :
                 new_filePath = new_filePath.replace('\\','/')
@@ -640,9 +922,9 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
             #Set $HIPNAME var to current file
             hipName = os.path.splitext(new_fileName)[0]
             hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
-
         else :
             #Save Selected Items
+            #TODO: set to saveSelect items... currently saving entire scene
             if _os.lower() in ['windows', 'win32'] :
                 new_filePath = new_filePath.replace('\\','/')
             P.info( 'Saving selected items as %s \n' % new_filePath )
@@ -688,9 +970,11 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #  Print save success :
     P.info( '\nFile successfully saved to...\n    %s\n' % new_filePath )
     
+    '''
+
     #  [AS]  returning nim object with current dictionary settings
     #return new_filePath
-    return {'filepath':new_filePath,'nim':nim}
+    return {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
     #  [AS]  END
 
 

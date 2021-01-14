@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.1, python 3 port
+# rohtau v0.2, python 3 port
 
 import os, sys
 #  NIM Imports :

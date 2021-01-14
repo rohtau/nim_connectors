@@ -12,7 +12,7 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v01, python 3 port
+# rohtau v02, python 3 port
 
 import os
 
@@ -57,10 +57,10 @@ def ui2py( uiFile='', pyFile='') :
     return
 
 
-def get_comment( app='', num_requests=3 ) :
+def get_comment( app='', num_requests=3, comment='' ) :
     'Gets a comment from the user'
     msgs=['Please enter a comment:                                    ']
-    comment=''
+    comment=comment
     
     for i in range(0,num_requests) :
         #  Prompt user for comment, in Maya :
@@ -75,15 +75,15 @@ def get_comment( app='', num_requests=3 ) :
             import nuke
             comment=nuke.getInput( 'Enter Note :' )
         elif app=='C4D' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], type='input' )
+            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Hiero' :
-            comment=nim_win.popup( app='Hiero', title='NIM - Input Comment', msg=msgs[i], type='input' )
+            comment=nim_win.popup( app='Hiero', title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='3dsMax' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], type='input' )
+            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Houdini' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], type='input' )
+            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Flame' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], type='input' )
+            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         else :
             nim_print.info( 'Couldn\'t determine the application to prompt for a user comment.  :\'(' )
         #  Stop, once a comment has been input :
