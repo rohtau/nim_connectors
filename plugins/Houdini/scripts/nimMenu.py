@@ -11,6 +11,9 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 #
 # ****************************************************************************
+
+# rohtau v0.2
+
 import hou
 import os,sys
 
@@ -18,13 +21,14 @@ action = sys.argv[1]
 
 nimScriptPath = hou.expandString('$NIM_CONNECTOR_ROOT')
 sys.path.append(nimScriptPath)
-print "NIM Script Path: %s" % nimScriptPath
+# print "INFO: NIM Script Path: %s" % nimScriptPath
 
 
 import nim_core.UI as nimUI
 import nim_core.nim_api as nimAPI
 import nim_core.nim_file as nimFile
 import nim_core.nim_win as nimWin
+import nim_core.nim_houdini as nimHoudini
 
 reload(nimUI)
 reload(nimAPI)
@@ -33,31 +37,31 @@ reload(nimWin)
 
 def openFileAction():
     nimUI.mk('FILE')
-    print 'NIM: openFileAction'
+    hou.ui.setStatusMessage( "NIM: Open File")
 
 def importFileAction():
     nimUI.mk('LOAD', _import=True )
-    print 'NIM: importFileAction'
+    hou.ui.setStatusMessage( "NIM: Import File")
 
 def refereceFileAction():
     nimUI.mk('LOAD', ref=True)
-    print 'NIM: refereceFileAction'
+    hou.ui.setStatusMessage( "NIM: Reference File")
 
 def saveFileAction():
     nimUI.mk('SAVE')
-    print 'NIM: saveFileAction'
+    hou.ui.setStatusMessage( "NIM: Save File")
 
 def saveSelectedAction():
     nimUI.mk( mode='SAVE', _export=True )
-    print 'NIM: saveSelectedAction'
+    hou.ui.setStatusMessage( "NIM: Save Selected")
 
 def versionUpAction():
-    nimAPI.versionUp()
-    print 'NIM: versionUpAction'
+    nimAPI.versionUp( padding=nimUI.padding )
+    hou.ui.setStatusMessage( "NIM: Version Up Secene")
 
 def publishAction():
     nimUI.mk('PUB')
-    print 'NIM: publishAction'
+    hou.ui.setStatusMessage( "NIM: Publish Scene")
 
 def changeUserAction():
     try:
@@ -65,13 +69,20 @@ def changeUserAction():
     except Exception, e :
         print 'Sorry, there was a problem choosing NIM user...'
         print '    %s' % traceback.print_exc()
-    print 'NIM: changeUserAction'
-
-
+    hou.ui.setStatusMessage( "NIM: change User")
 def reloadScriptsAction():
     nimFile.scripts_reload()
-    print 'NIM: reloadScriptsAction'
+    hou.ui.setStatusMessage( "NIM: Reload Scripts")
 
+def dumpPublishInfo():
+    print ( 'NIM: dumpPublishInfo' )
+    hou.ui.setStatusMessage( "NIM: Dump HIP Publish Information")
+    nimHoudini.dump_vars()
+
+def resetPublishInfo():
+    print ( 'NIM: resetPublishInfo' )
+    hou.ui.setStatusMessage( "NIM: Reset HIP Publish Information")
+    nimHoudini.reset_vars()
 
 if action == 'open':
 	openFileAction()
