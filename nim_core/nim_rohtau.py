@@ -19,6 +19,10 @@ import re
 import subprocess
 from datetime import datetime
 
+
+from .import version 
+from .import winTitle 
+
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui

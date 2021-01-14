@@ -47,8 +47,10 @@ except :
 #  Variables :
 prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
-version='v4.0.61'
-winTitle='NIM_'+version
+# version='v4.0.61'
+# winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
 nim_URL='http://nim.rohtau.com/nimAPI.php'
 nim_useSLL='False'
 nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir))
@@ -630,4 +632,3 @@ def Dbug_toggle() :
 
 
 #  End
-

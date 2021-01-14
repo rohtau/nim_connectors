@@ -21,6 +21,10 @@ import nim_prefs as Prefs
 import nim_print as P
 
 
+from .import version 
+from .import winTitle 
+
+
 class NIM( object ) :
     
     def __init__(self) :
@@ -852,3 +856,11 @@ class NIM( object ) :
         'Sets the job root directory path for the project'
         self.nim['file']['jobPath']=jobPath
         return
+
+    def set_shotPath( self, shotPath='' ) :
+        'Sets the shot/asset directory path for the project'
+        self.nim['file']['shotPath']=shotPath
+        return
+
+
+#  END

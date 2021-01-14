@@ -28,8 +28,11 @@ import nim_print as P
 import nim_win as Win
 
 #  Variables :
-version='v4.0.61'
-winTitle='NIM_'+version+' - '
+# version='v4.0.61'
+# winTitle='NIM_'+version+' - '
+from .import version 
+from .import winTitle 
+
 _os=platform.system().lower()
 nim_plugin_ID=1032427
 
@@ -1078,4 +1081,3 @@ class nim_fileUI( gui.GeDialog ) :
 
 
 #  END
-

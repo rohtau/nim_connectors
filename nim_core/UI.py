@@ -44,8 +44,10 @@ except ImportError :
 #  Variables :
 WIN=''
 startTime=''
-version='v4.0.61'
-winTitle='NIM_'+version
+# version='v4.0.61'
+# winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
 _os=platform.system().lower()
 _osCap=platform.system()
 # Global padding used for file versions.

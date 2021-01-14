@@ -25,8 +25,11 @@ import nim as Nim
 
 
 #  Variables :
-version='v4.0.61'
-winTitle='NIM_'+version
+# version='v4.0.61'
+# winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
+
 _os=platform.system().lower()
 #  Compiled REGEX Searches :
 ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
@@ -998,4 +1001,3 @@ def scripts_reload() :
 
 
 #  END
-

@@ -35,8 +35,10 @@ except ImportError :
             print "NIM: Failed to load UI Modules - Maya"
 
 #  Variables :
-version='v4.0.61'
-winTitle='NIM_'+version
+# version='v4.0.61'
+# winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
 
 def get_mainWin() :
     'Returns the name of the main Maya window'
@@ -963,4 +965,3 @@ class UIUtils(MayaQWidgetBaseMixin, QtGui.QWidget):
 
 
 #  End
-

@@ -21,6 +21,10 @@ import nim_file as F
 import nim_prefs as Prefs
 import nim_print as P
 
+
+from .import version 
+from .import winTitle 
+
 qt_import=True
 
 
@@ -417,4 +421,3 @@ def setApiKey( url='' ) :
 
 
 #  END
-

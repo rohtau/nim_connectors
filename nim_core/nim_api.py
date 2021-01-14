@@ -58,8 +58,8 @@ import nim_tools
 import nim_win as Win
 
 #  Variables :
-version='v4.0.61'
-winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
 
 '''
 isGUI = True
@@ -3471,4 +3471,3 @@ def get_timecardInfo( timecardID=None ) :
 
 
 #  End
-

@@ -25,6 +25,10 @@ from . import nim_print as P
 from . import nim as Nim
 from . import nim_rohtau as nimRt
 
+
+from .import version 
+from .import winTitle 
+
 #  Nuke Imports :
 import nuke
 
@@ -434,6 +438,14 @@ def get_vars( nim=None ) :
                     nim.set_jobPath( jobPath=knob.value() )
                 #  Version :
                 elif knobNames[x]=='nim_version' :
+                    nim.set_version( str(int(knob.value())) if type(knob.value()) is int or type(knob.value()) is float or   len (knob.value()) else '' )
+                    nim.set_version( nim.version() if nim.version() != '0' else None) # In the UI an int 0 is actually a None value inside a python dict for NIM
+                #  File ID :
+                elif knobNames[x]=='nim_fileID' :
+                    nim.set_ID( elem='ver', ID=str(int(knob.value())) if type(knob.value()) is int or type(knob.value()) is float or   len (knob.value()) else '' )
+                    nim.set_ID( elem='ver', ID=nim.ID('ver') if nim.ID('ver') != '0' else None) # In the UI an int 0 is actually a None value inside a python dict for NIM
+
+    return nim
 
 
 def rndr_mkDir() :
@@ -746,76 +758,6 @@ class NIM_Node() :
         
         return
 
-
-#  Custom Windows :
-#===------------------------
-
-class Win_SavePySide( QtGui.QDialog ) :
-    
-    def __init__(self, parent=None) :
-        'Creates a popup window, prompting the user to save the current scene file.'
-        super( Win_SavePySide, self ).__init__(parent)
-        self.value=None
-        
-        #  Layouts :
-        self.layout=QtGui.QVBoxLayout()
-        self.setLayout( self.layout )
-        
-        #  Text :
-        self.text=QtGui.QLabel('Current file is about to be closed...  Save first?')
-        self.layout.addWidget( self.text )
-        
-        #  Create Buttons :
-        self.save=QtGui.QPushButton('Save')
-        self.verUp=QtGui.QPushButton('Version Up + Save')
-        self.no=QtGui.QPushButton('Don\'t Save')
-        self.cancel=QtGui.QPushButton('Cancel')
-        
-        #  Button Layout :
-        self.btn_layout=QtGui.QHBoxLayout()
-        self.layout.addLayout( self.btn_layout )
-        #  Add Buttons to Layout :
-        for btn in [self.save, self.verUp, self.no, self.cancel] :
-            self.btn_layout.addWidget( btn )
-        
-        #  Connections :
-        self.save.clicked.connect( lambda : self.set_value( btn='save' ) )
-        self.verUp.clicked.connect( lambda : self.set_value( btn='verUp' ) )
-        self.no.clicked.connect( lambda : self.set_value( btn='no' ) )
-        self.cancel.clicked.connect( lambda : self.set_value( btn='cancel' ) )
-        
-        self.show()
-        
-        return
-    
-    def set_value( self, btn='' ) :
-        'Sets the value to be returned, when a button is pushed'
-        if btn.lower()=='save' :
-            self.value='Save'
-        if btn.lower()=='verup' :
-            self.value='VerUp'
-        elif btn.lower()=='no' :
-            self.value='No'
-        elif btn.lower()=='cancel' :
-            self.value='Cancel'
-        self.close()
-        return
-    
-    def btn(self) :
-        'Returns the button that was pushed'
-        return self.value
-    
-    @staticmethod
-    def get_btn(parent=None) :
-        'Returns the name of the button that was pushed'
-        dialog=Win_SavePySide(parent)
-        result=dialog.exec_()
-        value=dialog.btn()
-        return value
-
-
 #  End of Class
 
-
-#  End
-
+# End
