@@ -36,9 +36,10 @@ class NIM( object ) :
         
         #  Store preferences :
         self.prefs=Prefs.read()
+
         
         #  Store the different GUI elements to be populated :
-        self.elements=['job', 'asset', 'show', 'shot', 'filter', 'task', 'base', 'ver']
+        self.elements=['job', 'asset', 'show', 'shot', 'filter', 'element', 'task', 'base', 'ver']
         self.print_elements=['job', 'asset', 'show', 'shot', 'filter', 'task', 'basename', 'version']
         self.comboBoxes=['job', 'asset', 'show', 'shot', 'filter', 'task']
         self.listViews=['base', 'ver']
@@ -230,25 +231,30 @@ class NIM( object ) :
         else :
             return False
     
-    def ingest_filePath( self, filePath='', pub=False ) :
+    def ingest_filePath( self, filePath='', pub=False, checkfile=True ) :
         'Sets NIM dictionary from current file path'
+        
         jobFound, assetFound, showFound, shotFound=False, False, False, False
         taskFound, basenameFound, versionFound=False, False, False
+        elementFound, potentialElement, potentialTask= False, False, False
         jobs, assets, shows, shots, tasks, basenames, version={}, {}, {}, {}, {}, {}, {}
         #  Get and set jobs dictionary :
         
-        jobsfolders=Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
-        jobsfolders={ key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
-        jobs=Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
-        jobs={ key.decode():value.decode() for (key,value) in jobs.items()}
+        # print("Starting Dict")
+        # pprint(self.get_nim())
+
+        jobsfolders = Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
+        jobsfolders = { key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
+        jobs        = Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
+        jobs        = { key.decode():value.decode() for (key,value) in jobs.items()}
         # jobsfolders = {'barcelona_20-0006 _ barcelona_20-0006': '11', 'gousto_20001 _ gousto_20001': '16', 'exodus_20007 _ <job_number>': '23'}
         # jobsfolder = { jobnumber _ jobfolder : ID}
         # jobs = {'gousto_20001 Gousto': '16', 'barcelona_20-0006 Barcelona': '11', 'exodus_20007 Plant Centre': '23'}
         # jobs = { jobnumber jobname : ID }
-        print("Jobs:")
-        print(jobs)
-        print("Jobs Folders:")
-        print(jobsfolders)
+        # print("Jobs:")
+        # print(jobs)
+        # print("Jobs Folders:")
+        # print(jobsfolders)
         #P.info('ingest_filePath')
         self.set_dict('job')
         
@@ -261,9 +267,9 @@ class NIM( object ) :
         if not os.path.isfile( os.path.normpath( filePath ) ) and os.path.isfile( \
                 os.path.normpath( filePath ) ) :
             filePath=os.path.normpath( filePath )
-        if not os.path.isfile( filePath ) :
-            P.warning( 'Sorry, the given file path doesn\'t appear to exist...' )
-            P.warning( '    %s' % filePath )
+        if checkfile and  not os.path.isfile( filePath ) :
+            P.error( 'Sorry, the given file path doesn\'t appear to exist...' )
+            P.error( '    %s' % filePath )
             return None
         
         P.debug( 'Attempting to gather API information from the following file path...' )
@@ -277,14 +283,16 @@ class NIM( object ) :
             
         #  Initialize tab :
         self.set_tab( _type=None )
+
         
         #  Find Job :
         for tok in toks :
             if not jobFound :
+                # Job
                 for job in jobsfolders :
                     jobfolder = job.split()[2].strip()
                     jobnumber = job.split()[0].strip()
-                    print("Comparing job name: %s,  with path token: %s"%(jobfolder, tok))
+                    # print("Comparing job name: %s,  with path token: %s"%(jobfolder, tok))
                     '''
                     if tok==job:
                         self.set_name( elem='job', name=job )
@@ -295,7 +303,6 @@ class NIM( object ) :
                         break
                     '''
                     if tok==jobfolder :
-                        print("Set job from path")
                         self.set_ID( elem='job', ID=jobsfolders[job] )
                         for jobfullname in jobs:
                             if jobs[jobfullname] == jobsfolders[job]:
@@ -306,6 +313,7 @@ class NIM( object ) :
                         self.set_dict('show')
                         break
             else :
+                # Asset or Show+Shot
                 #  Prevent Assets that might have the same name as a Shot :
                 if tok in ['_DEV', 'ASSETS'] :
                     self.set_tab( _type='ASSET' )
@@ -325,6 +333,7 @@ class NIM( object ) :
                                 else :
                                     self.set_name( elem='filter', name='Work' )
                                 self.set_dict('task')
+                                self.set_dict('element')
                                 break
                     if not assetFound and not showFound and self.tab() !='ASSET' :
                         for show in self.Dict('show') :
@@ -335,10 +344,6 @@ class NIM( object ) :
                                 showFound=True
                                 self.set_dict('shot')
                                 break
-                #  Find Shot, once Show is found :
-                # TODO: this function only support the name convention for DCC apps files. is expecting to 
-                # find the task folder after the shot/asset folder. But for published elements we will find "elements folder"
-                # Implement these elements folders
                 if showFound and not taskFound :
                     if not shotFound :
                         for shot in self.Dict('shot') :
@@ -351,17 +356,56 @@ class NIM( object ) :
                                     self.set_name( elem='filter', name='Published' )
                                 else :
                                     self.set_name( elem='filter', name='Work' )
-                                # pprint(self.get_nim())
                                 self.set_dict('task')
+                                self.set_dict('element')
                                 break
                 if assetFound or showFound :
-                    if not taskFound :
+                    # We have found the base location of the shot/asset so far
+                    #  Find Shot, once Show is found :
+                    # TODO: this function only support the name convention for DCC apps files. is expecting to 
+                    # find the task folder after the shot/asset folder. But for published elements we will find "elements folder"
+                    # Implement these elements folders
+                    if not potentialTask and not elementFound:
+                        # Element
+                        for elm in self.Dict('element'):
+                            locs = elm['path'].split('/') if elm['path'].count('/') > 0 else [elm['path']]
+                            print("Compare tok %s with element locs: %s"%(tok, str(locs)))
+                            # Process all part of a potential path for the element. Some elements have a path like in/plates
+                            # But this support everything, as soon as a part of an element path is detected potentialElement
+                            # is set and it will keep tracking the rest of the path to find the element
+                            # FIXME: testing with this:
+                            # rtadmin pub path  /jobs/gousto_20001/work/GIS/GIS_032/out/comp/fx/steam__OUT/v001/GIS_032__fx__steam__OUT__v001.1001.exr -p shot
+                            # Needs to stop evaluation of elements
+                            for loc in locs:
+                                if tok == loc :
+                                    if loc == locs[-1]:
+                                        # element folder found
+                                        print("Set element: %s"%tok)
+                                        print("Set element name to %s, and ID: %s"%(elm['name'],elm['ID']))
+                                        self.set_name( elem='element', name=elm['name'])
+                                        self.set_ID( elem='element', ID=elm['ID'])
+                                        elementFound = True
+                                        potentialElement = False
+                                        # break
+                                    else:
+                                        print("Set potential element: %s"%tok)
+                                        potentialElement = True
+                                        # break
+                                    break
+                        # if elementFound or potentialElement:
+                            if elementFound:
+                                break
+                        pass
+                    if not potentialElement and  not taskFound :
+                        # Task
+                    #TODO: do a similar thing as with elements, search for task path tokens.
                         for task in self.Dict('task') :
                             # Tasks names will be matched agains full task name, shot task name or folder name.
                             # This is for backwards compatibility with older shows.
                             # The convention is to use the task short name as the task name in the path.
                             # So short task name is need as the task path.
                             #  Substitute Task names, if necessary :
+                            '''
                             task_name=F.task_toAbbrev( task['name'] )
                             folder_task = task['folder']
                             if folder_task.count('/') > 0:
@@ -372,7 +416,7 @@ class NIM( object ) :
                                 self.set_ID( elem='task', ID=task['ID'] )
                                 self.set_taskFolder(task['folder'])
                                 taskFound=True
-                                print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
                                 # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
                                 #  Get Basenames :
                                 if taskFound and assetFound==True :
@@ -384,6 +428,37 @@ class NIM( object ) :
                                     basenames=Api.get_bases( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ),\
                                         task=self.name( 'task' ).upper(), taskID=self.ID('task') )
                                 self.set_dict('base')
+                                break
+                            '''
+                            locs = task['folder'].split('/') if task['folder'].count('/') > 0 else [task['folder']]
+                            # Similar method used before for elements but now with tasks to detect and track any possible task
+                            # path. Usually tasks paths looks like tasks/comp
+                            for loc in locs:
+                                if tok == loc :
+                                    if loc == locs[-1]:
+                                        # Task found
+                                        self.set_name( elem='task', name=task['name'] )
+                                        self.set_ID( elem='task', ID=task['ID'] )
+                                        self.set_taskFolder(task['folder'])
+                                        taskFound=True
+                                        potentialTask = False
+                                        # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                        # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                        #  Get Basenames :
+                                        if taskFound and assetFound==True :
+                                            basenames=Api.get_bases( assetID=self.ID( 'asset' ), \
+                                                task=self.name( 'task' ).upper() )
+                                        elif taskFound and shotFound==True :
+                                            # basenames=Api.get_bases( shotID=self.ID( 'shot' ), \
+                                                # task=self.name( 'task' ).upper() )
+                                            basenames=Api.get_bases( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ),\
+                                                task=self.name( 'task' ).upper(), taskID=self.ID('task') )
+                                        self.set_dict('base')
+                                        break
+                                    else:
+                                        potentialTask = True
+                                        break
+                            if taskFound or potentialTask:
                                 break
                     elif not basenameFound :
                         for basename in basenames :
@@ -462,9 +537,11 @@ class NIM( object ) :
             jobpath = os.path.normpath(os.path.join(self.server(), jobnumber ))
             self.set_jobPath( jobPath=jobpath )
         
-        P.debug( 'Derived the following API information from filepath...' )
-        P.debug( '    %s' % self.Print( debug=True ) )
+        # P.debug( 'Derived the following API information from filepath...' )
+        # P.debug( '    %s' % self.Print( debug=True ) )
         
+        # pprint(self.get_nim())
+
         return self
     
     #  Get Attribute Settings :
@@ -697,6 +774,28 @@ class NIM( object ) :
             else :
                 self.nim[elem]['Dict']=['Work']
         
+        elif elem=='element' :
+            # New key in teh NIM dictionary. The element key will have a dictionary with all elements and then an element type, ID and path.
+            self.nim[elem]['Dict']=Api.get_elementTypes()
+            # To extract paths for special elements, plates, renders and comps, shot or asset must be discovered first and set in the NIM dict
+            paths = {}
+            if self.ID('shot') is not None:
+                paths = Api.get_paths( item='shot', ID=int(self.ID('shot')))
+            elif self.ID('asset') is not None:
+                paths = Api.get_paths( item='asset', ID=int(self.ID('asset')))
+            # pprint(paths)
+                
+            for elm in self.nim[elem]['Dict']:
+                if elm['name'] == 'plates':
+                    elm['path'] = paths['plates'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                elif elm['name'] == 'renders':
+                    elm['path'] = paths['renders'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                elif elm['name'] == 'comps':
+                    elm['path'] = paths['comps'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                else:
+                    elm['path'] = elm['name']
+                        
+                    
 
         elif elem=='task' :
             #REMOVED AS REDUNDANT
@@ -713,11 +812,23 @@ class NIM( object ) :
                 if self.nim['class']=='SHOT' :
                     if self.nim['shot']['name'] not in ['Select...', 'None', ''] :
                         #self.nim[elem]['Dict']=Api.get( {'q': 'getTaskTypes', 'app': self.nim['app'].upper()} )
-                        self.nim[elem]['Dict']=Api.get_tasks(app=self.nim['app'].upper(), shotID=self.nim['shot']['ID'])
+                        # self.nim[elem]['Dict']=Api.get_tasks(app=self.nim['app'].upper(), shotID=self.nim['shot']['ID'])
+                        # Support calls to this function not from an app, from a stand alone command line
+                        if self.nim['app'] is not None and len(self.nim['app'])>0:
+                            self.nim[elem]['Dict']=Api.get_taskTypes(app=self.nim['app'].upper(), shotID=self.nim['shot']['ID'])
+                        else:
+                            self.nim[elem]['Dict']=Api.get_taskTypes(shotID=self.nim['shot']['ID'])
+                            
                 elif self.nim['class']=='ASSET' :
                     if self.nim['asset']['name'] not in ['Select...', 'None', ''] :
                         #self.nim[elem]['Dict']=Api.get( {'q': 'getTaskTypes', 'app': self.nim['app'].upper()} )
-                        self.nim[elem]['Dict']=Api.get_tasks(app=self.nim['app'].upper(), assetID=self.nim['asset']['ID'])
+                        # self.nim[elem]['Dict']=Api.get_tasks(app=self.nim['app'].upper(), assetID=self.nim['asset']['ID'])
+                        # Support calls to this function not from an app, from a stand alone command line
+                        if self.nim['app'] is not None and len(self.nim['app'])>0:
+                            self.nim[elem]['Dict']=Api.get_taskTypes(app=self.nim['app'].upper(), assetID=self.nim['asset']['ID'])
+                        else:
+                            self.nim[elem]['Dict']=Api.get_taskTypes(assetID=self.nim['asset']['ID'])
+                            
 
             elif self.nim['filter']['name']=='Asset Master' :
                 self.nim[elem]['Dict']={}

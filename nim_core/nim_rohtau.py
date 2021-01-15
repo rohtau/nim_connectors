@@ -18,6 +18,10 @@ import platform
 import re
 import subprocess
 from datetime import datetime
+from pprint import pprint
+
+from . import nim_api as nimApi
+from . import nim_print as nimP
 
 from .import version 
 from .import winTitle
@@ -77,6 +81,58 @@ def openPath( path ):
 
     return True
 
+def elementTypeFolder( elementtype, parent, parentID ):
+    '''
+    Based on an element type name or ID and a selected shot/asset return it's folder path.
+    The path will be relative to the parent shot/asset
+    The full path for the element type will be:
+    [JOBPATH]/[work|build]/[SHOT|ASSET]/[ELEMENT]
+    This function returns the ELEMENT portion, which in general is a folder name.
+
+    Parameters
+    ----------
+    elementtype : str
+        Element type name or ID
+    parent : str
+        Element parent item type: shot, asset or show
+    parentID : int
+        Element parent ID
+    
+
+    Returns
+    -------
+    str
+        Element folder name. empty string if error
+    '''
+    folder = ""
+    if len(elementtype) > 0:
+        elmtsTypes = nimApi.get_elementTypes()
+        pprint(elmtsTypes)
+        if not elementtype.isnumeric():
+            elementname = element
+            for elm in elmtsTypes:
+                if elm['ID'] == elementtype:
+                    elementid = elm['ID']
+                    break
+        else:
+            elementid = int(elementtype)
+            for elm in elmtsTypes:
+                if elm['name'] == elementtype:
+                    elementname = elm['name']
+                    break
+    else:
+        nimP.error("Element type is an empty string. Please set an element type name or ID")
+        return ""
+
+    basepaths = nimApi.get_paths( item=parent, ID=parentID )
+    basepath = basepaths['root']
+    if elementname in ('plates', 'renders', 'comps'):
+       folder =  basepaths[elementname].replace(basepath + '/', '')
+    else:
+        folder = elementname
+
+    return folder
+
 def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='houdini', only_name=False, only_loc=False, force_posix=False  ):
     '''
     Build output path for a publish element
@@ -89,23 +145,23 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
 
     Arguments:
-        baseloc {str} -- base directory for  the files
-        shot {str} -- shot/asset name for the render job
-        name {str} -- element name
-        ver {int} -- element version
-        task {str} -- task assigned to render job
+        baseloc {str}: base directory for the element type (renders, comps, geo cache, camera, etc ...)
+        shot    {str}: shot/asset name for the render job
+        name    {str}: element name
+        ver     {int}: element version
+        task    {str}: task assigned to render job
 
     Keyword Arguments:
-        ext {str} -- element file type extension (default: {'exr'})
-        subtask {str} -- extra task definition for more granular setups (default: {''})
-        layer {str} -- another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
-        cat {str} -- render category, useful to distinguish between final renders and different tests and QD (default: {''})
-        subfolder {str} -- used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
-        isseq {bool} -- define whether or not the path is a sequence or single file
-        format {str} -- output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
-        only_name {bool} -- just output the file base name without padding or extension. (default: {False})
-        only_loc {bool} -- just output the base directory for the output files. (default: {False})
-        force_posix {bool} -- force using Posix format even in a Windows environment (default: {False})
+        ext         {str} : element file type extension (default: {'exr'})
+        subtask     {str} : extra task definition for more granular setups (default: {''})
+        layer       {str} : another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
+        cat         {str} : render category,                            useful to distinguish between final renders and different tests and QD (default: {''})
+        subfolder   {str} : used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
+        isseq       {bool}: define whether or not the path is a sequence or single file
+        format      {str} : output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
+        only_name   {bool}: just output the file base name without padding or extension. (default: {False})
+        only_loc    {bool}: just output the base directory for the output files. (default: {False})
+        force_posix {bool}: force using Posix format even in a Windows environment (default: {False})
 
     Returns:
         str -- complete path for the element
