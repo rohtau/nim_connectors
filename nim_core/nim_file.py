@@ -559,11 +559,11 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     That is for verUpsaveFile()
 
     Keyword Arguments:
-        nim {nim Dict} : NIM dictionarywit publishing info (default: {None})
-        padding {int} : Version number padding (default: {2})
-        selected {bool} : Whether or not save only selected (default: {False})
-        pub {bool} : Is this a publishing (default: {False})
-        symLink {bool} : Whether or not do symlink when publishing (default: {True})
+        nim      {nim Dict}: NIM dictionarywit publishing info (default: {None})
+        padding  {int}     : Version number padding (default: {2})
+        selected {bool}    : Whether or not save only selected (default: {False})
+        pub      {bool}    : Is this a publishing (default: {False})
+        symLink  {bool}    : Whether or not do symlink when publishing (default: {True})
 
     Returns:
         dict : {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}

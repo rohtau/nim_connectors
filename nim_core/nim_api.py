@@ -1727,8 +1727,115 @@ def to_nimDir( nim=None ) :
         P.error('Function api.to_nimDir() was unable to derive a file directory')
         return False
 
+def extract_basename( nim=None, filepath=None ) :
+    '''
+    Try to extract a basename and tag from a nim dictionary
+    The difference with to_basename() is that this function doesn't require
+    to have a nim dictionary with a published basename, if the file basename
+    hasn't been published yet then it will guess name elements from the file name.
+    These elements like, shot or task will be used if the nim dictionary doesn't have them.
+    The only element from the filename that can't be taken from the nim dictionary if file
+    wasn't published previously is the tag, this needs to be extracted from the file name.
+    This is the name convention for a filename:
+    [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
+    The basename is : [SHOT|ASSET]__[TASK]__[TAG]
+    The we have task and finally VER
+    As said, if file hasn't been published before then nim.name('base') is empty  and then this
+    function will try to complete parts of the dictionary using the file name.
+    Finally if SHOT|ASSET or TASK from the filename, doesn't match the ones in the dictionary
+    the function will return an error.
+
+    Parameters
+    ----------
+    nim : NIM object
+        Nim object with dictionary with publishing info, by default None
+    filepath : str
+        File path used to generate NIM dictionary. If nim dictionary doesn't have a filepath info then this will be used
+
+    Returns
+    -------
+    tuple
+        tuple with basename, tag and version(int). If any error occurs returns False.
+    '''    
+    (basename, tag, ver)=('', '', '')
+    
+    #  Error Check :
+    if not nim :
+        P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+        return False
+    path = nim.filePath() if nim.filePath() else filepath
+    if not path:
+        P.error( 'Please pass api.extract_basename() a Nim dictionary with a filepath or a explicit File Path.' )
+        return False
+    
+    short_task=F.task_toAbbrev( task=nim.name('task') )
+
+    if not nim.name('base'):
+        # File in NIM dictionary hasn't been  published before
+        base = os.path.basename(filepath)
+
+        # (filename, ext) = os.path.splitext(base)
+        filename = base.split('.')[0]
+        nameparts = filename.split('__')
+        if len(nameparts) < 3 or len(nameparts) > 5:
+            P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
+            return False
+        shotname = nameparts[0]
+        taskname = nameparts[1]
+        basename = '__'.join(nameparts[:2])
+        vername = nameparts[-1]
+        ver = int(vername[1:])
+        tagname = None
+        if len(nameparts) == 4:
+            #there is tag
+            tagname = nameparts[2]
+            basename = '__'.join(nameparts[:3])
+        elif len(nameparts) == 5:
+            #there is tag and cat
+            tagname = '__'.join(nameparts[2:4])
+            basename = '__'.join(nameparts[:4])
+        nim.set_name( elem='base', name=basename )
+        nim.set_name( elem='tag', name=tagname)
+        # nim.set_name( elem='ver', name=vername)
+        return (basename, tagname, ver)
+    
+    #  Derive basename :
+    if not nim.name('tag') and nim.name('base') :
+        basename=nim.name('base')
+    else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'_'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'_'+short_task
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'__'+short_task
+    
+    #  Returns :
+    if basename :
+        return basename
+    else :
+        P.error('Function api.to_basename() was unable to derive a basename')
+        return False
+
 def to_basename( nim=None ) :
-    'Derives the basenme to use, given a populated NIM dictionary'
+    'Derives the basename to use, given a populated NIM dictionary'
     basename=''
     
     #  Error Check :
@@ -1742,6 +1849,8 @@ def to_basename( nim=None ) :
     if not nim.name('tag') and nim.name('base') :
         basename=nim.name('base')
     else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
@@ -1752,6 +1861,17 @@ def to_basename( nim=None ) :
                 basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
             else :
                 basename=nim.name('shot')+'_'+short_task
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'__'+short_task
     
     #  Returns :
     if basename :
@@ -1759,6 +1879,7 @@ def to_basename( nim=None ) :
     else :
         P.error('Function api.to_basename() was unable to derive a basename')
         return False
+
 
 def to_fileName( nim=None, padding=2, pub=False ) :
     'Derives the file name to use, given a populated NIM dictionary'
@@ -2696,8 +2817,8 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated with new file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated with new file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
 
         if pub:
             ID = result['ID']
@@ -2783,8 +2904,8 @@ def update_file( ID=None, task_type_ID=None, task_folder=None, userID=None, base
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated existing file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated existing file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
         if pub:
             #Create symlink for published files
             pub_result = publish_symLink(fileID=ID, forceLink=forceLink)

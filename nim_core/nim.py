@@ -283,6 +283,8 @@ class NIM( object ) :
             
         #  Initialize tab :
         self.set_tab( _type=None )
+        # Init filepath
+        self.set_filePath(filePath)
 
         
         #  Find Job :
@@ -314,6 +316,7 @@ class NIM( object ) :
                         break
             else :
                 # Asset or Show+Shot
+                # print("DEBUG: Processing tok: %s"%tok)
                 #  Prevent Assets that might have the same name as a Shot :
                 if tok in ['_DEV', 'ASSETS'] :
                     self.set_tab( _type='ASSET' )
@@ -367,9 +370,10 @@ class NIM( object ) :
                     # Implement these elements folders
                     if not potentialTask and not elementFound:
                         # Element
+                        stopelmsearch = False
                         for elm in self.Dict('element'):
                             locs = elm['path'].split('/') if elm['path'].count('/') > 0 else [elm['path']]
-                            print("Compare tok %s with element locs: %s"%(tok, str(locs)))
+                            # print("DEBUG: Compare tok %s with element locs: %s"%(tok, str(locs)))
                             # Process all part of a potential path for the element. Some elements have a path like in/plates
                             # But this support everything, as soon as a part of an element path is detected potentialElement
                             # is set and it will keep tracking the rest of the path to find the element
@@ -380,23 +384,24 @@ class NIM( object ) :
                                 if tok == loc :
                                     if loc == locs[-1]:
                                         # element folder found
-                                        print("Set element: %s"%tok)
-                                        print("Set element name to %s, and ID: %s"%(elm['name'],elm['ID']))
+                                        # print("DEBUG: Set element: %s"%tok)
+                                        # print("DEBUG: Set element name to %s, and ID: %s"%(elm['name'],elm['ID']))
                                         self.set_name( elem='element', name=elm['name'])
                                         self.set_ID( elem='element', ID=elm['ID'])
-                                        elementFound = True
+                                        elementFound     = True
                                         potentialElement = False
-                                        # break
+                                        stopelmsearch    = True
                                     else:
-                                        print("Set potential element: %s"%tok)
+                                        # print("DEBUG: Set potential element: %s"%tok)
                                         potentialElement = True
-                                        # break
+                                        stopelmsearch    = True
                                     break
-                        # if elementFound or potentialElement:
-                            if elementFound:
+                            if stopelmsearch:
                                 break
+                        if elementFound:
+                            continue
                         pass
-                    if not potentialElement and  not taskFound :
+                    if not potentialElement and not taskFound :
                         # Task
                     #TODO: do a similar thing as with elements, search for task path tokens.
                         for task in self.Dict('task') :
@@ -433,10 +438,12 @@ class NIM( object ) :
                             locs = task['folder'].split('/') if task['folder'].count('/') > 0 else [task['folder']]
                             # Similar method used before for elements but now with tasks to detect and track any possible task
                             # path. Usually tasks paths looks like tasks/comp
+                            # print("DEBUG: Compare tok %s with task locs: %s"%(tok, str(locs)))
                             for loc in locs:
                                 if tok == loc :
                                     if loc == locs[-1]:
                                         # Task found
+                                        # print("DEBUG: Set task: %s"%tok)
                                         self.set_name( elem='task', name=task['name'] )
                                         self.set_ID( elem='task', ID=task['ID'] )
                                         self.set_taskFolder(task['folder'])
@@ -457,6 +464,7 @@ class NIM( object ) :
                                         break
                                     else:
                                         potentialTask = True
+                                        # print("DEBUG: Set potential task: %s"%tok)
                                         break
                             if taskFound or potentialTask:
                                 break
@@ -491,6 +499,18 @@ class NIM( object ) :
                                 self.set_ID( elem='user', ID=version['userID'])
                                 versionFound=True
                                 break
+
+        # If the path if a file wit a previous version published then we have been able to detect basename and version.
+        # Otherwise basename and version haven't been found and we need to guess the from the file path
+        if not basenameFound:
+            # Guess basename from file name.
+            (basename, tagname, ver) = Api.extract_basename( self, filePath )
+            # Fill file key
+            self.nim['file']['basename']=basename
+            self.nim['file']['filename']=self.name('file')
+            self.set_version(str(ver))
+            # TODO: get version from file and fill in dict
+
         
         #  Derive Server :
         if self.name( 'job' ) :
@@ -502,6 +522,7 @@ class NIM( object ) :
         #  Derive file extension :
         if F.get_ext( filePath ) :
             self.set_name( elem='fileExt', name=F.get_ext( filePath ) )
+            self.set_fileTypeByExt( F.get_ext( filePath ) )
 
 
         #  Comp Path :
@@ -537,9 +558,9 @@ class NIM( object ) :
             jobpath = os.path.normpath(os.path.join(self.server(), jobnumber ))
             self.set_jobPath( jobPath=jobpath )
         
+        # DEBUG
         # P.debug( 'Derived the following API information from filepath...' )
         # P.debug( '    %s' % self.Print( debug=True ) )
-        
         # pprint(self.get_nim())
 
         return self
@@ -933,9 +954,25 @@ class NIM( object ) :
         self.nim['mode']=mode
         return
     
-    def set_filePath(self) :
-        'Sets the file path'
-        self.nim['file']['path']=F.get_filePath()
+    def set_filePath(self, filePath=None) :
+        '''
+        Set file path parts from application or from a given path
+        This is a modification to the original NIM function to allow
+        settings paths from a given explicit argument.
+        The original function only allowed to set the path extracting it from the host
+        application. the new filePath argument allows to set file path parts in teh dictionary from a given path.
+        This is used in ingest_filePath() to fill the file elements from the given path.
+
+        Parameters
+        ----------
+        filePath : str, optional
+            Optional file path in case we don't want/need to extract file path from a host application, by default None
+        '''
+        if not filePath:
+            self.nim['file']['path']=F.get_filePath()
+        else:
+            self.nim['file']['path']=filePath
+            
         if self.nim['file']['path'] :
             self.nim['file']['name']=ntpath.basename( self.nim['file']['path'] )
             self.nim['file']['dir']=os.path.dirname( self.nim['file']['path'] )
@@ -944,9 +981,39 @@ class NIM( object ) :
             self.nim['file']['path']=''
         self.nim['file']['basename']=None
     
+    def set_fileTypeByExt( self, ext) :
+        '''
+        Set file type based on file extension
+
+        Parameters
+        ----------
+        ext : str
+            File extension
+        '''
+        myext = ext[1:] if ext.startswith('.') else ext
+        filetype = ""
+        if myext == 'hip':
+            filetype = 'Houdini Scene'
+        elif myext in ('mb', 'ma'):
+            filetype = 'Maya Scene'
+        elif myext == 'nk':
+            filetype = 'Nuke Script'
+        elif myext in ('exr', 'jpg', 'jpeg', 'dpx', 'png'):
+            filetype = 'Image'
+        elif myext in ('mov', 'mp4'):
+            filetype = 'Movie'
+        if filetype:
+            self.nim['fileExt']['fileType']=filetype
+        else:
+            P.warning("File extension not recognized as file type: %s"%ext)            
+            
+        if filetype:
+            self.nim['fileExt']['fileType']=filetype
+        return
+
     def set_fileType( self, fileType='Maya Binary' ) :
         'Sets the current file type the window is set to'
-        if fileType in ['Maya Binary', 'Maya Ascii'] :
+        if fileType in ['Maya Binary', 'Maya Ascii', 'Houdini Scene', 'Nuke Script'] :
             self.nim['fileExt']['fileType']=fileType
         return
     

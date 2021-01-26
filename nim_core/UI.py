@@ -48,10 +48,11 @@ startTime=''
 # winTitle='NIM_'+version
 from .import version 
 from .import winTitle
+from .import padding
 _os=platform.system().lower()
 _osCap=platform.system()
 # Global padding used for file versions.
-padding = 3
+# padding = 3
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
