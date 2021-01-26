@@ -12,7 +12,6 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-
 # EXAMPLE:
 #   Adding a render to a task
 #   uploading an icon to the render
@@ -36,26 +35,36 @@
 #  General Imports :
 import json, os, re, sys, traceback
 from pprint import pformat
-import urllib, urllib2
+
+from future.standard_library import install_aliases
+install_aliases()
+from urllib.parse import urlparse, urlencode
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError 
+from urllib.request import build_opener, HTTPSHandler, BaseHandler, HTTPHandler
+
+from builtins import input
+
 try :
     import ssl
 except :
-    print "NIM API: Failed to load SSL"
+    print("NIM API: Failed to load SSL")
     pass
 
-import mimetools, mimetypes
+# import mimetools, mimetypes
+import mimetypes
 import email.generator as email_gen
-import cStringIO
+import io
 import stat
 
 #  NIM Imports :
-import nim as Nim
-import nim_api as Api
-import nim_file as F
-import nim_prefs as Prefs
-import nim_print as P
-import nim_tools
-import nim_win as Win
+from . import nim as Nim
+from . import nim_api as Api
+from . import nim_file as F
+from . import nim_prefs as Prefs
+from . import nim_print as P
+from . import nim_tools
+from . import nim_win as Win
 
 #  Variables :
 from .import version 
@@ -83,27 +92,29 @@ except :
 
 def testAPI(nimURL=None, nim_apiUser='', nim_apiKey='') :
     sqlCmd={'q': 'testAPI'}
-    cmd=urllib.urlencode(sqlCmd)
+    cmd=urlencode(sqlCmd)
     _actionURL="".join(( nimURL, cmd ))
-    request = urllib2.Request(_actionURL)
+    request = Request(_actionURL)
     try :
-        request.add_header("X-NIM-API-USER", nim_apiUser)
-        request.add_header("X-NIM-API-KEY", nim_apiKey)
+        # request.add_header("X-NIM-API-USER", nim_apiUser)
+        # request.add_header("X-NIM-API-KEY", nim_apiKey)
         request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
         try :
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname=False
             ssl_ctx.verify_mode=ssl.CERT_NONE
-            _file = urllib2.urlopen(request,context=ssl_ctx)
+            # _file = urllib.request.urlopen(request,context=ssl_ctx)
+            print("Request: %s"%str(request))
+            _file = urlopen(request)
         except :
-            _file = urllib2.urlopen(request)
+            _file = urlopen(request)
         fr=_file.read()
         try : result=json.loads( fr )
-        except Exception, e :
+        except Exception as e :
             P.error( traceback.print_exc() )
         _file.close()
         return result
-    except urllib2.URLError, e :
+    except URLError as e :
         P.error( '\nFailed to read NIM API' )
         P.error( '   %s' % _actionURL )
         url_error = e.reason
@@ -128,7 +139,7 @@ def get_connect_info() :
 
     _prefs=Prefs.read()
 
-    if _prefs and 'NIM_URL' in _prefs.keys() :
+    if _prefs and 'NIM_URL' in list(_prefs.keys()) :
         nim_apiURL=_prefs['NIM_URL']
     else :
         print('"NIM_URL" not found in preferences!')
@@ -136,7 +147,7 @@ def get_connect_info() :
         if isGUI :
             reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
         else :
-            reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+            reply=input( 'Would you like to recreate your preferences? (Y/N): ')
             if reply == 'Y' or reply == 'y' :
                 reply = 'OK'
                 
@@ -149,7 +160,7 @@ def get_connect_info() :
 
             # Test Prefs 2nd Time... if fail after recreate then prompt for manual intervention
             _prefs=Prefs.read()
-            if _prefs and 'NIM_URL' in _prefs.keys() :
+            if _prefs and 'NIM_URL' in list(_prefs.keys()) :
                 nim_apiURL=_prefs['NIM_URL']
             else :
                 print('Failed Recreating NIM preferences.\nPlease delete the .nim folder from your home directory and try again.')
@@ -158,7 +169,7 @@ def get_connect_info() :
             sys.exit( '"NIM_URL" not found in preferences! \nPlease create NIM Preferences before using the NIM API' )
             return False
 
-    if _prefs and 'NIM_User' in _prefs.keys() :
+    if _prefs and 'NIM_User' in list(_prefs.keys()) :
         nim_apiUser=_prefs['NIM_User']
     else :
         P.info( '"NIM_User" not found in preferences!' )
@@ -181,7 +192,7 @@ def get_apiKey() :
             #  Read NIM API KEY file :
             with open(key_path, 'r') as f:
                 key = f.readline().strip()
-        except Exception, e :
+        except Exception as e :
             P.error( 'Unable to read api key.' )
     else :
         # P.warning( 'API Key not found.' )
@@ -241,10 +252,10 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
     if params :
         if method == 'get':
-            cmd=urllib.urlencode(params)
+            cmd=urlencode(params)
             _actionURL="".join(( nimURL, cmd ))
         elif method == 'post':
-            cmd=urllib.urlencode(params)
+            cmd=urlencode(params)
             _actionURL = re.sub('[?]', '', nimURL)
         else :
             P.error('Connection method not defined in request.')
@@ -253,9 +264,9 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
         try :
             if method == 'get':
-                request = urllib2.Request(_actionURL)
+                request = Request(_actionURL)
             elif method == 'post':
-                request = urllib2.Request(_actionURL, cmd)
+                request = Request(_actionURL, cmd)
             
             request.add_header("X-NIM-API-USER", nim_apiUser)
             request.add_header("X-NIM-API-KEY", nim_apiKey)
@@ -264,12 +275,12 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
                 ssl_ctx = ssl.create_default_context()
                 ssl_ctx.check_hostname=False
                 ssl_ctx.verify_mode=ssl.CERT_NONE
-                _file = urllib2.urlopen(request,context=ssl_ctx)
+                _file = urlopen(request,context=ssl_ctx)
             except :
-                _file = urllib2.urlopen(request)
+                _file = urlopen(request)
             fr=_file.read()
             try : result=json.loads( fr )
-            except Exception, e :
+            except Exception as e :
                 P.error( traceback.print_exc() )
             _file.close()
 
@@ -294,15 +305,15 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
                             Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
                                                                     Please contact your NIM Administrator to update your NIM API KEY expiration.' )
                         else :
-                            print 'NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
-                                    Please contact your NIM Administrator to update your NIM API KEY expiration.'
+                            print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                    Please contact your NIM Administrator to update your NIM API KEY expiration.')
                         #return False <-- returning false loads reset prefs msgbox
                 except :
                     pass
             
             return result
 
-        except urllib2.URLError, e :
+        except URLError as e :
             P.error( '\nFailed to read URL for the following command...\n    %s' % params )
             P.error( '   %s' % _actionURL )
             url_error = e.reason
@@ -316,7 +327,7 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             if isGUI :
                 reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
             else :
-                reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+                reply=input( 'Would you like to recreate your preferences? (Y/N): ')
                 if reply == 'Y' or reply == 'y' :
                     reply = 'OK'
 
@@ -385,17 +396,17 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     isRedirected = False
     try:
         testCmd = {'q': 'testAPI'}
-        cmd=urllib.urlencode(testCmd)
+        cmd=urlencode(testCmd)
         testURL="".join(( nimURL, cmd ))
-        req = urllib2.Request(testURL)
+        req = Request(testURL)
 
         try :
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname=False
             ssl_ctx.verify_mode=ssl.CERT_NONE
-            res = urllib2.urlopen(req, context=ssl_ctx)
+            res = urlopen(req, context=ssl_ctx)
         except :
-            res = urllib2.urlopen(req)
+            res = urlopen(req)
             #pass
         
         finalurl = res.geturl()
@@ -414,10 +425,10 @@ def upload( params=None, nimURL=None, apiKey=None ) :
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname=False
             ssl_ctx.verify_mode=ssl.CERT_NONE
-            opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+            opener = build_opener(HTTPSHandler(context=ssl_ctx), FormPostHandler)
         except :
             P.info( "Opening Connection on HTTP" )
-            opener = urllib2.build_opener(FormPostHandler)
+            opener = build_opener(FormPostHandler)
 
         opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
     except:
@@ -450,13 +461,13 @@ def upload( params=None, nimURL=None, apiKey=None ) :
                         Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
                                                             Please contact your NIM Administrator to update your NIM API KEY expiration.' )
                     else :
-                        print 'NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
-                                Please contact your NIM Administrator to update your NIM API KEY expiration.'
+                        print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                Please contact your NIM Administrator to update your NIM API KEY expiration.')
                     #return False <-- returning false loads reset prefs msgbox
             except :
                 pass
 
-    except urllib2.HTTPError, e:
+    except HTTPError as e:
         if e.code == 500:
             P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
             return False
@@ -476,24 +487,24 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     return result
 
 
-class FormPostHandler(urllib2.BaseHandler):
+class FormPostHandler(BaseHandler):
     """
     Handler for multipart form data
     """
-    handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
+    handler_order = HTTPHandler.handler_order - 10 # needs to run first
     
     def http_request(self, request):
         data = request.get_data()
-        if data is not None and not isinstance(data, basestring):
+        if data is not None and not isinstance(data, str):
             files = []
             params = []
-            for key, value in data.items():
+            for key, value in list(data.items()):
                 if isinstance(value, file):
                     files.append((key, value))
                 else:
                     params.append((key, value))
             if not files:
-                data = urllib.urlencode(params, True) # sequencing on
+                data = urlencode(params, True) # sequencing on
             else:
                 boundary, data = self.encode(params, files)
                 content_type = 'multipart/form-data; boundary=%s' % boundary
@@ -507,7 +518,7 @@ class FormPostHandler(urllib2.BaseHandler):
             #boundary = mimetools.choose_boundary()
             boundary = email_gen._make_boundary()
         if buffer is None:
-            buffer = cStringIO.StringIO()
+            buffer = io.StringIO()
         for (key, value) in params:
             buffer.write('--%s\r\n' % boundary)
             buffer.write('Content-Disposition: form-data; name="%s"' % key)
@@ -595,8 +606,8 @@ def get_userID( user='' ) :
             return userID[0]['ID']
         else :
             return userID
-    except Exception, e :
-        print traceback.print_exc()
+    except Exception as e :
+        print(traceback.print_exc())
         return False
 
 def get_userList( url=None ) :
@@ -620,10 +631,12 @@ def get_jobs( userID=None, folders=False ) :
         for job in _jobs :
             if not folders :
                 #jobDict[str(job['number'])+'_'+str(job['jobname'])]=str(job['ID'])
-                jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                #jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ ' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
             else :
                 #jobDict[str(job['number'])+'_'+str(job['folder'])]=str(job['ID'])
-                jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                #jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ ' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
         return jobDict
     except :
         P.error("Failed to get jobs")
@@ -1675,7 +1688,7 @@ def to_nimDir( nim=None ) :
             taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
-                    if 'name' in task.keys() and nim.name('task')==task['name'] :
+                    if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
                         taskFolder=task['folder']
             if shotPath and taskFolder :
                 nimDir=os.path.join( nim.server( get='path' ), shotPath, taskFolder )
@@ -1701,7 +1714,7 @@ def to_nimDir( nim=None ) :
             taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
-                    if 'name' in task.keys() and nim.name('task')==task['name'] :
+                    if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
                         taskFolder=task['folder']
             if assetPath and taskFolder :
                 nimDir=os.path.join( nim.server( get='path' ), assetPath, taskFolder )
@@ -1721,8 +1734,115 @@ def to_nimDir( nim=None ) :
         P.error('Function api.to_nimDir() was unable to derive a file directory')
         return False
 
+def extract_basename( nim=None, filepath=None ) :
+    '''
+    Try to extract a basename and tag from a nim dictionary
+    The difference with to_basename() is that this function doesn't require
+    to have a nim dictionary with a published basename, if the file basename
+    hasn't been published yet then it will guess name elements from the file name.
+    These elements like, shot or task will be used if the nim dictionary doesn't have them.
+    The only element from the filename that can't be taken from the nim dictionary if file
+    wasn't published previously is the tag, this needs to be extracted from the file name.
+    This is the name convention for a filename:
+    [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
+    The basename is : [SHOT|ASSET]__[TASK]__[TAG]
+    The we have task and finally VER
+    As said, if file hasn't been published before then nim.name('base') is empty  and then this
+    function will try to complete parts of the dictionary using the file name.
+    Finally if SHOT|ASSET or TASK from the filename, doesn't match the ones in the dictionary
+    the function will return an error.
+
+    Parameters
+    ----------
+    nim : NIM object
+        Nim object with dictionary with publishing info, by default None
+    filepath : str
+        File path used to generate NIM dictionary. If nim dictionary doesn't have a filepath info then this will be used
+
+    Returns
+    -------
+    tuple
+        tuple with basename, tag and version(int). If any error occurs returns False.
+    '''    
+    (basename, tag, ver)=('', '', '')
+    
+    #  Error Check :
+    if not nim :
+        P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+        return False
+    path = nim.filePath() if nim.filePath() else filepath
+    if not path:
+        P.error( 'Please pass api.extract_basename() a Nim dictionary with a filepath or a explicit File Path.' )
+        return False
+    
+    short_task=F.task_toAbbrev( task=nim.name('task') )
+
+    if not nim.name('base'):
+        # File in NIM dictionary hasn't been  published before
+        base = os.path.basename(filepath)
+
+        # (filename, ext) = os.path.splitext(base)
+        filename = base.split('.')[0]
+        nameparts = filename.split('__')
+        if len(nameparts) < 3 or len(nameparts) > 5:
+            P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
+            return False
+        shotname = nameparts[0]
+        taskname = nameparts[1]
+        basename = '__'.join(nameparts[:2])
+        vername = nameparts[-1]
+        ver = int(vername[1:])
+        tagname = None
+        if len(nameparts) == 4:
+            #there is tag
+            tagname = nameparts[2]
+            basename = '__'.join(nameparts[:3])
+        elif len(nameparts) == 5:
+            #there is tag and cat
+            tagname = '__'.join(nameparts[2:4])
+            basename = '__'.join(nameparts[:4])
+        nim.set_name( elem='base', name=basename )
+        nim.set_name( elem='tag', name=tagname)
+        # nim.set_name( elem='ver', name=vername)
+        return (basename, tagname, ver)
+    
+    #  Derive basename :
+    if not nim.name('tag') and nim.name('base') :
+        basename=nim.name('base')
+    else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'_'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'_'+short_task
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'__'+short_task
+    
+    #  Returns :
+    if basename :
+        return basename
+    else :
+        P.error('Function api.to_basename() was unable to derive a basename')
+        return False
+
 def to_basename( nim=None ) :
-    'Derives the basenme to use, given a populated NIM dictionary'
+    'Derives the basename to use, given a populated NIM dictionary'
     basename=''
     
     #  Error Check :
@@ -1736,6 +1856,8 @@ def to_basename( nim=None ) :
     if not nim.name('tag') and nim.name('base') :
         basename=nim.name('base')
     else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
@@ -1746,6 +1868,17 @@ def to_basename( nim=None ) :
                 basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
             else :
                 basename=nim.name('shot')+'_'+short_task
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'__'+short_task
     
     #  Returns :
     if basename :
@@ -1774,7 +1907,7 @@ def to_fileName( nim=None, padding=2, pub=False ) :
         baseInfo=get_baseVer( shotID=nim.ID( 'shot' ), basename=basename )
     elif nim.tab()=='ASSET' :
         baseInfo=get_baseVer( assetID=nim.ID( 'asset' ), basename=basename )
-    if baseInfo and 'version' in baseInfo[0].keys() :
+    if baseInfo and 'version' in list(baseInfo[0].keys()) :
         verNum=int(baseInfo[0]['version'])+1
     else :
         verNum=1
@@ -2138,23 +2271,23 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  Get application variables, when Version'ing Up :
     if not win_launch :
         if nim.app()=='Maya' :
-            import nim_maya as M
+            from . import nim_maya as M
             M.get_vars( nim=nim )
         elif nim.app()=='Nuke' :
-            import nim_nuke as N
+            from . import nim_nuke as N
             N.get_vars( nim=nim )
         elif nim.app()=='C4D' :
-            import nim_c4d as C
+            from . import nim_c4d as C
             nim_plugin_ID=1032427
             C.get_vars( nim=nim, ID=nim_plugin_ID )
         elif nim.app()=='3dsMax' :
-            import nim_3dsmax as Max
+            from . import nim_3dsmax as Max
             Max.get_vars( nim=nim )
         elif nim.app()=='Houdini' :
-            import nim_houdini as Houdini
+            from . import nim_houdini as Houdini
             Houdini.get_vars( nim=nim )
         elif nim.app()=='Flame' :
-            import nim_flame as Flame
+            from . import nim_flame as Flame
             Flame.get_vars( nim=nim )
     
     #  Error check :
@@ -2258,11 +2391,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             #  Set env vars brought over from nim_file
                             P.info('Setting Environment Variables')
                             P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                            import nim_maya as M
+                            from . import nim_maya as M
                             M.set_vars( nim=verUpNim )
                             nim = verUpNim
                             
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
@@ -2272,7 +2405,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                         try :
                             #  Prompt to Save :
                             if nuke.root().modified() :
-                                import nim_nuke as N
+                                from . import nim_nuke as N
                                 result=N.Win_SavePySide.get_btn()
                                 if result.lower()=='save' :
                                     P.info('\nSaving file...\n')
@@ -2299,17 +2432,17 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             #  Set env vars brought over from nim_file
                             P.info('Setting Environment Variables')
                             P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                            import nim_nuke as N
+                            from . import nim_nuke as N
                             N.set_vars( nim=verUpNim )
                             nim = verUpNim
                             
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
                         try :
                             P.info( 'Setting Nuke environment variables...' )
-                            import nim_nuke as N
+                            from . import nim_nuke as N
                             N.set_vars( nim )
                         except :
                             P.warning( 'Unable to set Nuke environment variables.  Dealine may be affected' )
@@ -2320,7 +2453,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                     elif nim.app()=='Hiero' :
                         import hiero.core
                         try : hiero.core.openProject( filePath )
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
@@ -2332,11 +2465,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             c4d.documents.LoadFile( str(filePath) )
                             #  Set Variables :
                             nim_plugin_ID=1032427
-                            import nim_c4d as C
+                            from . import nim_c4d as C
                             C.set_vars( nim=verUpNim, ID=nim_plugin_ID )
                             nim = verUpNim
                             
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
@@ -2349,11 +2482,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             #  Set env vars brought over from nim_file
                             P.info('Setting Environment Variables')
                             P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                            import nim_3dsmax as Max
+                            from . import nim_3dsmax as Max
                             Max.set_vars( nim=verUpNim )
                             nim = verUpNim
                             
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
@@ -2371,11 +2504,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             #  Set env vars brought over from nim_file
                             P.info('Setting Environment Variables')
                             P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                            import nim_houdini as Houdini
+                            from . import nim_houdini as Houdini
                             Houdini.set_vars( nim=verUpNim )
                             nim = verUpNim
                             
-                        except Exception, e :
+                        except Exception as e :
                             P.error( 'Failed reading the file: %s' % filePath )
                             P.error( '    %s' % traceback.print_exc() )
                             return False
@@ -2469,11 +2602,11 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
             projPath=prefs[app+'_DefaultServerPath']
         '''
         # TODO: VERIFY AS REPLACE FOR _DefaultServerPath
-        if prefs and app+'_ServerPath' in prefs.keys() :
+        if prefs and app+'_ServerPath' in list(prefs.keys()) :
             projPath=prefs[app+'_ServerPath']
             #P.error( 'AS - projPath: %s' % prefs[app+'_ServerPath'] )
 
-        if prefs and app+'_ServerID' in prefs.keys() :
+        if prefs and app+'_ServerID' in list(prefs.keys()) :
             projPath=prefs[app+'_ServerID']
 
 
@@ -2546,7 +2679,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if nim.tab()=='ASSET' :
         _task=F.task_toAbbrev( nim.name( 'task' ) )
         
-        print 'Task Folder = %s' % nim.taskFolder()
+        print('Task Folder = %s' % nim.taskFolder())
         
         if not pub :
             result=get( {'q': 'addFile', 'class': 'ASSET', 'itemID': nim.ID( 'asset' ), 
@@ -2690,8 +2823,8 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated with new file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated with new file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
 
         if pub:
             ID = result['ID']
@@ -2777,8 +2910,8 @@ def update_file( ID=None, task_type_ID=None, task_folder=None, userID=None, base
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated existing file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated existing file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
         if pub:
             #Create symlink for published files
             pub_result = publish_symLink(fileID=ID, forceLink=forceLink)

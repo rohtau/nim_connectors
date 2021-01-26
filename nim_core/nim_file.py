@@ -14,22 +14,26 @@
 
 # rohtau v0.2
 
-
 #  General Imports :
 import os, platform, re, shutil, stat, traceback, time
 #  NIM Imports :
-import nim_api as Api
-import nim_print as P
-import nim_win as Win
-import nim as Nim
+from . import nim_api as Api
+from . import nim_print as P
+from . import nim_win as Win
+from . import nim as Nim
+from imp import reload
 
 
 #  Variables :
 # version='v4.0.61'
 # winTitle='NIM_'+version
 from .import version 
+<<<<<<< HEAD
 from .import winTitle 
 
+=======
+from .import winTitle
+>>>>>>> rohtau_python3
 _os=platform.system().lower()
 #  Compiled REGEX Searches :
 ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
@@ -560,11 +564,19 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     That is for verUpsaveFile()
 
     Keyword Arguments:
+<<<<<<< HEAD
         nim {nim Dict} : NIM dictionarywit publishing info (default: {None})
         padding {int} : Version number padding (default: {2})
         selected {bool} : Whether or not save only selected (default: {False})
         pub {bool} : Is this a publishing (default: {False})
         symLink {bool} : Whether or not do symlink when publishing (default: {True})
+=======
+        nim      {nim Dict}: NIM dictionarywit publishing info (default: {None})
+        padding  {int}     : Version number padding (default: {2})
+        selected {bool}    : Whether or not save only selected (default: {False})
+        pub      {bool}    : Is this a publishing (default: {False})
+        symLink  {bool}    : Whether or not do symlink when publishing (default: {True})
+>>>>>>> rohtau_python3
 
     Returns:
         dict : {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
@@ -761,7 +773,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     
     #  Make Maya Project directory :
     if os.path.isdir( projDir ) and nim.app()=='Maya' :
-        import nim_maya as M
+        from . import nim_maya as M
         if M.makeProject( projectLocation=projDir, renderPath=renDir ) :
             P.info( 'Created Maya project directorires within...\n    %s' % projDir )
         else :
@@ -771,7 +783,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
 
     #  Make 3dsMax Project directory :
     if os.path.isdir( projDir ) and nim.app()=='3dsMax' :
-        import nim_3dsmax as Max
+        from . import nim_3dsmax as Max
         if Max.mk_proj( path=projDir, renPath=renDir ) :
             P.info( 'Created 3dsMax project directorires within...\n    %s' % projDir )
         else :
@@ -782,7 +794,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #  Make Houdini Project directory :
     # TODO: this wil be removed
     if os.path.isdir( projDir ) and nim.app()=='Houdini' :
-        import nim_houdini as Houdini
+        from . import nim_houdini as Houdini
         if Houdini.mk_proj( path=projDir, renPath=renDir ) :
             P.info( 'Created Houdini project directorires within...\n    %s' % projDir )
         else :
@@ -802,7 +814,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_maya as M
+            from . import nim_maya as M
             M.set_vars( nim=nim )
             
             P.info( 'Saving file as %s \n' % new_filePath )
@@ -826,7 +838,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_nuke as N
+            from . import nim_nuke as N
             N.set_vars( nim=nim )
             P.info( 'Saving file as %s \n' % new_filePath )
             nuke.scriptSaveAs( new_filePath )
@@ -849,7 +861,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         #  Save File :
         if not selected :
             P.info( 'Saving file as %s \n' % new_filePath )
-            import nim_c4d as C
+            from . import nim_c4d as C
             C.set_vars( nim=nim, ID=nim_plugin_ID )
             doc=c4d.documents.GetActiveDocument()
             doc.SetDocumentName( new_fileName )
@@ -886,7 +898,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_3dsmax as Max
+            from . import nim_3dsmax as Max
             Max.set_vars( nim=nim )
             #Save File
             P.info( 'Saving file as %s \n' % new_filePath )
@@ -902,7 +914,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_houdini as Houdini
+            from . import nim_houdini as Houdini
             Houdini.set_vars( nim=nim )
             #Save File
             if _os.lower() in ['windows', 'win32'] :
@@ -958,13 +970,13 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
 def scripts_reload() :
     'Reloads the facility level scripts'
     try :
-        import nim as Nim
-        import nim_api as Api
-        import nim_file as F
-        import nim_prefs as Prefs
-        import nim_print as P
-        import nim_win as Win
-        import nim_tools
+        from . import nim as Nim
+        from . import nim_api as Api
+        from . import nim_file as F
+        from . import nim_prefs as Prefs
+        from . import nim_print as P
+        from . import nim_win as Win
+        from . import nim_tools
         reload(Nim)
         reload(Api)
         reload(F)
@@ -975,28 +987,28 @@ def scripts_reload() :
         #  App specific modules :
         app=get_app()
         try :
-            import UI as UI
+            from . import UI as UI
             reload(UI)
         except : pass
         if app=='Maya' :
-            import nim_maya as M
+            from . import nim_maya as M
             reload(M)
         elif app=='Nuke' :
-            import nim_nuke as N
+            from . import nim_nuke as N
             reload(N)
         elif app=='C4D' :
-            import nim_c4d as C
+            from . import nim_c4d as C
             reload(C)
         elif app=='3dsMax' :
-            import nim_3dsmax as Max
+            from . import nim_3dsmax as Max
             reload(Max)
         elif app=='Houdini' :
-            import nim_houdini as Houdini
+            from . import nim_houdini as Houdini
             reload(Houdini)
         P.info( '    NIM scripts. have been reloaded.' )
-    except Exception, e :
-        print 'Sorry, problem reloading scripts...'
-        print '    %s' % traceback.print_exc()
+    except Exception as e :
+        print('Sorry, problem reloading scripts...')
+        print('    %s' % traceback.print_exc())
     return
 
 

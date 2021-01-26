@@ -16,6 +16,7 @@
 
 import hou
 import os,sys
+from imp import reload
 
 action = sys.argv[1]
 
@@ -67,9 +68,9 @@ def publishAction():
 def changeUserAction():
     try:
         nimWin.userInfo()
-    except Exception, e :
-        print 'Sorry, there was a problem choosing NIM user...'
-        print '    %s' % traceback.print_exc()
+    except Exception as e :
+        print('Sorry, there was a problem choosing NIM user...')
+        print('    %s' % traceback.print_exc())
     hou.ui.setStatusMessage( "NIM: change User")
 def reloadScriptsAction():
     nimFile.scripts_reload()

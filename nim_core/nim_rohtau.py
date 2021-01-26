@@ -24,6 +24,7 @@ import time
 from datetime import datetime
 from pprint import pprint
 from pprint import pformat
+from builtins import range
 
 
 from .import version 
@@ -42,7 +43,7 @@ except ImportError :
     except ImportError :
         try : from PyQt4 import QtCore, QtGui
         except ImportError : 
-            print "NIM: Failed to UI Modules - UI"
+            print("NIM: Failed to UI Modules - UI")
 
 def toPosix( path, force=False ):
     '''
@@ -87,6 +88,151 @@ def openPath( path ):
 
     return True
 
+def elementTypeFolder( elementtype, parent, parentID ):
+    '''
+    Based on an element type name or ID and a selected shot/asset return it's folder path.
+    The path will be relative to the parent shot/asset
+    The full path for the element type will be:
+    [JOBPATH]/[work|build]/[SHOT|ASSET]/[ELEMENT]
+    This function returns the ELEMENT portion, which in general is a folder name.
+
+    Parameters
+    ----------
+    elementtype : str
+        Element type name or ID
+    parent : str
+        Element parent item type: shot, asset or show
+    parentID : int
+        Element parent ID
+    
+
+    Returns
+    -------
+    str
+        Element folder name. empty string if error
+    '''
+    folder = ""
+    if len(elementtype) > 0:
+        elmtsTypes = nimApi.get_elementTypes()
+        pprint(elmtsTypes)
+        if not elementtype.isnumeric():
+            elementname = element
+            for elm in elmtsTypes:
+                if elm['ID'] == elementtype:
+                    elementid = elm['ID']
+                    break
+        else:
+            elementid = int(elementtype)
+            for elm in elmtsTypes:
+                if elm['name'] == elementtype:
+                    elementname = elm['name']
+                    break
+    else:
+        nimP.error("Element type is an empty string. Please set an element type name or ID")
+        return ""
+
+    basepaths = nimApi.get_paths( item=parent, ID=parentID )
+    basepath = basepaths['root']
+    if elementname in ('plates', 'renders', 'comps'):
+       folder =  basepaths[elementname].replace(basepath + '/', '')
+    else:
+        folder = elementname
+
+    return folder
+
+def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='houdini', only_name=False, only_loc=False, force_posix=False  ):
+    '''
+    Build output path for a publish element
+
+    Supported app output formats:
+    - Houdini (houdini)
+    - Nuke (nuke)
+
+    If we need to store temp files for the render we can use the subfolder option. for instance if we need to store IFD files for Mantra
+    we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
+
+    Arguments:
+        baseloc {str}: base directory for the element type (renders, comps, geo cache, camera, etc ...)
+        shot    {str}: shot/asset name for the render job
+        name    {str}: element name
+        ver     {int}: element version
+        task    {str}: task assigned to render job
+
+    Keyword Arguments:
+        ext         {str} : element file type extension (default: {'exr'})
+        subtask     {str} : extra task definition for more granular setups (default: {''})
+        layer       {str} : another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
+        cat         {str} : render category,                            useful to distinguish between final renders and different tests and QD (default: {''})
+        subfolder   {str} : used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
+        isseq       {bool}: define whether or not the path is a sequence or single file
+        format      {str} : output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
+        only_name   {bool}: just output the file base name without padding or extension. (default: {False})
+        only_loc    {bool}: just output the base directory for the output files. (default: {False})
+        force_posix {bool}: force using Posix format even in a Windows environment (default: {False})
+
+    Returns:
+        str -- complete path for the element
+    '''
+    # nuke.tprint("Output Path Args: BaseLoc: %s, Shot: %s, Name: %s, Ver: %d, Task: %s, Ext: %s, Subtask= %s, Layer=%s, Cat: %s, Subfolder=%s, IsSeq=%d, Format=%s, OnlyName=%d, OnlyLoc=%d, ForcePosix=%d"%\
+        # (baseloc, shot, name, ver, task, ext, subtask, layer, cat, subfolder,  isseq, format, only_name, only_loc, force_posix))
+    path = ""
+    # Task
+    if not task:
+        # FIXME: do this with log
+        print("Task is empty")
+    pathtask = task
+    if len(subtask) > 0:
+        pathtask += "_%s"%subtask
+
+    # Category
+    if cat:
+        pathcat = 'TEST'
+        if cat.upper() == 'AUTO':
+            # XXX: the name of the lighting task will probably change
+            if task == 'lighting':
+                pathcat = 'BTY'
+        else:
+            pathcat = cat.upper()
+
+    # element Name
+    elmname = name
+    if len(layer) > 0:
+        elmname += "__%s"%layer
+    if cat:
+        elmname += "__%s"%pathcat
+
+    # Ver
+    pathver = "v%03d"%ver
+
+    # Files location
+    loc = os.path.normpath( os.path.join(baseloc, pathtask, elmname, pathver))
+
+    # Files Name
+    name = "%s__%s__%s__%s"%(shot, pathtask, elmname, pathver)
+    if not only_name:
+        if isseq:
+            if format == 'houdini':
+                name += ".$F4.%s"%ext
+            elif format == 'nuke':
+                name += ".%"+"04d.%s"%ext
+        else:
+            name += ".%s"%ext
+        
+    # Form the final path
+    # In Houdini we need to do a expansString weith this output
+    path = os.path.join( loc, name )
+    if len(subfolder):
+        path = os.path.join( loc, subfolder, name )
+    if platform.system() == 'Windows' and force_posix:
+        path = toPosix( path )
+        loc  = toPosix( loc )
+
+    if only_loc:
+        return loc
+    elif only_name:
+        return name
+    else:
+        return path
 
 def buildRenderSceneName( scenepath ):
     """
@@ -175,7 +321,7 @@ def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
             
     # Set file read only
     mode = os.stat(compressed_renderscene).st_mode
-    ro_mask = 0777 ^ (stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
+    ro_mask = 0o777 ^ (stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
     os.chmod(compressed_renderscene, mode & ro_mask)    
 
     return compressed_renderscene
@@ -523,7 +669,7 @@ class DisplayMessage( QtGui.QDialog ) :
         self.btn_layout.addStretch()
 
         #  Create Buttons :
-        for label, idx in zip(self.labels, range(len(self.labels))):
+        for label, idx in zip(self.labels, list(range(len(self.labels)))):
             button = QtGui.QPushButton( label )
             button.my_own_data = str(idx)  # <<< set your own property
             button.clicked.connect( self.click_handler )
