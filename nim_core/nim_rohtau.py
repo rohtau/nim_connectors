@@ -13,15 +13,24 @@ Copyright 2020 - 2020, rohtau
 rohtau interface with NIM and the publishing system in general.
 Layer on yop of NIM shared across all supported apps in the pipeline
 '''
+import sys
 import os
 import platform
 import re
 import subprocess
+from subprocess import Popen
+import shlex
+import time
 from datetime import datetime
+from pprint import pprint
+from pprint import pformat
 
 
 from .import version 
 from .import winTitle 
+from . import nim_api as nimAPI
+from . import nim_print as nimP
+
 
 #  Import Python GUI packages :
 try : 
@@ -72,105 +81,12 @@ def openPath( path ):
     if platform.system() == "Windows":
         os.startfile(path)
     elif platform.system() == "Darwin":
-        subprocess.Popen(["open", path])
+        Popen(["open", path])
     else:
-        subprocess.Popen(["xdg-open", path])
+        Popen(["xdg-open", path])
 
     return True
 
-def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='houdini', only_name=False, only_loc=False, force_posix=False  ):
-    '''
-    Build output path for a publish element
-
-    Supported app output formats:
-    - Houdini (houdini)
-    - Nuke (nuke)
-
-    If we need to store temp files for the render we can use the subfolder option. for instance if we need to store IFD files for Mantra
-    we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
-
-    Arguments:
-        baseloc {str} -- base directory for  the files
-        shot {str} -- shot/asset name for the render job
-        name {str} -- element name
-        ver {int} -- element version
-        task {str} -- task assigned to render job
-
-    Keyword Arguments:
-        ext {str} -- element file type extension (default: {'exr'})
-        subtask {str} -- extra task definition for more granular setups (default: {''})
-        layer {str} -- another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
-        cat {str} -- render category, useful to distinguish between final renders and different tests and QD (default: {''})
-        subfolder {str} -- used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
-        isseq {bool} -- define whether or not the path is a sequence or single file
-        format {str} -- output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
-        only_name {bool} -- just output the file base name without padding or extension. (default: {False})
-        only_loc {bool} -- just output the base directory for the output files. (default: {False})
-        force_posix {bool} -- force using Posix format even in a Windows environment (default: {False})
-
-    Returns:
-        str -- complete path for the element
-    '''
-    # nuke.tprint("Output Path Args: BaseLoc: %s, Shot: %s, Name: %s, Ver: %d, Task: %s, Ext: %s, Subtask= %s, Layer=%s, Cat: %s, Subfolder=%s, IsSeq=%d, Format=%s, OnlyName=%d, OnlyLoc=%d, ForcePosix=%d"%\
-        # (baseloc, shot, name, ver, task, ext, subtask, layer, cat, subfolder,  isseq, format, only_name, only_loc, force_posix))
-    path = ""
-    # Task
-    if not task:
-        # FIXME: do this with log
-        print("Task is empty")
-    pathtask = task
-    if len(subtask) > 0:
-        pathtask += "_%s"%subtask
-
-    # Category
-    if cat:
-        pathcat = 'TEST'
-        if cat.upper() == 'AUTO':
-            # XXX: the name of the lighting task will probably change
-            if task == 'lighting':
-                pathcat = 'BTY'
-        else:
-            pathcat = cat.upper()
-
-    # element Name
-    elmname = name
-    if len(layer) > 0:
-        elmname += "__%s"%layer
-    if cat:
-        elmname += "__%s"%pathcat
-
-    # Ver
-    pathver = "v%03d"%ver
-
-    # Files location
-    loc = os.path.normpath( os.path.join(baseloc, pathtask, elmname, pathver))
-
-    # Files Name
-    name = "%s__%s__%s__%s"%(shot, pathtask, elmname, pathver)
-    if not only_name:
-        if isseq:
-            if format == 'houdini':
-                name += ".$F4.%s"%ext
-            elif format == 'nuke':
-                name += ".%"+"04d.%s"%ext
-        else:
-            name += ".%s"%ext
-        
-    # Form the final path
-    # In Houdini we need to do a expansString weith this output
-    path = os.path.join( loc, name )
-    if len(subfolder):
-        path = os.path.join( loc, subfolder, name )
-    if platform.system() == 'Windows' and force_posix:
-        path = toPosix( path )
-        loc  = toPosix( loc )
-
-    if only_loc:
-        return loc
-    elif only_name:
-        return name
-    else:
-        return path
 
 def buildRenderSceneName( scenepath ):
     """
@@ -288,6 +204,266 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath ):
     return attrs
 
 
+def runAsyncCommand( cmd ):
+    '''
+    Run a command asynchronously.
+
+    Arguments:
+        cmd {str} -- command string
+
+    Returns:
+        bool -- True if the command finished with errorcode 0, False other wise
+    '''
+    args = shlex.split(cmd, posix=platform.system() != 'Windows')
+    # print(args)
+    timeout = 60*2 #some amount of seconds
+    delay = 1.0
+        
+    try:
+        proc = Popen(args, shell=True)
+    except subprocess.CalledProcessError:
+        nimP.errir( "Command: %s "%cmd)
+        return False
+    except FileNotFoundError:
+        nimP.error( "Comand is not available in PATH: %s"%cmd)
+        return False
+    if sys.version_info >= (3,0):
+        # Python 3
+        try:
+            proc.wait( timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            # outs, errs = proc.communicate()
+            nimP.error( "Command timeout: %s "%cmd)
+            return False
+    else:
+        # Python 2
+        delay = 1.0
+        waittime = int(timeout / delay)
+        #while the process is still executing and we haven't timed-out yet
+        while proc.poll() is None and waittime > 0:
+            #do other things too if necessary e.g. print, check resources, etc.
+            time.sleep(delay)
+            waittime -= delay
+        if waittime < 0:
+            proc.kill()
+            nimP.error( "Command timeout: %s "%cmd)
+            return False
+            
+    if proc.returncode != 0:
+        nimP.error( "Command: %s "%cmd)
+        return False
+
+    return True
+
+#
+# Publishing
+#
+def getNextPublishVer ( filename, parent='SHOT', parentID=''):
+    '''
+    Query NIM's database to get what would be the next version to be publish for the element.
+
+    Arguments
+    ---------
+        filename : str
+            Filename of element to publish. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        parent : str
+            Parent for publish element:SHOT or ASSET
+        parentID : str
+            Shot or Asset ID
+
+    Returns
+    -------
+        int 
+            Next version for publish or 1 if there is no published file yet
+    '''
+    # (dirname, filename) = os.path.split(path)
+    # Extract basename and ver. Assume name convention is: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    basename = filename.split('.')[0]
+    basenameparts = basename.split('__')
+    basename = '__'.join(basenameparts[:-1]) # Exclude ver part
+    curver = basenameparts[-1][1:] # Get ver part and remove the initial v
+    # import nuke
+    # nuke.tprint("Path: %s"%path)
+    # nuke.tprint("Basename: %s, Ver: %s"%(basename, curver))
+    if parent == 'SHOT':
+        lastver = nimAPI.get_baseVer( shotID=parentID, basename=basename )
+    else:
+        lastver = nimAPI.get_baseVer( assetID=parentID, basename=basename )
+    if lastver:
+        # nuke.tprint("Last version available:")
+        # nuke.tprint(pformat(lastver, indent=4))
+        lastverstr = lastver[0]['version'].encode('utf8')
+        newver = int(lastverstr) + 1
+        return newver
+    else:
+        return 1
+    pass
+
+def getPublishedVers ( filename, parent='SHOT', parentID=''):
+    '''
+    Query NIM's database to get all published version for an element in a shot/asset
+
+    Arguments
+    ---------
+        filename : str
+            Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        parent : str
+            Parent for publish element:SHOT or ASSET
+        parentID : str
+            Shot or Asset ID
+
+    Returns
+    -------
+        int 
+            List of versions dictionaries
+    '''
+    # (dirname, filename) = os.path.split(path)
+    # Extract basename and ver. Assume name convention is: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    basename = filename.split('.')[0]
+    basenameparts = basename.split('__')
+    basename = '__'.join(basenameparts[:-1]) # Exclude ver part
+    curver = basenameparts[-1][1:] # Get ver part and remove the initial v
+    # import nuke
+    if parent == 'SHOT':
+        vers = nimAPI.get_vers( shotID=parentID, basename=basename )
+    else:
+        vers = nimAPI.get_vers( assetID=parentID, basename=basename )
+    if vers:
+        # nuke.tprint("Versions available:")
+        # nuke.tprint(pformat(vers, indent=4))
+        return vers
+    else:
+        return False
+    pass
+
+
+def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='nim', only_name=False, only_loc=False, force_posix=False  ):
+    '''
+    Build output path for a publish element
+    This is elements name convention:
+    - Path
+        [JOB]/[work|build]/[SHOT|ASSET]/[ELEMPATH]/[TASK]/[ELEMNAME]__[CAT]/[VER]/
+    - Filename:
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
+
+    Supported app output formats
+    ----------------------------
+    - Houdini (houdini)
+    - Nuke (nuke)
+    - Nim (nim)
+
+    If we need to store temp files for the render we can use the subfolder option. for instance if we need to store IFD files for Mantra
+    we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
+
+    Arguments
+    ---------
+        baseloc : str
+            Base directory for  the files
+        shot : str
+            Shot/asset name for the render job
+        name : str
+            Element name
+        ver : int
+            Element version
+        task : str
+            Task assigned to render job
+        ext : str
+            Element file type extension (default: {'exr'})
+        subtask : str:
+            Extra task definition for more granular setups (default: {''})
+        layer : str
+            Another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
+        cat : str
+            Render category, useful to distinguish between final renders and different tests and QD (default: {''})
+        subfolder : str
+            Used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
+        isseq : bool
+            Define whether or not the path is a sequence or single file
+        format : str
+            Output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
+        only_name : bool
+            Just output the file base name without padding or extension. (default: {False})
+        only_loc : bool
+            Just output the base directory for the output files. (default: {False})
+        force_posix : bool
+            Force using Posix format even in a Windows environment (default: {False})
+
+
+    Returns
+    -------
+        str
+            Complete path for the element
+    '''
+    # nuke.tprint("Output Path Args: BaseLoc: %s, Shot: %s, Name: %s, Ver: %d, Task: %s, Ext: %s, Subtask= %s, Layer=%s, Cat: %s, Subfolder=%s, IsSeq=%d, Format=%s, OnlyName=%d, OnlyLoc=%d, ForcePosix=%d"%\
+        # (baseloc, shot, name, ver, task, ext, subtask, layer, cat, subfolder,  isseq, format, only_name, only_loc, force_posix))
+    path = ""
+    # Task
+    if not task:
+        # FIXME: do this with log
+        print("Task is empty")
+    pathtask = task
+    if len(subtask) > 0:
+        pathtask += "_%s"%subtask
+
+    # Category
+    if cat:
+        pathcat = 'TEST'
+        if cat.upper() == 'AUTO':
+            # XXX: the name of the lighting task will probably change
+            if task == 'lighting':
+                pathcat = 'BTY'
+        else:
+            pathcat = cat.upper()
+
+    # element Name
+    elmname = name
+    if len(layer) > 0:
+        elmname += "__%s"%layer
+    if cat:
+        elmname += "__%s"%pathcat
+
+    # Ver
+    pathver = "v%03d"%ver
+
+    # Files location
+    loc = os.path.normpath( os.path.join(baseloc, pathtask, elmname, pathver))
+
+    # Files Name
+    name = "%s__%s__%s__%s"%(shot, pathtask, elmname, pathver)
+    if not only_name:
+        if isseq:
+            if format == 'nim':
+                name += ".####.%s"%ext
+            elif format == 'houdini':
+                name += ".$F4.%s"%ext
+            elif format == 'nuke':
+                name += ".%"+"04d.%s"%ext
+            else:
+                name += ".####.%s"%ext # By default use Nim padding format
+                
+        else:
+            name += ".%s"%ext
+        
+    # Form the final path
+    # In Houdini we need to do a expansString weith this output
+    path = os.path.join( loc, name )
+    if len(subfolder):
+        path = os.path.join( loc, subfolder, name )
+    if platform.system() == 'Windows' and force_posix:
+        path = toPosix( path )
+        loc  = toPosix( loc )
+
+    if only_loc:
+        return loc
+    elif only_name:
+        return name
+    else:
+        return path
+
+#
+# UI
+#
 class DisplayMessage( QtGui.QDialog ) :
 
     def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :

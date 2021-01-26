@@ -58,18 +58,18 @@ def statusBar():
 
 hiero.ui.statusBar = statusBar
 
-g_nim_jobID = None
-g_nim_showID = None
-g_nim_showFolder = ''
-g_nim_element = ''
-g_nim_elementTypeID = None
+g_nim_jobID          = None
+g_nim_showID         = None
+g_nim_showFolder     = ''
+g_nim_element        = ''
+g_nim_elementTypeID  = None
 g_nim_publishElement = False
-g_nim_serverID = None
-g_nim_serverOSPath = ''
-g_nim_taskID = None
-g_nim_taskFolder = ''
-g_nim_basename = ''
-g_nim_versionID = None
+g_nim_serverID       = None
+g_nim_serverOSPath   = ''
+g_nim_taskID         = None
+g_nim_taskFolder     = ''
+g_nim_basename       = ''
+g_nim_versionID      = None
 
 
 def openDialog():
@@ -139,6 +139,7 @@ def saveDialog():
 	#Get Current Project
 	currentProject = nimProjectHelpers.currentProject()
 	print "Current Project: %s" % currentProject.name()
+	print (currentProject)
 
 	dialog = NimNS_saveDialog(currentProject=currentProject)
 	if dialog.exec_():

@@ -45,8 +45,8 @@ class NimHieroExport(QAction):
 
 		# Instantiate the action
 		NimExportSelectedShotAction = NimHieroExport.NimExportSelectedShotAction()
-		NimBuildTrackAction = NimHieroExport.NimBuildTrackAction()
-		NimClearTagsAction = NimHieroExport.NimClearTagsAction()
+		NimBuildTrackAction         = NimHieroExport.NimBuildTrackAction()
+		NimClearTagsAction          = NimHieroExport.NimClearTagsAction()
 
 	def nimMenu(self):
 		'''No Action'''
@@ -60,13 +60,13 @@ class NimHieroExport(QAction):
 		def __init__(self,  selection, selectedPresets, parent=None):
 			super(NimHieroExport.NimExportDialog, self).__init__(parent)
 			
-			self.app=nimFile.get_app()
-			self.prefs=nimPrefs.read()
+			self.app   = nimFile.get_app()
+			self.prefs = nimPrefs.read()
 			try:
-				self.user=self.prefs['NIM_User']
-				self.pref_job=self.prefs[self.app+'_Job']
-				self.pref_show=self.prefs[self.app+'_Show']
-				self.pref_server=self.prefs[self.app+'_ServerPath']
+				self.user        = self.prefs['NIM_User']
+				self.pref_job    = self.prefs[self.app+'_Job']
+				self.pref_show   = self.prefs[self.app+'_Show']
+				self.pref_server = self.prefs[self.app+'_ServerPath']
 			except:
 				#return False
 				pass
@@ -84,7 +84,6 @@ class NimHieroExport(QAction):
 			print "NIM: userID=%s" % self.nim_userID
 			print "NIM: default job=%s" % self.pref_job
 
-			
 
 			self.nim_jobPaths = {}
 			self.nim_showPaths = {}
@@ -397,8 +396,8 @@ class NimHieroExport(QAction):
 			nim_showID = dialog.nim_showID
 
 			#Update Globals
-			nimHieroConnector.g_nim_jobID = dialog.nim_jobID
-			nimHieroConnector.g_nim_showID = dialog.nim_showID
+			nimHieroConnector.g_nim_jobID      = dialog.nim_jobID
+			nimHieroConnector.g_nim_showID     = dialog.nim_showID
 			nimHieroConnector.g_nim_showFolder = dialog.nim_showFolder
 			#nimHieroConnector.g_nim_serverID = dialog.nim_serverID
 			#nimHieroConnector.g_nim_serverOSPath = dialog.nim_serverOSPath

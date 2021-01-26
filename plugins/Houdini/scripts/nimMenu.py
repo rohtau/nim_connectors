@@ -29,6 +29,7 @@ import nim_core.nim_api as nimAPI
 import nim_core.nim_file as nimFile
 import nim_core.nim_win as nimWin
 import nim_core.nim_houdini as nimHoudini
+from nim_core import padding
 
 reload(nimUI)
 reload(nimAPI)
@@ -56,7 +57,7 @@ def saveSelectedAction():
     hou.ui.setStatusMessage( "NIM: Save Selected")
 
 def versionUpAction():
-    nimAPI.versionUp( padding=nimUI.padding )
+    nimAPI.versionUp( padding=padding )
     hou.ui.setStatusMessage( "NIM: Version Up Secene")
 
 def publishAction():

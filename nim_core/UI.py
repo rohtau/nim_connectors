@@ -29,6 +29,7 @@ import nim_file as F
 import nim_prefs as Prefs
 import nim_print as P
 import nim_win as Win
+from nim_core import padding
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -50,8 +51,6 @@ from .import version
 from .import winTitle 
 _os=platform.system().lower()
 _osCap=platform.system()
-# Global padding used for file versions.
-padding = 3
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
