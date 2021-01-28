@@ -35,12 +35,14 @@
 #  General Imports :
 import json, os, re, sys, traceback
 from pprint import pformat
+from pprint import pprint
 
+# Hack to use urllib in Python 2 and 3
 from future.standard_library import install_aliases
 install_aliases()
-from urllib.parse import urlparse, urlencode
+from urllib.parse   import urlparse, urlencode
 from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError 
+from urllib.error   import URLError, HTTPError 
 from urllib.request import build_opener, HTTPSHandler, BaseHandler, HTTPHandler
 
 from builtins import input
@@ -57,14 +59,25 @@ import email.generator as email_gen
 import io
 import stat
 
-#  NIM Imports :
-from . import nim as Nim
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
-from . import nim_tools
-from . import nim_win as Win
+# NIM Imports :
+# Nim is only used in versionUp, s owe move this there to avoid a circular dependency
+# #from . import nim as Nim
+# from . import nim_api as Api
+if sys.version_info >= (3,0):
+    from . import nim       as Nim
+    from . import nim_file  as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+    from . import nim_tools
+    from . import nim_win   as Win
+else:
+    import nim       as Nim
+    import nim_file  as F
+    import nim_prefs as Prefs
+    import nim_print as P
+    import nim_tools
+    import nim_win   as Win
+     
 
 #  Variables :
 from .import version 
@@ -1678,14 +1691,14 @@ def to_nimDir( nim=None ) :
         if nim.ID('shot') :
             
             #  Asset Information :
-            shotInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
+            shotInfo=get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
             if shotInfo and type(shotInfo)==type(dict()) and 'root' in shotInfo :
                 shotPath=os.path.normpath( os.path.join( nim.server(), shotInfo['root'] ) )
                 shotPlates=os.path.normpath( os.path.join( nim.server(), shotInfo['plates'] ) )
                 shotRenders=os.path.normpath( os.path.join( nim.server(), shotInfo['renders'] ) )
                 shotComps=os.path.normpath( os.path.join( nim.server(), shotInfo['comps'] ) )
             #  Task Information :
-            taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
+            taskDict=get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
                     if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
@@ -1707,11 +1720,11 @@ def to_nimDir( nim=None ) :
     elif nim.tab()=='ASSET' :
         if nim.ID('asset') :
             #  Asset Information :
-            assetInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
+            assetInfo=get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
             if assetInfo and type(assetInfo)==type(dict()) and 'root' in assetInfo :
                 assetPath=assetInfo['root']
             #  Task Information :
-            taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
+            taskDict=get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
                     if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
@@ -2235,18 +2248,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
 
+        
+
     # print("Passed NIM:")
     # print("================================")
-    # print(nim)
-    # import pprint
-    # import json
-    # with open('C:\\tmp\\nim_dict.json', 'w') as fp:
-        # json.dump(nim.get_nim(), fp)
-    # pp = pprint.PrettyPrinter(indent=2)    
-    # output = pp.pformat( nim.get_nim() )
-    # with open('C:\\tmp\\nim_dict.py', 'w') as fp:
-        # fp.write( output )
-    # pp.pprint(nim.get_nim())
+    # pprint( nim.get_nim() )
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2302,10 +2308,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
 
     # print("================================")
     # print("Target NIM settings")
-    # print(nim)
-    # import pprint
-    # pp = pprint.PrettyPrinter(indent=2)    
-    # pp.pprint(nim.get_nim())
+    # pprint(nim.get_nim())
 
     if not shotCheck and not assetCheck :
         msg='Sorry, unable to retrieve Shot/Asset IDs from the current file.'
@@ -2316,6 +2319,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         nim.Print()
         Win.popup( title=winTitle+' - Filename Error', msg=msg )
         return False
+
     
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file
@@ -2628,6 +2632,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
             P.warning( '\nNo comment entered.  Tsk, tsk...\n' )
+            nim.set_name( elem='comment', name='')
 
     #  Get Asset information :
     if nim.ID( 'asset' ) and nim.ID( 'asset' ) != 'None' and nim.ID('asset') != '0' :

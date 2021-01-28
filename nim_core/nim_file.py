@@ -15,12 +15,19 @@
 # rohtau v0.2
 
 #  General Imports :
-import os, platform, re, shutil, stat, traceback, time
+import os, platform, re, shutil, stat, traceback, sys, time
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_print as P
-from . import nim_win as Win
-from . import nim as Nim
+if sys.version_info >= (3,0):
+    from . import nim_api as Api
+    from . import nim_print as P
+    from . import nim_win as Win
+    from . import nim as Nim
+else:
+    import nim_api as Api
+    import nim_print as P
+    import nim_win as Win
+    import nim as Nim
+    
 from imp import reload
 
 
@@ -28,12 +35,7 @@ from imp import reload
 # version='v4.0.61'
 # winTitle='NIM_'+version
 from .import version 
-<<<<<<< HEAD
-from .import winTitle 
-
-=======
 from .import winTitle
->>>>>>> rohtau_python3
 _os=platform.system().lower()
 #  Compiled REGEX Searches :
 ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
@@ -555,7 +557,6 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
     return filepath
 
 
-# FIXME: win_launch is not used.
 # selected can be removed or deprecated
 def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
     '''
@@ -564,19 +565,11 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     That is for verUpsaveFile()
 
     Keyword Arguments:
-<<<<<<< HEAD
-        nim {nim Dict} : NIM dictionarywit publishing info (default: {None})
-        padding {int} : Version number padding (default: {2})
-        selected {bool} : Whether or not save only selected (default: {False})
-        pub {bool} : Is this a publishing (default: {False})
-        symLink {bool} : Whether or not do symlink when publishing (default: {True})
-=======
         nim      {nim Dict}: NIM dictionarywit publishing info (default: {None})
         padding  {int}     : Version number padding (default: {2})
         selected {bool}    : Whether or not save only selected (default: {False})
         pub      {bool}    : Is this a publishing (default: {False})
         symLink  {bool}    : Whether or not do symlink when publishing (default: {True})
->>>>>>> rohtau_python3
 
     Returns:
         dict : {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
@@ -679,13 +672,21 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         P.error( msg )
         Win.popup( title='NIM - Version Up Error', msg=msg )
         return False
-    
+
     #  Construct new File Name :
+    '''
     if not pub :
         new_fileName='%s_v%s%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     elif pub :
         verNum -=1
         new_fileName='%s_v%s_PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
+    '''
+    # Use our convention with __ to separate fields in the file name:
+    if not pub :
+        new_fileName='%s__v%s%s' % ( basename, str(verNum).zfill(int(padding)), ext )
+    elif pub :
+        verNum -=1
+        new_fileName='%s__v%s__PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     
     
     #  Construct new File Path :

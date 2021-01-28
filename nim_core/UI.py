@@ -14,6 +14,8 @@
 
 # rohtau v0.2
 
+
+
 #  General Imports :
 import glob, os, platform, re, sys, traceback, time
 from future.standard_library import install_aliases
@@ -26,14 +28,26 @@ try:
 except :
     print("NIM UI: Failed to load SSL")
     pass
+from pprint import pprint
+from pprint import pformat
 
 #  NIM Imports :
-from . import nim as Nim
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
-from . import nim_win as Win
+if sys.version_info >= (3,0):
+    from . import nim as Nim
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+    from . import nim_win as Win
+    from . import nim_rohtau as nimRt
+else:
+    import nim as Nim
+    import nim_api as Api
+    import nim_file as F
+    import nim_prefs as Prefs
+    import nim_print as P
+    import nim_win as Win
+    import nim_rohtau as nimRt
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -832,6 +846,8 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('comment').clear()
         # Set default comment for Save:
         filepath = self.nim.filePath()
+        if filepath == 'Root':
+            filepath = 'Untitled'
         filename = self.nim.fileName()
         if filename != 'untitled.hip':
             self.nim.Input('comment').setText("Save from: %s"%filepath)
@@ -2689,7 +2705,7 @@ class GUI(QtGui.QMainWindow) :
     
     def file_saveAs(self) :
         'Function called when Save As button is activated.'
-        
+        # Only for debug
         global padding
 
         #  Set Selected flag for saving only the selected objects :
@@ -2697,7 +2713,6 @@ class GUI(QtGui.QMainWindow) :
         if self.app in ['Maya', 'Nuke', '3dsMax','Houdini'] :
             selected=self.checkBox.checkState()
         
-       
         #  Variables :
         self.update_server()
 
@@ -2734,10 +2749,12 @@ class GUI(QtGui.QMainWindow) :
             mc.undoInfo(openChunk=True)
         
         #  Version up file and add to API :
+        # Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         try : 
             # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except :
+            nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
             P.error("Failed to Save File")
         
         # Start Maya Undo Queue

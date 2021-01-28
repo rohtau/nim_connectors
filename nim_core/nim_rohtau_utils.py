@@ -13,6 +13,7 @@ Copyright 2020 - 2021, rohtau
 Wrapper on top of NIM API
 '''
 
+import sys
 import platform
 import os
 import re
@@ -21,11 +22,19 @@ import time
 # from pathlib import PurePath
 from pprint import pprint
 
-from rtcommands.utils import log
-from rtcommands.utils import logtimer
+if sys.version_info >= (3,0):
+    from . import nim_api   as nimAPI
+    from . import nim_prefs as nimPrefs
+    from . import nim_print as nimP
+else:
+    import nim_api   as nimAPI
+    import nim_prefs as nimPrefs
+    import nim_print as nimP
 
-import vendor.nim.nim_core.nim_api as nimAPI
-import vendor.nim.nim_core.nim_prefs as nimPrefs
+#  Variables :
+from .import version 
+from .import winTitle 
+from .import padding 
 
 class shotStatusID:
     '''
@@ -61,6 +70,27 @@ class jobAwardStatusID:
     IN_PROGRESS = 4
     COMPLETED   = 5
     CLOSED      = 6
+
+#
+# Utilities
+#
+def logtimer( msg, start, end=0.0):
+    '''
+    Write log messages to the terminal using click.echo()
+    This is a specialized version of the log() function to output
+    timer log messages for profiling
+
+    If end time is not provided, start will be printed as the time.
+    If provided the difference between end and start will be the printed time.
+
+    Arguments:
+        msg {str} -- log message. A semicolo plus final time will be added.
+        start {float} -- start time
+        end {float} -- end time
+    '''
+    print("NIM.Profile ~> %s : %0.4f"%(msg, (end-start) if end>0 else start))
+
+    pass
 
 #
 # Jobs
@@ -124,13 +154,13 @@ def getjobIdNumberTuple( job ):
         jobnumber = getjobNumberFromId(job)
         jobid = int(job)
         if not jobnumber:
-            log( "Can't get job number from given id: %d"%job, severity='error')
+            nimP.error( "Can't get job number from given id: %d"%job)
             return (0, "")
     else:
         # jobnumber =  fixjobNumber(job) 
         jobid = getjobIdFromNumber(jobnumber)
         if not jobid:
-            log( "Can't get job id from given job number: %s"%jobnumber, severity='error')
+            nimP.error( "Can't get job id from given job number: %s"%jobnumber)
             return (0, "")
 
     return ( jobid, jobnumber )
@@ -200,7 +230,7 @@ def getjobLocation( jobid, force_posix=False, noerrors=False ):
     # print(servers)
     if not servers:
         if not noerrors:
-            log( "Can't get server from given job id number or name: %s"%jobid, severity='error')
+            nimP.error( "Can't get server from given job id number or name: %s"%jobid)
         return ""
     path = servers[0]['path']
     winpath = servers[0]['winPath'].replace('/', '\\')
@@ -255,7 +285,7 @@ def getshowIdFromName( jobid, showname ):
     """         
     shows = nimAPI.get_shows( jobid )
     if not shows:
-        log( "Can't get shows from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get shows from given job id number or name: %s"%jobid)
         return None
 
     for show in shows:
@@ -278,7 +308,7 @@ def getshowsIDDict(jobid):
     '''
     shows = nimAPI.get_shows( jobid )
     if not shows:
-        log( "Can't get shows from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get shows from given job id number or name: %s"%jobid)
         return None
 
     showsid = { }
@@ -303,7 +333,7 @@ def getshots( jobid, showid = None ):
     shots = {}
     shows = nimAPI.get_shows( jobid )
     if not shows:
-        log( "Can't get shows from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get shows from given job id number or name: %s"%jobid)
         return None
 
     for show in shows:
@@ -327,7 +357,7 @@ def getshotIdFromName( jobid, shotname ):
     """         
     shots = getshots( jobid )
     if shots is None:
-        log( "Can't get shots from given job id: %s"%jobid, severity='error')
+        nimP.error( "Can't get shots from given job id: %s"%jobid)
         sys.exit()
     for showid in shots:
         for shot in shots[showid]:
@@ -407,7 +437,7 @@ def getassetsIDDict( jobid ):
     '''
     assets = nimAPI.get_assets( jobid )
     if assets is None:
-        log( "Can't get assets from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get assets from given job id number or name: %s"%jobid)
         return None
     assetsid = { }
     for asset in assets:
@@ -476,7 +506,7 @@ def gettasksTypesIDDict( ):
     tasks = nimAPI.get_taskTypes()
 
     if tasks is None:
-        log( "Can't get tasks types from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get tasks types from given job id number or name: %s"%jobid)
         return None
     tasksid = { }
     for task in tasks:
@@ -498,7 +528,7 @@ def gettasksIDDict( jobid ):
     tasks = nimAPI.get_tasks( jobid )
 
     if tasks is None:
-        log( "Can't get tasks from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get tasks from given job id number or name: %s"%jobid)
         return None
     tasksid = { }
     for task in tasks:
@@ -577,7 +607,7 @@ def getelementsIDDict( ):
     elementsid = {}
 
     if elements is None:
-        log( "Can't get elements from given job id number or name: %s"%jobid, severity='error')
+        nimP.error( "Can't get elements from given job id number or name: %s"%jobid)
         return None
     for element in elements:
         elementsid[int(element['ID'])] = element['name']
@@ -594,7 +624,7 @@ def getelementID( element ):
     # print("Elements Types:")
     # print(elements)
     if elements is None:
-        log( "Can't get elements types", severity='error')
+        nimP.error( "Can't get elements types")
         return None
     for elm in elements:
         if elm['name'] == element:
@@ -966,7 +996,7 @@ def getuserID( username ):
     # print("Elements Types:")
     # print(elements)
     if users is None:
-        log( "Can't get users list", severity='error')
+        nimP.error( "Can't get users list")
         return None
     # print(users)
     # Add default domain
@@ -988,7 +1018,7 @@ def getusersIDDict( ):
     usersid = {}
 
     if users is None:
-        log( "Can't get users" , severity='error')
+        nimP.error( "Can't get users")
         return None
     for user in users:
         usersid[int(user['ID'])] = user['username']
@@ -1016,7 +1046,7 @@ def updateJobTemplateData( job, template ):
     # print(jobinfo)
     jobpath = getjobLocation( jobid, force_posix=True )
     if not os.path.exists( jobpath ):
-        log("Job location is not accessible, is the job online?: %s"%jobpath, severity='error')
+        nimP.error("Job location is not accessible, is the job online?: %s"%jobpath)
         return False
     
     res = template.replace('<name>', fixjobNumber(jobnumber) )

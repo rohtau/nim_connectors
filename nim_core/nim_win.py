@@ -18,10 +18,17 @@ import os, sys
 from builtins import input
 
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
+if sys.version_info >= (3,0):
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+else:
+    import nim_api as Api
+    import nim_file as F
+    import nim_prefs as Prefs
+    import nim_print as P
+     
 
 
 from .import version 

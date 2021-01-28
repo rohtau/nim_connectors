@@ -15,13 +15,20 @@
 # rohtau v0.2
 
 import ntpath, os, traceback
+import sys
 from sys import path
 from pprint import pprint
 
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
+if sys.version_info >= (3,0):
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+else:
+    import nim_api as Api
+    import nim_file as F
+    import nim_prefs as Prefs
+    import nim_print as P
 
 from .import version 
 from .import winTitle
@@ -43,7 +50,7 @@ class NIM( object ) :
         
         #  Store the different GUI elements to be populated :
         self.elements=['job', 'asset', 'show', 'shot', 'filter', 'element', 'task', 'base', 'ver']
-        self.print_elements=['job', 'asset', 'show', 'shot', 'filter', 'task', 'basename', 'version']
+        self.print_elements=['job', 'asset', 'show', 'shot', 'filter', 'element', 'task', 'basename', 'version']
         self.comboBoxes=['job', 'asset', 'show', 'shot', 'filter', 'task']
         self.listViews=['base', 'ver']
         
@@ -235,30 +242,33 @@ class NIM( object ) :
             return False
     
     def ingest_filePath( self, filePath='', pub=False, checkfile=True ) :
-        'Sets NIM dictionary from current file path'
+        '''
+        Sets NIM dictionary from current file path
+
+        rohtau Name convention
+        DCC Scene Files:
+        [JOB]/[work|build]/[SHOT|ASSET]/task/[TASK]/[TAG]/[APP]/
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
+
+        Elements:
+        [JOB]/[work|build]/[SHOT|ASSET]/[ELEMPATH]/[TASK]/[ELEMNAME]__[CAT]/[VER]/
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        '''
         
         jobFound, assetFound, showFound, shotFound=False, False, False, False
         taskFound, basenameFound, versionFound=False, False, False
         elementFound, potentialElement, potentialTask= False, False, False
         jobs, assets, shows, shots, tasks, basenames, version={}, {}, {}, {}, {}, {}, {}
-        #  Get and set jobs dictionary :
         
         # print("Starting Dict")
         # pprint(self.get_nim())
 
+        #  Get and set jobs dictionary :
         jobsfolders = Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
         jobsfolders = { key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
         jobs        = Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
         jobs        = { key.decode():value.decode() for (key,value) in jobs.items()}
-        # jobsfolders = {'barcelona_20-0006 _ barcelona_20-0006': '11', 'gousto_20001 _ gousto_20001': '16', 'exodus_20007 _ <job_number>': '23'}
-        # jobsfolder = { jobnumber _ jobfolder : ID}
-        # jobs = {'gousto_20001 Gousto': '16', 'barcelona_20-0006 Barcelona': '11', 'exodus_20007 Plant Centre': '23'}
-        # jobs = { jobnumber jobname : ID }
-        # print("Jobs:")
-        # print(jobs)
-        # print("Jobs Folders:")
-        # print(jobsfolders)
-        #P.info('ingest_filePath')
+
         self.set_dict('job')
         
         #  Verify file path structure :
@@ -289,8 +299,7 @@ class NIM( object ) :
         # Init filepath
         self.set_filePath(filePath)
 
-        
-        #  Find Job :
+        # Find Job :
         for tok in toks :
             if not jobFound :
                 # Job
@@ -369,10 +378,7 @@ class NIM( object ) :
                 if assetFound or showFound :
                     # We have found the base location of the shot/asset so far
                     #  Find Shot, once Show is found :
-                    # TODO: this function only support the name convention for DCC apps files. is expecting to 
-                    # find the task folder after the shot/asset folder. But for published elements we will find "elements folder"
-                    # Implement these elements folders
-                    if not potentialTask and not elementFound:
+                    if not potentialTask and not elementFound and not taskFound:
                         # Element
                         stopelmsearch = False
                         for elm in self.Dict('element'):
@@ -381,8 +387,6 @@ class NIM( object ) :
                             # Process all part of a potential path for the element. Some elements have a path like in/plates
                             # But this support everything, as soon as a part of an element path is detected potentialElement
                             # is set and it will keep tracking the rest of the path to find the element
-                            # FIXME: testing with this:
-                            # rtadmin pub path  /jobs/gousto_20001/work/GIS/GIS_032/out/comp/fx/steam__OUT/v001/GIS_032__fx__steam__OUT__v001.1001.exr -p shot
                             # Needs to stop evaluation of elements
                             for loc in locs:
                                 if tok == loc :
@@ -407,38 +411,12 @@ class NIM( object ) :
                         pass
                     if not potentialElement and not taskFound :
                         # Task
-                    #TODO: do a similar thing as with elements, search for task path tokens.
+                        stoptasksearch = False
                         for task in self.Dict('task') :
                             # Tasks names will be matched agains full task name, shot task name or folder name.
                             # This is for backwards compatibility with older shows.
                             # The convention is to use the task short name as the task name in the path.
                             # So short task name is need as the task path.
-                            #  Substitute Task names, if necessary :
-                            '''
-                            task_name=F.task_toAbbrev( task['name'] )
-                            folder_task = task['folder']
-                            if folder_task.count('/') > 0:
-                                folder_task = folder_task.split('/')[1]  # If folder task include a subfolder, like tasks/fx, then use fx
-                            #  Try to find Tasks :
-                            if tok==task_name or tok==task['name'] or tok == folder_task :
-                                self.set_name( elem='task', name=task['name'] )
-                                self.set_ID( elem='task', ID=task['ID'] )
-                                self.set_taskFolder(task['folder'])
-                                taskFound=True
-                                # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
-                                # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
-                                #  Get Basenames :
-                                if taskFound and assetFound==True :
-                                    basenames=Api.get_bases( assetID=self.ID( 'asset' ), \
-                                        task=self.name( 'task' ).upper() )
-                                elif taskFound and shotFound==True :
-                                    # basenames=Api.get_bases( shotID=self.ID( 'shot' ), \
-                                        # task=self.name( 'task' ).upper() )
-                                    basenames=Api.get_bases( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ),\
-                                        task=self.name( 'task' ).upper(), taskID=self.ID('task') )
-                                self.set_dict('base')
-                                break
-                            '''
                             locs = task['folder'].split('/') if task['folder'].count('/') > 0 else [task['folder']]
                             # Similar method used before for elements but now with tasks to detect and track any possible task
                             # path. Usually tasks paths looks like tasks/comp
@@ -451,10 +429,9 @@ class NIM( object ) :
                                         self.set_name( elem='task', name=task['name'] )
                                         self.set_ID( elem='task', ID=task['ID'] )
                                         self.set_taskFolder(task['folder'])
-                                        taskFound=True
-                                        potentialTask = False
-                                        # print("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
-                                        # nuke.tprint("Shot/Asset/Task: %d/%d/%d"%(shotFound, assetFound, taskFound))
+                                        taskFound      =True
+                                        potentialTask  = False
+                                        stoptasksearch = True
                                         #  Get Basenames :
                                         if taskFound and assetFound==True :
                                             basenames=Api.get_bases( assetID=self.ID( 'asset' ), \
@@ -470,8 +447,13 @@ class NIM( object ) :
                                         potentialTask = True
                                         # print("DEBUG: Set potential task: %s"%tok)
                                         break
-                            if taskFound or potentialTask:
+                            if stoptasksearch:
                                 break
+                        if taskFound:
+                            continue
+                        pass
+                            # if taskFound or potentialTask:
+                                # break
                     elif not basenameFound :
                         for basename in basenames :
                             task_abbrev=F.task_toAbbrev( self.name( 'task' ) )

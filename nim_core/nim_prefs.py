@@ -22,10 +22,16 @@ install_aliases()
 from urllib.parse import urlparse
 
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_print as P
-from . import nim_win as Win
+if sys.version_info >= (3,0):
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_print as P
+    from . import nim_win as Win
+else:
+    import nim_api as Api
+    import nim_file as F
+    import nim_print as P
+    import nim_win as Win
 
 '''
 isGUI = True

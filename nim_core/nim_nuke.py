@@ -220,7 +220,9 @@ def check_vars():
         iserror = True
     # Job path
     # nimdatajobpath  = os.path.normpath(os.path.join(os.path.normpath(nimdata.name('server')), nimdata.name('job').split()[0]))
-    nimdatajobpath  = os.path.normpath(os.path.join(os.path.normpath(nimdata.server('path')), nimdata.name('job').split()[0]))
+    nimdatajobpath = os.path.normpath(os.path.join(os.path.normpath(nimdata.server('path')), nimdata.name('job').split()[0]))
+    nimdatajobpath = nimdatajobpath.replace('\\', '/' )
+    nimdatajobpath += "/"
     # nimpubjobpath = nimpubdata.name('server') + '/' + nimpubdata.name('job').split()[0]
     if nimdatajobpath != nim.jobPath():
         errors += "Job Path information doesn't match. NIM data: %s -> Nuke data: %s\n"%(nimdatajobpath , nim.jobPath())
@@ -250,7 +252,7 @@ def check_vars():
                 errors += "Shot information doesn't match. NIM data (%s,%s) -> Nuke data (%s,%s)\n"%(nimdata.name('shot'), nimdata.ID('shot'), nim.name('shot'), nim.ID('shot'))
                 iserror = True
         else:
-            errors += "HIP Publish data doesn't have information about asset or shot\n"
+            errors += "Nuke Publish data doesn't have information about asset or shot\n"
             iserror = True
     # TODO: shotPath, platesPath, compsPath, rendersPath
     # Task
@@ -270,8 +272,9 @@ def check_vars():
     taskID = str(int(PS.knob('nim_taskID').value()))
     for task in tasks:
         # nuke.tprint(task)
+        # print("Compare task %s with Nim task %s, and user %s with Nim user: %s"%(task['typeID'], nimdata.ID('task'), task['userID'], nimdata.ID('user')))
         if task['typeID'] == nimdata.ID('task') and task['userID'] == str(nimdata.ID('user')):
-            print("Found task %d!"%int(task['taskID']))
+            # print("Found task %d!"%int(task['taskID']))
             # if int(nim.ID('task')) == 0:
             if int(taskID) == 0:
                 errors += "Nuke scene pub data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimdata.name('task')
@@ -288,11 +291,11 @@ def check_vars():
         ret = nimRt.DisplayMessage.get_btn( msg, title= title )
     # Version
     if nimdata.version() != nim.version():
-        errors += "File version  doesn't match. NIM data %s -> HIP data %s\n"%( nimdata.ID('ver'),  nim.ID('ver'))
+        errors += "File version  doesn't match. NIM data %s -> Nuke script data %s\n"%( nimdata.ID('ver'),  nim.ID('ver'))
         iserror = True
     # File ID
     if nimdata.ID('ver') != nim.ID('ver'):
-        errors += "File ID doesn't match. NIM data %s -> HIP data %s\n"%( nimdata.ID('ver'),  nim.ID('ver'))
+        errors += "File ID doesn't match. NIM data %s -> Nuke script data %s\n"%( nimdata.ID('ver'),  nim.ID('ver'))
         iserror = True
     
     progressTask.setMessage("Completed!")
@@ -301,7 +304,7 @@ def check_vars():
 
     if iserror:
         if nuke.GUI:
-            # ret = hou.ui.displayMessage( "Some HIP file publish data failed tests against NIM online publish data:", title='Check HIP Publish Info',\
+            # ret = hou.ui.displayMessage( "Some Nuke script publish data failed tests against NIM online publish data:", title='Check Nuke Publish Info',\
                 # buttons= ('OK', 'Reset Publish Data'), default_choice=0, close_choice=0, details=errors, details_label='Failed Publish Data',\
                     # severity= hou.severityType.Error)
             nuke.tprint("Publishing data discrepancies:")
@@ -485,6 +488,116 @@ def rndr_mkDir() :
     '''
     return
 
+def isGizmo(node):
+    return type(node) == 'Gizmo'
+
+def isInsideGroupOrGizmo( node ):
+    parent = node.parent()
+    return type(parent) == nuke.Gizmo or type(parent) == nuke.Group
+
+def saveRenderScene (renderscene=''):
+    '''
+    Make snapshot of this nuke script for rendering.    
+    The saved scene will be the one to actually be used for rendering
+
+    A path can be provided allowing to create the render scene path outside this function.
+    If the path is not provided then the function will generate a path using the timestamp and the 
+    pat of the current scene.
+
+    Parameters
+    ----------
+    renderscene : str
+        Path for the render scene, if not provided will be solved internally.
+
+    Raises
+    ------
+    IOError
+        If scene couldn't be saved
+
+    Returns
+    -------
+    bool
+        Path to the renderscene saved, False if any error happens.
+    '''
+    import stat
+
+    # Save render scene
+    scenename = nuke.root().name()
+    if not renderscene:
+        renderscene =  nimRt.buildRenderSceneName( scenename )
+    try:
+        nuke.scriptSave( renderscene )
+    except :
+        P.error("cant save render scene: %s"%renderscene)
+        raise 
+    # Set file read only
+    mode = os.stat(renderscene).st_mode
+    ro_mask = 0777 ^ (stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
+    os.chmod(renderscene, mode & ro_mask)    
+
+
+    return renderscene
+
+
+def setupWriteForRendering( renderscene, writeNode ):
+    '''
+    Do all the mandatory settings needed in a Write node for our pipeline
+
+    Parameter:
+    ----------
+    renderscene : str
+        Path to renderscene
+    writeNode : str
+        Write node for rendering
+
+    Returns
+    -------
+    bool
+        True if all went well
+    '''
+    # Create metadata node
+    # if isInsideGroupOrGizmo then rather than using writeNode use writeNode.parent() .
+    node = writeNode if not isInsideGroupOrGizmo(writeNode) else writeNode.parent() 
+    metadatanode = nuke.nodes.ModifyMetaData()
+    metadatanode.setName( writeNode.name() + '_metadata' )
+    input0 = node.input(0)
+    metadatanode.setInput(0, input0)
+    node.setInput(0, metadatanode)
+    nuke.autoplaceSnap(metadatanode)
+    attrsKnob = metadatanode.knob('metadata')
+    attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
+    attrsscript = ""
+    for attr in attrs:
+        attrsscript += "{set %s %s}\n"%(attr, attrs[attr].replace('\\', '/'))
+    attrsKnob.fromScript( attrsscript )
+
+    # Sticky Note:
+    stickynode = nuke.toNode("__renderStickyNote")
+    if stickynode is None:
+        stickynode = nuke.createNode('StickyNote', "name %s label \"Render scene from: %s\" note_font_size 20"%("__renderStickyNote", nuke.root().name()) )
+
+    return True
+
+def restoreRenderingSetup( writeNode ):
+    '''
+    Restore changes made by se
+
+    Arguments:
+        writeNode {nuke.Node} -- Write node for rendering
+
+    Returns:
+        bool -- True if all went well
+    '''
+    metadatanode = nuke.toNode(writeNode.name() + '_metadata')
+    if metadatanode is None:
+        error("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
+        return False
+    nuke.delete(metadatanode)
+    stickynode = nuke.toNode("__renderStickyNote")
+    if stickynode  is not None:
+        nuke.delete(stickynode)
+    
+    return True
 
 
 #  Create Custom NIM Node :
