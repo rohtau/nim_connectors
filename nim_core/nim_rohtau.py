@@ -86,7 +86,7 @@ class pubState:
     PENDING   = 0 # Data is being processed, not yet ready. For instance shot is still in render
     AVAILABLE = 1 # Data is ready and available
     ERROR     = 2 # There was an error and data is not healthy
-    NA        = 2 # No Applicable, use for files that don't represent elements, like DCC scene files
+    NA        = 3 # No Applicable, use for files that don't represent elements, like DCC scene files
     name      = ('Pending', 'Available', 'Error', 'N/A') # state names
 
     pass

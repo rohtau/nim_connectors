@@ -64,19 +64,21 @@ import stat
 # #from . import nim as Nim
 # from . import nim_api as Api
 if sys.version_info >= (3,0):
-    from . import nim       as Nim
-    from . import nim_file  as F
-    from . import nim_prefs as Prefs
-    from . import nim_print as P
+    from . import nim          as Nim
+    from . import nim_file     as F
+    from . import nim_prefs    as Prefs
+    from . import nim_print    as P
     from . import nim_tools
-    from . import nim_win   as Win
+    from . import nim_win      as Win
+    from . import nim_rohtau   as Rt
 else:
-    import nim       as Nim
-    import nim_file  as F
-    import nim_prefs as Prefs
-    import nim_print as P
+    import nim          as Nim
+    import nim_file     as F
+    import nim_prefs    as Prefs
+    import nim_print    as P
     import nim_tools
-    import nim_win   as Win
+    import nim_win      as Win
+    import nim_rohtau   as Rt
      
 
 #  Variables :
@@ -2306,6 +2308,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         assetCheck=True
     except : pass
 
+    #  Derive file extension :
+    if F.get_ext( nim.filePath() ) :
+        nim.set_name( elem='fileExt', name=F.get_ext( nim.filePath() ) )
+        nim.set_fileTypeByExt( F.get_ext( nim.filePath() ) )
+
     # print("================================")
     # print("Target NIM settings")
     # pprint(nim.get_nim())
@@ -2327,6 +2334,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     filePath = verUpResult['filepath']
     projPath = verUpResult['projpath']
     verUpNim = verUpResult['nim']
+    nim.set_fileTypeByExt(nim.name('fileExt'))
     P.info('Filepath: %s' % filePath)
     P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
     #  [AS] END
@@ -2345,6 +2353,10 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                 action='Versioned Up'
             # Update nim dictionary with version info from API
             nim.set_ID('ver', result_addFile)
+            
+            # Update published file with File Type denpending on the app
+            customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}
+            updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
 
             
             P.info( 'File has been %s successfully.\n' % action )
