@@ -1192,6 +1192,10 @@ class GUI(QtGui.QMainWindow) :
             raise Exception("Failed to populate elements")
             return
 
+        # if elem == 'base':
+            # print("NIM Dict")
+            # pprint(self.nim.get_nim())
+
         #  Clear Fields for Empty Dictionaries :
         if not self.nim.Dict( elem ) or not len(self.nim.Dict( elem )) :
             if elem in self.nim.comboBoxes :
@@ -1309,6 +1313,20 @@ class GUI(QtGui.QMainWindow) :
             #  Basenames :
             if elem=='base' :
                 for option in self.nim.Dict( elem ) :
+                    # Only show Scene files
+                    # validbases = []
+                    sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script')
+                    # for base in bases:
+                    if self.nim.tab() == 'SHOT':
+                        baseinfo = Api.get_vers(shotID=int(self.nim.ID('shot')), basename=option['basename'])[0]
+                    else:
+                        baseinfo = Api.get_vers(assetID=int(self.nim.ID('asset')), basename=option['basename'])[0]
+                    if baseinfo['customKeys']['File Type'] not in sceneTypes:
+                        continue
+                        # print("Base Info")
+                        # pprint(baseinfo)
+
+                    # self.nim[elem]['Dict']=bases
                     #  Populate :
                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                     item.setText( option['basename'] )
