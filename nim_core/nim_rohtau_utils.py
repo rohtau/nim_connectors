@@ -246,7 +246,6 @@ def getjobLocation( jobid, force_posix=False, noerrors=False ):
     # jobpath = os.path.join( jobpath, jobnumber ) 
 
     return jobpath
-    
 
 def isJobOnline( jobid ):
     '''
@@ -293,7 +292,6 @@ def getshowIdFromName( jobid, showname ):
             return int(show['ID'])
 
     return 0
-
 
 def getshowsIDDict(jobid):
     '''
@@ -367,7 +365,6 @@ def getshotIdFromName( jobid, shotname ):
     return 0
 
     pass
- 
 
 def getshotsIDDict(  jobid, showid = None ):
     '''
@@ -560,7 +557,7 @@ def getcustomTaskInfo( ID=None, itemClass=None, itemID=None ) :
     Use custom rohtau API from NIm Labs to get all tasks from a parent: job, show, shot or asset
     Or get all the details from a task given it's ID
 
-    The main difference between this custom function and the default nimAPU.getTaskInfo()  is the this
+    The main difference between this custom function and the default nimAPU.getTaskInfo()  is this
     one accept as parent, itemClass, shows and job IDs, this mean we don't need to loop through all shots
     or asset to get all tasks for a job or show, we can do it in one single query which much efficient.
 
@@ -591,6 +588,42 @@ def getcustomTaskInfo( ID=None, itemClass=None, itemID=None ) :
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
     result = nimAPI.connect( method='get', params=params, nimURL=custom_nim_url )
     return result
+
+def getuserTask( userid, tasktype, parent, parentID ):
+    '''
+    Search for a task for an user in a shot or asset
+
+    Parameters
+    ----------
+    userid : int
+        User id to search a task for
+    tasktype: int
+        Task type name or ID
+    parent : str
+        task parent: shot or asset
+    parentID : int
+        Parent ID
+
+    Returns
+    -------
+    dict
+        task dictionary or False if error or task not found
+    '''
+    tasktypeID = tasktype
+    if isinstance(tasktype, str) and  tasktype.isdigit():
+        tasktypeID = int(tasktype)
+    elif isinstance(tasktype, str):
+        tasktypeID = gettaskTypesIdFromName( tasktype )
+    if not tasktypeID:
+        nimP.error("Task type name or ID not found")
+        return False
+        
+    tasks = nimAPI.get_taskInfo( itemClass=parent.lower(), itemID=parentID)
+    for task in tasks:
+        if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
+            return task
+    
+    return False
 
 #
 # Elements
@@ -690,7 +723,6 @@ def getcustomFindElements(name=None, path=None, jobID=None, showID=None, shotID=
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
     result = nimAPI.connect( method='get', params=params, nimURL=custom_nim_url )
     return result
-
 
 def findElements( jobid, name="", shotid=0, assetid=0, taskid=0, elementid=0, userid=0, plain=False, profile=False):
     '''
@@ -983,6 +1015,46 @@ def findFiles( jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementi
 
     return files
 
+def splitName( filename ):
+    '''
+    Split a filename according with the name convention:
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER]
+
+    The return is a tuple with:
+    - Basename: [SHOT|ASSET]__[TASK]__[TAG]
+    - Shot|Asset name
+    - Task
+    - Tag
+    - Ver as an integer number
+    
+
+    Parameters
+    ----------
+    filename : str
+        filename following name convention
+
+    Returns
+    -------
+    tuple
+        Tuple with basename, shot|asset, task, tag and version number(int). If name doesn't follow the name convention returns False
+    '''
+    filenoext = filename.split('.')[0]
+    basenameparts = filenoext.split('__')
+    if len(basenameparts) < 4:
+        nimP.error("Filename not following name convention. Not enough fields: %s"%filename)
+        return False
+    basename = '__'.join(basenameparts[:-1]) # Exclude ver part
+    ver = basenameparts[-1][1:] # Get ver part and remove the initial v
+    if not ver.isdigit():
+        nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s"%filename)
+        return False
+    ver = int(ver)
+    shotname = basenameparts[0]
+    tasktype = basenameparts[1]
+    tag = basenameparts[2]
+
+    return (basename, shotname, tasktype, tag, ver)
+
 #
 # Users    
 def getuserID( username ):
@@ -993,18 +1065,36 @@ def getuserID( username ):
         int -- user name or -1 if it doesn't exist
     '''
     users = nimAPI.get_userList( )
-    # print("Elements Types:")
-    # print(elements)
     if users is None:
         nimP.error( "Can't get users list")
         return None
-    # print(users)
+    # pdprint(users)
     # Add default domain
     usernamedomain = username + "@rohtau.com"
     for user in users:
         if user['username'] == username or user['username'] == usernamedomain:
             return int(user['ID'])
     return -1
+
+def getuserName( userid ):
+    '''
+    Get user name from ID
+
+    Returns
+    -------
+    int
+        user name or False if it doesn't exist
+    '''
+    users = nimAPI.get_userList( )
+    if users is None:
+        nimP.error( "Can't get users list")
+        return None
+    # pprint(users)
+    # Add default domain
+    for user in users:
+        if int(user['ID']) == userid:
+            return user['username']
+    return False
 
 def getusersIDDict( ):
     '''

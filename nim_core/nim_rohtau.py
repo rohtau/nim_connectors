@@ -20,6 +20,7 @@ import re
 import subprocess
 import shlex
 import time
+import datetime
 import json
 from subprocess import Popen
 from datetime   import datetime
@@ -86,7 +87,7 @@ class pubState:
     PENDING   = 0 # Data is being processed, not yet ready. For instance shot is still in render
     AVAILABLE = 1 # Data is ready and available
     ERROR     = 2 # There was an error and data is not healthy
-    NA        = 2 # No Applicable, use for files that don't represent elements, like DCC scene files
+    NA        = 3 # No Applicable, use for files that don't represent elements, like DCC scene files
     name      = ('Pending', 'Available', 'Error', 'N/A') # state names
 
     pass
@@ -233,7 +234,6 @@ def getJobOutputRenderScenePath( renderscene, outputpath, docompress=True ):
         compressed_renderscene += '.bz2'
     return compressed_renderscene
 
-
 def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
     """
     Save render scene in job output dir.
@@ -353,6 +353,100 @@ def runAsyncCommand( cmd ):
         return False
 
     return True
+
+def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', verbose=False):
+    '''
+    Create a movie for review from a image sequence using Deadline's Draft
+    
+    If outfile is not provided it will create the movie in a subfolder in the location of the image sequence called Draft.
+    The name of the movie will be the same as the image sequence.
+    If outfile is a folder it will create a movie using the same name as the input sequence under the indicated folder.
+
+    Draft Template
+    --------------
+    The default Draft template is:
+        /studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py
+    It can be override using the envar RT_DRAFT_TEMPLATE
+    Or with the drafttemplate argument
+
+    Parameters
+    ----------
+    infile : str
+        Path to image sequence in the form: /pathtoseq/seqname.####.exr
+    frames : str
+        String with frame list: start-end. For instance: 1001-1100 or 1001
+    outfile : str, optional
+        If provided output folder or file for draft movie, by default ''
+    drafttemplate : str, optional
+        Alternative Draft template instead of studio default, by default ''
+    overrideres : str, optional
+        Override draft template resolution, by default ''. Example: 1920x1280
+    overrideoutcolor : str, optional
+        Override OCIO color role, by default ''. For example: color_picking
+    verbose : bool, optional
+        Output extra information, by default False
+
+    Returns
+    -------
+    str
+        Path to draft movie or False if error.
+    '''
+    # set PYTHONPATH=c:\dev\deadlinerepository10\draft\Windows\64bit
+    # set MAGICK_CONFIGURE_PATH=c:\dev\deadlinerepository10\draft\Windows\64bit 
+    #  \opt\deadline10\bin\dpython \studio\pipeline\deadline\draft\DraftCreateSimpleMovie.py frameList start-end inFile renderedframespath outFile renderoutput/Draft/draft.mov
+    # Use Deadline's python
+    cmd = "/opt/deadline10/bin/dpython" # For unix like systems
+    if platform.system() == 'Windows':
+        cmd = "C:\\opt\\deadline10\\bin\\dpython"
+    # Default studio Draft template, or use override from envvar or override from argument.
+    draftTemplate="/studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py"
+    if 'RT_DRAFT_TEMPLATE' in os.environ:
+        draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
+    if drafttemplate:
+        draftTemplate = drafttemplate
+    cmd += " %s "%os.path.normpath(draftTemplate)
+    # Frames list
+    if not frames.count('-'):
+        start = frames
+        end = start
+    else:
+        framesrange = frames.split('-')
+        start = framesrange[0]
+        end = framesrange[1]
+    if not start.isdigit() or not end.isdigit():
+        nimP.error("Wrong frames range string, start and/or end are not numbers: %s"%frames)
+        return False
+    cmd += " frameList=%s-%s"%(start, end)
+    # In Seq
+    path     = infile
+    path = os.path.normpath(path)
+    if platform.system() == 'Windows':
+        path = os.path.join('C:', path)
+    # path     = path.replace('%04d', '####') # Fix Nuke's padding format
+    cmd += " inFile=%s "%path
+    # Out draft movie path
+    outdraft = os.path.join( os.path.dirname(path), 'Draft' ) # Draft location
+    draftname = os.path.basename(path).split('.')[0] + ".mov" # Draft name
+    if outfile:
+        if len(os.path.splitext(outfile)) >= 2:
+            # This is a complete path with filename
+            outdraft = os.path.dirname(outfile)
+            draftname = os.path.basename(outfile)
+        else:
+            # We have a folder
+            outdraft = outfile
+    if not os.path.exists( outdraft ):
+        try:
+            os.makedirs( outdraft ) 
+        except:
+            raise
+    outdraft = os.path.join(outdraft, draftname)
+    cmd += " outFile=%s "%outdraft
+    if not runAsyncCommand( cmd ):
+        nimP.error("Can't create Draft review movie: %s"%outdraft)
+    # TODO: publish draft movie
+    
+    return outdraft
 
 #
 # Publishing
@@ -601,7 +695,7 @@ def checkFileAndElementPublished( nim ):
     
     return (file, element)
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING ,plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , dorender=True, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -617,11 +711,15 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     - pubOverwritePolicy.ALLOW_USER: owners can reuse their published items. This function will return an error if an user tries to use file version created by other.
     - pubOverwritePolicy.ALLOW_ALL : All published items can be reused. This function will get the details of the existing items. There won't be redundant publishing
 
+    Publish Render
+    --------------
+    Publish file as a render element. Render ID is returned in the output dir for further adding icons and review elements.
+
     Parameters
     ----------
     path      : str
         Path to data to publish. I can be a static file or a sequence (User #### for padding)
-    userid    : str
+    userid    : int
         User ID who owns the published item. If not provided use current user
     comment   : str
         Publish comment.
@@ -635,6 +733,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         Overwrite policy. Whether or not allow to reuse pub elements/files
     state     : pub.pubState
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
+    dorender  : bool
+        Publish render, default True
     plain     : bool
         Output in plain text format.
     jsonout   : bool
@@ -868,7 +968,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     pass
 
-def setPubState(filename="", job= "", parent="", parentID="", state=pubState.PENDING, verbose=False):
+def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDING, verbose=False):
     '''
     Set the data state for a published file.
     File is defined by a filename or basename
@@ -894,6 +994,302 @@ def setPubState(filename="", job= "", parent="", parentID="", state=pubState.PEN
     Examples:
         Filename: RND_001__comp__comp__OUT__v007.####.exr
         Basename: RND_001__comp__comp__OUT
+
+    If parentID, name or ID of shot or asset is not provided it will be extracted from the file name itself.
+    
+
+    Parameters
+    ----------
+    filename : str
+        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        It can also be in the form of a basename without version information:  [SHOT|ASSET]__[TASK]__[TAG]
+    job : str
+        number or ID for job
+    parent : str
+        Parent for publish element:SHOT or ASSET
+    parentID : str
+        Shot or Asset ID 
+    version : int, optional
+        Version number if file is designed by basename, by default 1
+    state : pub.pubState
+        Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
+    verbose : bool
+        Output extra information
+
+    Returns
+    -------
+    bool
+        False if an error occurs. Otherwise True
+    '''
+
+    ver = 0
+    parentname = ""
+    jobid, jobnumber = 0, ""
+
+    if job:
+        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+        if not jobid:
+            sys.exit()
+
+    (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+    if not parentID:
+        # Get shot or asset name from filename
+        parentID = shotname
+
+    if not isinstance(parentID, int) and not parentID.isnumeric():
+        if not jobid:
+            log("If parent is defined as a name, a job number or ID need to be provided")
+            return False
+        parentname = parentID
+        if parent.upper() == 'SHOT':
+            id = nimUtl.getshotIdFromName( jobid, parentname )
+        else:
+            id = nimUtl.getassetIdFromName( jobid, parentname )
+            
+        if not id:
+            log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
+            return False
+    else:
+        id=int(parentID)
+        if parent.upper() == 'SHOT':
+            parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
+        else:
+            parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
+
+
+    # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
+    if shotname != parentname:
+        nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
+        return False
+
+    if parent.upper() == 'SHOT':
+        vers = nimAPI.get_vers( shotID=id, basename=base)
+    else:
+        vers = nimAPI.get_vers( assetID=id, basename=base)
+    if vers:
+        # pprint(vers)
+        if verbose:
+            nimP.info("Modify state for publish item %s at %s %s"%(base, parent.lower(), parentname))
+        for verfile in vers:
+            if filename:
+                if int(verfile['version']) != ver:
+                    continue
+            
+            # customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
+            customkeys = verfile['customKeys']
+            customkeys['State'] = pubState.name[state]
+            res = nimAPI.update_file( verfile['fileID'], customKeys=customkeys)
+            # pprint(res)
+            if res['success'] == 'true':
+                nimP.info("Item %s state changed to: %s"%(verfile['filename'], pubState.name[state]))
+            else:
+                nimP.error("Couldn't change state for %s"%verfile['filename'])
+                pprint(res)
+
+    return True
+
+def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
+    '''
+    Publish a new render from a basename
+    This is needed to get file sequences available in the render and review sections
+
+    Filename or Basename
+    --------------------
+    The first argument is a filename only that basename and version will be modified.
+    Filename convention:  [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    Examples:
+        Filename: RND_001__comp__comp__OUT__v007.####.exr
+
+   Time
+    ----
+    starttimedate and endtimedate are expected to be passed in datetime.isoformat: 2015-02-04T20:55:08.914461+00:00
+    NIM uses this date time format: "2017-01-01 08:00:00"
+    
+
+    Parameters
+    ----------
+    
+    filename : str
+        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    userid    : int
+        User ID who owns the published item.
+    job : str
+        number or ID for job
+    parent : str
+        Parent for publish element:SHOT or ASSET
+    parentID : str
+        Shot or Asset ID 
+    comment   : str
+        Render comment.
+    rendertype   : str
+        Render source, Nuke, Mantra, Vray, etc ....
+    frames   : str
+        Frames list: 1001-1100
+    starttimedate   : str
+        Render start in UTC
+    endtimedate      : str
+        Render end in UTC
+    icon : str
+        Path to an image to be used as icon for the renders
+    verbose : bool
+        Output extra information
+
+    Returns
+    -------
+    bool
+        False if an error occurs. Otherwise True
+    '''
+    ver = 0
+    parentname = ""
+    jobid, jobnumber = 0, ""
+    res = False
+    fileInfo = None
+
+
+    if not fileID:
+        if not filename:
+            nimP.error("Need to provide a FileID or a filename in order to publish a render from them")
+            return False
+        
+        if not userid or not nimUtl.getuserName(userid):
+            nimP.error("Wrong user id: %d"%userid)
+            
+        (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+
+        if (isinstance(parentID, int) and parentID>0) or (isinstance(parentID, str) and len(parentID) > 0):
+            if not isinstance(parentID, int) and not parentID.isnumeric():
+                if job:
+                    (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+                    if not jobid:
+                        sys.exit()
+                elif not job or not jobid:
+                    log("If parent is defined as a name, a job number or ID need to be provided")
+                    return False
+                parentname = parentID
+                if parent.upper() == 'SHOT':
+                    id = nimUtl.getshotIdFromName( jobid, parentname )
+                else:
+                    id = nimUtl.getassetIdFromName( jobid, parentname )
+                    
+                if not id:
+                    log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
+                    return False
+            else:
+                id=int(parentID)
+                if parent.upper() == 'SHOT':
+                    parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
+                else:
+                    parentname = nimAPI.get_asseetInfo( shotID=id)[0]['assetName']
+        else:
+            nimP.error("Need to provide a parent name or ID. It will be a shot name or ID, asset name or ID, etc ...")
+            return False
+
+        '''
+        base= filename.split('.')[0]
+        base = base.split('__')
+        ver = int(base[-1][1:])
+        tasktype = base[1]
+        shotname = base[0]
+        basename= '__'.join(base[0:-1]) # Remove version
+        '''
+
+        # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
+        if shotname != parentname:
+            nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(basename, shotname, parentname))
+            return False
+
+        if parent.upper() == 'SHOT':
+            vers = nimAPI.get_vers( shotID=id, basename=basename)
+        else:
+            vers = nimAPI.get_vers( assetID=id, basename=basename)
+        if vers:
+            # pprint(vers)
+            for verfile in vers:
+                if int(verfile['version']) == ver:
+                    fileInfo = verfile
+                    break
+    else:
+        # Grab just published info
+        info = nimAPI.get_verInfo( fileID )
+        fileInfo = info[0]
+
+    elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=int(fileInfo['parentID']) if fileInfo['fileClass']=='ASSET' else '', \
+        shotID=int(fileInfo['parentID']) if fileInfo['fileClass']=='SHOT' else '')
+    if elementInfo:
+        elementInfo=[0]
+
+    print("File version to publish render to:")
+    pprint(fileInfo)
+    path = fileInfo['filepath']
+    outdir = os.path.dirname(path)
+    tasktype = int(fileInfo['task_type_ID'])
+    task = nimUtl.getuserTask( userid, tasktype=tasktype, parent=parent, parentID=parentID) 
+    if not task:
+        nimP.error("Can't find a task of type %s at %s %s for user %s"%(tasktype, parent.lower(), parentname, nimAPI.get_user() ))
+        return False
+    print("Task:")
+    pprint(task)
+    metadata = eval(fileInfo['metadata'])
+    elementID = metadata['elementID'] if 'elementID' in metadata else 0
+    elementTypeID = fileInfo['customKeys']['Element Type'] if 'Element Type' in fileInfo['customKeys'] else 0
+    rendertimestr = ""
+    avgtimestr = ""
+    nframes = 0
+    if elementInfo:
+        nframes = int(elementInfo['endFrame']) - int(elementInfo['startFrame'])
+
+    if starttimedate and endtimedate:
+        # Calculate total time and average time for render
+        starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        rendertime = endtime - starttime
+        rendertimeparts = ( rendertime.days, rendertime.seconds//3600, (rendertime.seconds//60)%60 ) # Days, hours, minutes
+        if int(rendertimeparts[0])>0:
+            rendertimestr +="%d days,"%int(rendertimeparts[0])
+        rendertimestr += "%d:%d"%(int(rendertimeparts[1]),int(rendertimeparts[2]))
+        if nframes:
+            avgtime = rendertime // nframes
+            avgtimeparts = ( avgtime.days, avgtime.seconds//3600, (avgtime.seconds//60)%60 ) # Days, hours, minutes
+            if int(avgtimeparts[0])>0:
+                avgtimestr +="%d days,"%int(avgtimeparts[0])
+            avgtimestr += "%d:%d"%(int(avgtimeparts[1]),int(avgtimeparts[2]))
+            
+    # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
+    # TODO: get jobid from fileInfo if onli fileID was provided. Test times
+    res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
+        renderKey='', renderName=fileInfo['filename'], renderType=rendertype, renderComment=comment, \
+        outputDirs=(outdir,), outputFiles=(path,), elementTypeID=elementTypeID, start_datetime=starttimedate, end_datetime=endtimedate, \
+        avgTime=avgtimestr, totalTime=rendertimestr, frame=nframes )
+    if icon and os.path.exists(icon):
+        resicon = nimAPI.upload_renderIcon( renderID=int(res['ID']), img=icon) 
+        pprint(resicon)
+    # TODO: parent element to render
+    if verbose:
+        nimP.info("Render %s in %s %s published"%(filename, parent.lower(), parentname))
+        pprint( res )
+    
+    return res
+
+def pubReview(filename, review, job= "", parent="", parentID="", state=pubState.PENDING, verbose=False):
+    '''
+    Publish a review for a given filename item
+    filename is the basename for the already published item
+
+    Filename or Basename
+    --------------------
+    If the first argument is a filename only that basename and version will be modified.
+    On the other hand if a basename is passed all version will be modified.
+    Filename convention:  [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    Basename convention:  [SHOT|ASSET]__[TASK]__[TAG]
+    Examples:
+        Filename: RND_001__comp__comp__OUT__v007.####.exr
+        Basename: RND_001__comp__comp__OUT
+
+    Publish Review
+    --------------
+    A review, usually for dailies, is publish following the next steps:
+    - If published file has renderID in the metadat grab it from there
+    - If not then published for task or shot
     
 
     Parameters
@@ -918,7 +1314,6 @@ def setPubState(filename="", job= "", parent="", parentID="", state=pubState.PEN
     bool
         False if an error occurs. Otherwise True
     '''
-
     ver = 0
     parentname = ""
     jobid, jobnumber = 0, ""
@@ -962,34 +1357,7 @@ def setPubState(filename="", job= "", parent="", parentID="", state=pubState.PEN
     if shotname != parentname:
         nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
         return False
-
-    if parent.upper() == 'SHOT':
-        vers = nimAPI.get_vers( shotID=id, basename=base)
-    else:
-        vers = nimAPI.get_vers( assetID=id, basename=base)
-    if vers:
-        # pprint(vers)
-        if verbose:
-            nimP.info("Modify state for publish item %s at %s %s"%(base, parent.lower(), parentname))
-        for verfile in vers:
-            if filename:
-                if int(verfile['version']) != ver:
-                    continue
-            
-            # customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
-            customkeys = verfile['customKeys']
-            customkeys['State'] = pubState.name[state]
-            res = nimAPI.update_file( verfile['fileID'], customKeys=customkeys)
-            # pprint(res)
-            if res['success'] == 'true':
-                nimP.info("Item %s state changed to: %s"%(verfile['filename'], pubState.name[state]))
-            else:
-                nimP.error("Couldn't change state for %s"%verfile['filename'])
-                pprint(res)
-
-    return True
-
-
+    pass
 
 #
 # UI

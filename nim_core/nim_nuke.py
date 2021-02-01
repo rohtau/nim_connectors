@@ -531,9 +531,9 @@ def saveRenderScene (renderscene=''):
         P.error("cant save render scene: %s"%renderscene)
         raise 
     # Set file read only
-    mode = os.stat(renderscene).st_mode
-    ro_mask = 0777 ^ (stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
-    os.chmod(renderscene, mode & ro_mask)    
+    # mode = os.stat(renderscene).st_mode
+    # ro_mask = 0777 ^ (stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH)
+    # os.chmod(renderscene, mode & ro_mask)    
 
 
     return renderscene
