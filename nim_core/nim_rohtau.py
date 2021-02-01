@@ -49,13 +49,13 @@ try :
     from PySide2 import QtGui as QtGui2
     from PySide2 import QtCore
 except ImportError :
-
-    
     try : from PySide import QtCore, QtGui
     except ImportError :
         try : from PyQt4 import QtCore, QtGui
         except ImportError : 
-            print("NIM: Failed to UI Modules - UI")
+            # Only print error if we re inside a DCC tool
+            # print("NIM: Failed to UI Modules - UI")
+            pass
 
 class pubOverwritePolicy:
     '''
@@ -994,121 +994,122 @@ def setPubState(filename="", job= "", parent="", parentID="", state=pubState.PEN
 #
 # UI
 #
-class DisplayMessage( QtGui.QDialog ) :
+if 'QtGui' in sys.modules:
+    class DisplayMessage( QtGui.QDialog ) :
 
-    def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
-        '''
-        Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
-        the option to choose Ok by default. An optional button can be added.
+        def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
+            '''
+            Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
+            the option to choose Ok by default. An optional button can be added.
 
 
-        Arguments:
-            msg {str} -- Message to show
+            Arguments:
+                msg {str} -- Message to show
 
-        Keyword Arguments:
-            title {str} -- Window title (default: {""})
-            buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
-            default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
-            parent {[type]} -- Parent UI dialog, usually None (default: {None})
-        '''
-        super( DisplayMessage, self ).__init__(parent)
-        self.value          = default_button
-        self.msg            = msg
-        self.title          = title
-        self.labels         = buttons
-        self.default_button = default_button
-        self.details        = details
-        self.buttons        = []
-        self.Info           = 0
-        self.Warning        = 1
-        self.Error          = 2
-        
-        #  Layouts :
-        self.layout=QtGui.QVBoxLayout()
-        self.setLayout( self.layout )
-        
-        #  Text :
-        self.textLayout = QtGui.QHBoxLayout()
-        self.icon = QtGui.QLabel() 
-        # TODO: add severity parameter and change icon accordantly 
-        # https://joekuan.files.wordpress.com/2015/09/screen3.png
-        self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
-        self.text=QtGui.QLabel(self.msg)
-        self.textLayout.addWidget(self.icon)
-        self.textLayout.addWidget(self.text)
-        self.layout.addLayout( self.textLayout )
-        # Details
-        self.detail=QtGui.QTextEdit(self.details)
-        if self.details:
-            self.detail.setReadOnly( True )
-            self.detail.hide()
-            self.layout.addWidget( self.detail )
-        
-        #  Button Layout :
-        self.btn_layout=QtGui.QHBoxLayout()
-        self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
-        self.btn_layout.addStretch()
-
-        #  Create Buttons :
-        for label, idx in zip(self.labels, list(range(len(self.labels)))):
-            button = QtGui.QPushButton( label )
-            button.my_own_data = str(idx)  # <<< set your own property
-            button.clicked.connect( self.click_handler )
-            sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
-            button.setSizePolicy( sizePolicy )
-            self.btn_layout.addWidget( button )
-        if self.details:
-            button = QtGui.QPushButton( "Show Details ..." )
-            button.clicked.connect( self.click_details )
-            self.btn_layout.addWidget( button )
+            Keyword Arguments:
+                title {str} -- Window title (default: {""})
+                buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
+                default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
+                parent {[type]} -- Parent UI dialog, usually None (default: {None})
+            '''
+            super( DisplayMessage, self ).__init__(parent)
+            self.value          = default_button
+            self.msg            = msg
+            self.title          = title
+            self.labels         = buttons
+            self.default_button = default_button
+            self.details        = details
+            self.buttons        = []
+            self.Info           = 0
+            self.Warning        = 1
+            self.Error          = 2
             
+            #  Layouts :
+            self.layout=QtGui.QVBoxLayout()
+            self.setLayout( self.layout )
+            
+            #  Text :
+            self.textLayout = QtGui.QHBoxLayout()
+            self.icon = QtGui.QLabel() 
+            # TODO: add severity parameter and change icon accordantly 
+            # https://joekuan.files.wordpress.com/2015/09/screen3.png
+            self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
+            self.text=QtGui.QLabel(self.msg)
+            self.textLayout.addWidget(self.icon)
+            self.textLayout.addWidget(self.text)
+            self.layout.addLayout( self.textLayout )
+            # Details
+            self.detail=QtGui.QTextEdit(self.details)
+            if self.details:
+                self.detail.setReadOnly( True )
+                self.detail.hide()
+                self.layout.addWidget( self.detail )
+            
+            #  Button Layout :
+            self.btn_layout=QtGui.QHBoxLayout()
+            self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+            self.btn_layout.addStretch()
 
-        # Title
-        self.setWindowTitle(title)
+            #  Create Buttons :
+            for label, idx in zip(self.labels, list(range(len(self.labels)))):
+                button = QtGui.QPushButton( label )
+                button.my_own_data = str(idx)  # <<< set your own property
+                button.clicked.connect( self.click_handler )
+                sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
+                button.setSizePolicy( sizePolicy )
+                self.btn_layout.addWidget( button )
+            if self.details:
+                button = QtGui.QPushButton( "Show Details ..." )
+                button.clicked.connect( self.click_details )
+                self.btn_layout.addWidget( button )
+                
 
-        # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
-        self.setModal( True )
-        self.show()
+            # Title
+            self.setWindowTitle(title)
+
+            # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
+            self.setModal( True )
+            self.show()
+            
+            return
         
-        return
-    
-    def click_handler( self ) :
-        'Sets the value to be returned, when a button is pushed'
-        target = self.sender()  # <<< get the event target, i.e. the button widget
-        data = target.my_own_data  # <<< get your own property
-        # nuke.tprint("Pressed button: %d"%int(data))
-        self.value = int(data)
-        self.close()
-        return
+        def click_handler( self ) :
+            'Sets the value to be returned, when a button is pushed'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            data = target.my_own_data  # <<< get your own property
+            # nuke.tprint("Pressed button: %d"%int(data))
+            self.value = int(data)
+            self.close()
+            return
 
-    def click_details( self ) :
-        'Show details text'
-        target = self.sender()  # <<< get the event target, i.e. the button widget
-        self.detail.show()
-        # data = target.my_own_data  # <<< get your own property
-        # nuke.tprint("Pressed button: %d"%int(data))
-        # self.value = int(data)
-        # self.close()
-        return
-    
-    def btn(self) :
-        'Returns the button that was pushed'
-        return self.value
+        def click_details( self ) :
+            'Show details text'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            self.detail.show()
+            # data = target.my_own_data  # <<< get your own property
+            # nuke.tprint("Pressed button: %d"%int(data))
+            # self.value = int(data)
+            # self.close()
+            return
+        
+        def btn(self) :
+            'Returns the button that was pushed'
+            return self.value
 
-    def CloseEvent( self, event):
-        nuke.tprint("Closing ....")
-    
-    @staticmethod
-    def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
-        'Returns the name of the button that was pushed'
-        dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
-        # mainapp = QtGui.QApplication.activeWindow()
-        # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
-        result=dialog.exec_()
-        value=dialog.btn()
-        return value
+        def CloseEvent( self, event):
+            nuke.tprint("Closing ....")
+        
+        @staticmethod
+        def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
+            'Returns the name of the button that was pushed'
+            dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
+            # mainapp = QtGui.QApplication.activeWindow()
+            # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
+            result=dialog.exec_()
+            value=dialog.btn()
+            return value
 
-    pass
+        pass
