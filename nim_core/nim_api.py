@@ -40,12 +40,16 @@ from pprint import pprint
 # Hack to use urllib in Python 2 and 3
 from future.standard_library import install_aliases
 install_aliases()
-from urllib.parse   import urlparse, urlencode
+from urllib.parse   import urlparse, urlencode, parse_qsl
 from urllib.request import urlopen, Request
 from urllib.error   import URLError, HTTPError 
 from urllib.request import build_opener, HTTPSHandler, BaseHandler, HTTPHandler
 
 from builtins import input
+
+if sys.version_info >= (3,0): # fix isinstance(something, file) -> isinstance(something, IOBase)
+    from io import IOBase
+
 
 try :
     import ssl
@@ -413,6 +417,8 @@ def upload( params=None, nimURL=None, apiKey=None ) :
         testCmd = {'q': 'testAPI'}
         cmd=urlencode(testCmd)
         testURL="".join(( nimURL, cmd ))
+        # if sys.version_info >= (3,0):
+            # testURL = testURL.encode() # Python 3 requires URLs to be in bytes
         req = Request(testURL)
 
         try :
@@ -427,11 +433,21 @@ def upload( params=None, nimURL=None, apiKey=None ) :
         finalurl = res.geturl()
         #P.info("Request URL: %s" % finalurl)
         if nimURL.startswith('http:') and finalurl.startswith('https'):
-            isRedirected = True
-            _actionURL = _actionURL.replace("http:","https:")
+            isRedirected  = True
+            _actionURLStr = _actionURL.decode('ascii')
+            _actionURLStr = _actionURLStr.replace("http:","https:")
+            _actionURL    = _actionURLStr.encode('ascii')
+            '''
+            if sys.version_info >= (3,0): # Python 3 returns
+                _actionURLStr = _actionURL.decode('ascii')
+                _actionURLStr = _actionURLStr.replace("http:","https:")
+                _actionURL = _actionURLStr.encode('ascii')
+            else:
+                _actionURL = _actionURL.replace("http:","https:")
+            '''
             P.info("Redirect: %s" % _actionURL)
-    except:
-        P.error("Failed to test for redirect.")
+    except Exception as e:
+        P.error("Failed to test for redirect: %s"%e)
 
     # Create opener with extended form post support
     try:
@@ -453,7 +469,14 @@ def upload( params=None, nimURL=None, apiKey=None ) :
 
 
     try:
-        result = opener.open(_actionURL, params).read()
+        if sys.version_info >= (3,0): # Python 3 returns
+            # In python 3 parms toopen need to be passed as a encoded dictionary (bytes)
+            f = urlencode(params)
+            f = f.encode('ascii')
+            result = opener.open(_actionURL.decode('ascii'), f).read()
+            # result = opener.open(_actionURL, params).read()
+        else:
+            result = opener.open(_actionURL, params).read()
         P.info( "Result: %s" % result )
 
         # Test for failed API Validation
@@ -509,15 +532,32 @@ class FormPostHandler(BaseHandler):
     handler_order = HTTPHandler.handler_order - 10 # needs to run first
     
     def http_request(self, request):
-        data = request.get_data()
+
+        if sys.version_info >= (3,0): # Python 3 returns
+            data = request.data
+            # print("Requested data:")
+            # print(data)
+            if isinstance(data, (bytes, bytearray)):
+                data = data.decode()
+                data = parse_qsl( data )
+                data = dict(data)
+                # print(data)
+        else:
+            data = request.get_data()
         if data is not None and not isinstance(data, str):
             files = []
             params = []
             for key, value in list(data.items()):
-                if isinstance(value, file):
-                    files.append((key, value))
+                if sys.version_info >= (3,0): # Python 3 returns
+                    if isinstance(value, IOBase):
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
                 else:
-                    params.append((key, value))
+                    if isinstance(value, file):
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
             if not files:
                 data = urlencode(params, True) # sequencing on
             else:
@@ -525,7 +565,13 @@ class FormPostHandler(BaseHandler):
                 content_type = 'multipart/form-data; boundary=%s' % boundary
                 request.add_unredirected_header('Content-Type', content_type)
                 
-            request.add_data(data)
+            if sys.version_info >= (3,0): # Python 3 returns
+                # Return data as encoded bytes
+                # data = urlencode(data)
+                data = data.encode('ascii')
+                request.data = data
+            else:
+                request.add_data(data)
         return request
     
     def encode(self, params, files, boundary=None, buffer=None):
