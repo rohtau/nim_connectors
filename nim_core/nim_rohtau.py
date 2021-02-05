@@ -1621,6 +1621,9 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # Create review
     draftPosix = toPosix(draft)
     print("Draft posix: %s"%draftPosix)
+    # TODO: test parenting this to a task. So get task for user, and use task as parent and the taskID. Pass renderID=renderid
+    # At the moment Im parenting to the render, according to thei thread if I parent to the task I can get verioning.
+    # http://community.nim-labs.com/viewtopic.php?f=34&t=294&p=680&hilit=stack#p680
     res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, name=rendername, description=comment) 
     print(res_review)
     # res_review = eval(res_review.decode())

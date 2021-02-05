@@ -38,17 +38,16 @@ from pprint import pformat
 from pprint import pprint
 
 # Hack to use urllib in Python 2 and 3
-from future.standard_library import install_aliases
-install_aliases()
-from urllib.parse   import urlparse, urlencode, parse_qsl
-from urllib.request import urlopen, Request
-from urllib.error   import URLError, HTTPError 
-from urllib.request import build_opener, HTTPSHandler, BaseHandler, HTTPHandler
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2
 
 from builtins import input
 
 if sys.version_info >= (3,0): # fix isinstance(something, file) -> isinstance(something, IOBase)
-    from io import IOBase
+    import _io
+    # from _io import _IOBase
 
 
 try :
@@ -58,7 +57,11 @@ except :
     pass
 
 # import mimetools, mimetypes
-import mimetypes
+if sys.version_info >= (3,0):
+    import mimetypes
+else:
+    import mimetools, mimetypes
+    
 import email.generator as email_gen
 import io
 import stat
@@ -111,37 +114,72 @@ except :
 
 def testAPI(nimURL=None, nim_apiUser='', nim_apiKey='') :
     sqlCmd={'q': 'testAPI'}
-    cmd=urlencode(sqlCmd)
-    _actionURL="".join(( nimURL, cmd ))
-    request = Request(_actionURL)
-    try :
-        # request.add_header("X-NIM-API-USER", nim_apiUser)
-        # request.add_header("X-NIM-API-KEY", nim_apiKey)
-        request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+    if sys.version_info >= (3,0):
+        cmd=urllib.parse.urlencode(sqlCmd)
+        _actionURL="".join(( nimURL, cmd ))
+        request = urllib.request.Request(_actionURL)
+    else:
+        cmd=urllib.urlencode(sqlCmd)
+        _actionURL="".join(( nimURL, cmd ))
+        request = urllib2.Request(_actionURL)
+    if sys.version_info >= (3,0):
         try :
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            # _file = urllib.request.urlopen(request,context=ssl_ctx)
-            print("Request: %s"%str(request))
-            _file = urlopen(request)
-        except :
-            _file = urlopen(request)
-        fr=_file.read()
-        try : result=json.loads( fr )
-        except Exception as e :
-            P.error( traceback.print_exc() )
-        _file.close()
-        return result
-    except URLError as e :
-        P.error( '\nFailed to read NIM API' )
-        P.error( '   %s' % _actionURL )
-        url_error = e.reason
-        P.error('URL ERROR: %s' % url_error)
-        err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
-        Win.popup(msg=err_msg)
-        P.debug( '    %s' % traceback.print_exc() )
-        return False
+            # request.add_header("X-NIM-API-USER", nim_apiUser)
+            # request.add_header("X-NIM-API-KEY", nim_apiKey)
+            request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                # _file = urllib.request.urlopen(request,context=ssl_ctx)
+                print("Request: %s"%str(request))
+                _file = urllib.request.urlopen(request)
+            except :
+                _file = urllib.request.urlopen(request)
+            fr=_file.read()
+            try : result=json.loads( fr )
+            except Exception as e :
+                P.error( traceback.print_exc() )
+            _file.close()
+            return result
+        except urllib.error.URLError as e :
+            P.error( '\nFailed to read NIM API' )
+            P.error( '   %s' % _actionURL )
+            url_error = e.reason
+            P.error('URL ERROR: %s' % url_error)
+            err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
+            Win.popup(msg=err_msg)
+            P.debug( '    %s' % traceback.print_exc() )
+            return False
+    else:
+        try :
+            request.add_header("X-NIM-API-USER", nim_apiUser)
+            request.add_header("X-NIM-API-KEY", nim_apiKey)
+            request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                # _file = urllib.request.urlopen(request,context=ssl_ctx)
+                print("Request: %s"%str(request))
+                _file = urllib2.urlopen(request,context=ssl_ctx)
+            except :
+                _file = urllib2.urlopen(request)
+            fr=_file.read()
+            try : result=json.loads( fr )
+            except Exception as e :
+                P.error( traceback.print_exc() )
+            _file.close()
+            return result
+        except urllib2.URLError as e :
+            P.error( '\nFailed to read NIM API' )
+            P.error( '   %s' % _actionURL )
+            url_error = e.reason
+            P.error('URL ERROR: %s' % url_error)
+            err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
+            Win.popup(msg=err_msg)
+            P.debug( '    %s' % traceback.print_exc() )
+            return False
 
 
 # Get NIM Connection Information
@@ -271,10 +309,16 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
     if params :
         if method == 'get':
-            cmd=urlencode(params)
+            if sys.version_info >= (3,0):
+                cmd=urllib.parse.urlencode(params)
+            else:
+                cmd=urllib.urlencode(params)
             _actionURL="".join(( nimURL, cmd ))
         elif method == 'post':
-            cmd=urlencode(params)
+            if sys.version_info >= (3,0):
+                cmd=urllib.parse.urlencode(params)
+            else:
+                cmd=urllib.urlencode(params)
             _actionURL = re.sub('[?]', '', nimURL)
         else :
             P.error('Connection method not defined in request.')
@@ -283,10 +327,15 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
         try :
             if method == 'get':
-                request = Request(_actionURL)
+                if sys.version_info >= (3,0):
+                    request = urllib.request.Request(_actionURL)
+                else:
+                    request = urllib2.Request(_actionURL)
             elif method == 'post':
-                request = Request(_actionURL, cmd)
-            
+                if sys.version_info >= (3,0):
+                    request = urllib.request.Request(_actionURL, cmd)
+                else:
+                    request = urllib2.Request(_actionURL, cmd)
             request.add_header("X-NIM-API-USER", nim_apiUser)
             request.add_header("X-NIM-API-KEY", nim_apiKey)
             request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -294,9 +343,15 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
                 ssl_ctx = ssl.create_default_context()
                 ssl_ctx.check_hostname=False
                 ssl_ctx.verify_mode=ssl.CERT_NONE
-                _file = urlopen(request,context=ssl_ctx)
+                if sys.version_info >= (3,0):
+                    _file = urllib.request.urlopen(request,context=ssl_ctx)
+                else:
+                    _file = urllib2.urlopen(request,context=ssl_ctx)
             except :
-                _file = urlopen(request)
+                if sys.version_info >= (3,0):
+                    _file = urllib.request.urlopen(request)
+                else:
+                    _file = urllib2.urlopen(request)
             fr=_file.read()
             try : result=json.loads( fr )
             except Exception as e :
@@ -332,7 +387,9 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             
             return result
 
-        except URLError as e :
+        #except urllib2.URLError, e : # Python 2
+        #except urllib.error.URLError as e : # Python 3
+        except Exception as e :
             P.error( '\nFailed to read URL for the following command...\n    %s' % params )
             P.error( '   %s' % _actionURL )
             url_error = e.reason
@@ -407,7 +464,9 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     if apiKey :
         nim_apiKey = apiKey
 
-    _actionURL = nimURL.encode('ascii')
+    # _actionURL = nimURL.encode('ascii')
+    # _actionURL = nimURL
+    _actionURL = re.sub('[?]', '', nimURL)
 
     P.info("API URL: %s" % _actionURL)
     
@@ -415,36 +474,36 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     isRedirected = False
     try:
         testCmd = {'q': 'testAPI'}
-        cmd=urlencode(testCmd)
-        testURL="".join(( nimURL, cmd ))
-        # if sys.version_info >= (3,0):
-            # testURL = testURL.encode() # Python 3 requires URLs to be in bytes
-        req = Request(testURL)
+        if sys.version_info >= (3,0):
+            cmd=urllib.parse.urlencode(testCmd)
+            testURL="".join(( nimURL, cmd ))
+            req = urllib.request.Request(testURL)
+        else:
+            cmd=urllib.urlencode(testCmd)
+            testURL="".join(( nimURL, cmd ))
+            req = urllib2.Request(testURL)
+
 
         try :
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname=False
             ssl_ctx.verify_mode=ssl.CERT_NONE
-            res = urlopen(req, context=ssl_ctx)
+            if sys.version_info >= (3,0):
+                res = urllib.request.urlopen(req, context=ssl_ctx)
+            else:
+                res = urllib2.urlopen(req, context=ssl_ctx)
         except :
-            res = urlopen(req)
+            if sys.version_info >= (3,0):
+                res = urllib.request.urlopen(req)
+            else:
+                res = urllib2.urlopen(req)
             #pass
         
         finalurl = res.geturl()
         #P.info("Request URL: %s" % finalurl)
         if nimURL.startswith('http:') and finalurl.startswith('https'):
-            isRedirected  = True
-            _actionURLStr = _actionURL.decode('ascii')
-            _actionURLStr = _actionURLStr.replace("http:","https:")
-            _actionURL    = _actionURLStr.encode('ascii')
-            '''
-            if sys.version_info >= (3,0): # Python 3 returns
-                _actionURLStr = _actionURL.decode('ascii')
-                _actionURLStr = _actionURLStr.replace("http:","https:")
-                _actionURL = _actionURLStr.encode('ascii')
-            else:
-                _actionURL = _actionURL.replace("http:","https:")
-            '''
+            isRedirected = True
+            _actionURL = _actionURL.replace("http:","https:")
             P.info("Redirect: %s" % _actionURL)
     except Exception as e:
         P.error("Failed to test for redirect: %s"%e)
@@ -456,10 +515,17 @@ def upload( params=None, nimURL=None, apiKey=None ) :
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname=False
             ssl_ctx.verify_mode=ssl.CERT_NONE
-            opener = build_opener(HTTPSHandler(context=ssl_ctx), FormPostHandler)
+            if sys.version_info >= (3,0):
+                opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+            else:
+                opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+
         except :
             P.info( "Opening Connection on HTTP" )
-            opener = build_opener(FormPostHandler)
+            if sys.version_info >= (3,0):
+                opener = urllib.request.build_opener(FormPostHandler)
+            else:
+                opener = urllib2.build_opener(FormPostHandler)
 
         opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
     except:
@@ -470,11 +536,22 @@ def upload( params=None, nimURL=None, apiKey=None ) :
 
     try:
         if sys.version_info >= (3,0): # Python 3 returns
-            # In python 3 parms toopen need to be passed as a encoded dictionary (bytes)
-            f = urlencode(params)
-            f = f.encode('ascii')
-            result = opener.open(_actionURL.decode('ascii'), f).read()
-            # result = opener.open(_actionURL, params).read()
+            # Now in Python 3 we need to encode the data parameter in Request. opener.open(url, data)
+            # the problem is that the paramters dictionary is serialized using urlencode everything is converted into strings.
+            # NIM in Python 2 was passing file objects from open() and then later extracting the names from there to pass the path.
+            # In Python 3 files are now _io_BufferefRead, but we can pass an object (binary) anymore due to the serialization, so
+            # when an _io.BufferedRead is detected we extract the name and for the key in the dictionary to be 'file'
+            # Later when we need to decode the data in the opener handler we assume any key named 'file' has a file path.
+            # ENCODE REQUEST DATA
+            filterparams = {}
+            for prm in params:
+                if isinstance(params[prm], _io.BufferedReader):
+                    filterparams['file'] = params[prm].name # Force file key and set file path as value
+                    params[prm].close() # Close file descriptor
+                else:
+                    filterparams[prm] = params[prm]
+            data = urllib.parse.urlencode(filterparams).encode("ascii")
+            result = opener.open(_actionURL, data).read()
         else:
             result = opener.open(_actionURL, params).read()
         P.info( "Result: %s" % result )
@@ -505,7 +582,10 @@ def upload( params=None, nimURL=None, apiKey=None ) :
             except :
                 pass
 
-    except HTTPError as e:
+    #except urllib2.HTTPError, e: # Python 2
+    #except urllib.error.HTTPError as e: # Python 3
+    except Exception as e:
+        print(e)
         if e.code == 500:
             P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
             return False
@@ -525,81 +605,241 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     return result
 
 
-class FormPostHandler(BaseHandler):
-    """
-    Handler for multipart form data
-    """
-    handler_order = HTTPHandler.handler_order - 10 # needs to run first
-    
-    def http_request(self, request):
-
-        if sys.version_info >= (3,0): # Python 3 returns
-            data = request.data
-            # print("Requested data:")
-            # print(data)
-            if isinstance(data, (bytes, bytearray)):
-                data = data.decode()
-                data = parse_qsl( data )
-                data = dict(data)
-                # print(data)
-        else:
-            data = request.get_data()
-        if data is not None and not isinstance(data, str):
-            files = []
-            params = []
-            for key, value in list(data.items()):
-                if sys.version_info >= (3,0): # Python 3 returns
-                    if isinstance(value, IOBase):
-                        files.append((key, value))
+if sys.version_info >= (3,0):
+    class FormPostHandler(urllib.request.BaseHandler):
+        """
+        Handler for multipart form data
+        """
+        handler_order = urllib.request.HTTPHandler.handler_order - 10 # needs to run first
+        
+        def http_request(self, request):
+            if sys.version_info >= (3,0):
+                data =  dict(urllib.parse.parse_qsl(request.data.decode()))
+            else:
+                data = request.get_data()
+            if data is not None and not isinstance(data, str):
+                files = []
+                params = []
+                for key, value in list(data.items()):
+                    if sys.version_info >= (3,0):
+                        '''
+                        if isinstance(value, _io.BufferedReader):
+                            files.append((key, value))
+                        else:
+                            params.append((key, value))
+                        '''
+                        # In Python 3 we have to encode all data. When restoring it I always get a string from the serialized dictionary.
+                        # For files what we rally need is the name, so this i what we pass as a string rather than the _io.BufferedRead object.
+                        # All data tha tis suppose to have a file path must have the key 'file'.
+                        # This is enforced above when we encode a IO descriptor
+                        # DECODE REQUEST DATA
+                        if key == 'file':
+                            files.append((key, value))
+                        else:
+                            params.append((key, value))
                     else:
-                        params.append((key, value))
+                        if isinstance(value, file):
+                            files.append((key, value))
+                        else:
+                            params.append((key, value))
+                if not files:
+                    if sys.version_info >= (3,0):
+                        # Encode, to bytes, for Python 3
+                        data = urllib.parse.urlencode(params, True).encode('ascii') # sequencing on
+                    else:
+                        data = urllib.parse.urlencode(params, True) # sequencing on
                 else:
+                    boundary, data = self.encode(params, files)
+                    content_type = 'multipart/form-data; boundary=%s' % boundary
+                    request.add_unredirected_header('Content-Type', content_type)
+                    
+                if sys.version_info >= (3,0):
+                    # data is already in bytes from encode()
+                    request.data = data
+                else:
+                    request.add_data(data)
+            return request
+        
+        def encode(self, params, files, boundary=None, buffer=None):
+            'Helper function to encode dat using mimetypes'
+            if sys.version_info >= (3,0):
+                if boundary is None:
+                    #boundary = mimetools.choose_boundary()
+                    boundary = email_gen._make_boundary()
+                if buffer is None:
+                    # In Python 3 is all about bytes no string, so here we need to use byte strings and encode all string vars
+                    buffer = io.BytesIO()
+                for (key, value) in params:
+                    buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                    buffer.write(b'Content-Disposition: form-data; name="%s"' % key.encode('ascii'))
+                    buffer.write(b'\r\n\r\n%s\r\n' % value.encode('ascii'))
+                for (key, filepath) in files:
+                    # In Python3 we don't pass file descriptors anymore.
+                    # Due to serialization issues when encoding parameters dictionaries we
+                    # pass only strings. So our files are now file paths
+                    filename = os.path.basename(filepath)
+                    content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                    fd = open(filepath,'rb')
+                    file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                    buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                    buffer.write(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key.encode('ascii'), filename.encode('ascii')))
+                    buffer.write(b'Content-Type: %s\r\n' % content_type.encode('ascii'))
+                    buffer.write(b'Content-Length: %d\r\n' % file_size)
+                    fd.seek(0)
+                    buffer.write(b'\r\n%s\r\n' % fd.read())
+                    fd.close()
+                buffer.write(b'--%s--\r\n\r\n' % boundary.encode('ascii'))
+            else:
+                if boundary is None:
+                    #boundary = mimetools.choose_boundary()
+                    boundary = email_gen._make_boundary()
+                if buffer is None:
+                    # buffer = io.StringIO()
+                    buffer = io.StringIO()
+                for (key, value) in params:
+                    buffer.write('--%s\r\n' % boundary)
+                    buffer.write('Content-Disposition: form-data; name="%s"' % key)
+                    buffer.write('\r\n\r\n%s\r\n' % value)
+                for (key, fd) in files:
+                    filename = fd.name.split('/')[-1]
+                    content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                    file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                    buffer.write('--%s\r\n' % boundary)
+                    buffer.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
+                    buffer.write('Content-Type: %s\r\n' % content_type)
+                    buffer.write('Content-Length: %s\r\n' % file_size)
+                    fd.seek(0)
+                    buffer.write('\r\n%s\r\n' % fd.read())
+                buffer.write('--%s--\r\n\r\n' % boundary)
+                    
+            buffer = buffer.getvalue()
+            return boundary, buffer
+        
+        def https_request(self, request):
+            return self.http_request(request)
+
+
+    #  API Functions  #
+
+    def get_app() :
+        'Figure out what app is running.'
+        app=''
+        try :
+            import maya.cmds as mc
+            return 'Maya'
+        except :pass
+        try :
+            import nuke
+            return 'Nuke'
+        except : pass
+        try :
+            import c4d
+            return 'C4D'
+        except : pass
+        try :
+            import hiero.ui
+            return 'Hiero'
+        except : pass
+        try :
+            import MaxPlus
+            return '3dsMax'
+        except : pass
+        try :
+            import hou
+            return 'Houdini'
+        except : pass
+        try:
+            import cinesync
+            return 'Cinesync'
+        except : pass
+        try :
+            nim_app = os.environ.get('NIM_APP', '-1')
+            if nim_app == 'Flame':
+                return 'Flame'
+        except: pass
+        return None
+
+
+    #  Users  #
+
+    def get_user() :
+        'Retrieves the current user\'s username'
+        #  Get username :
+        if os.getenv( 'USER' ) :
+            _usr=os.getenv( 'USER' )
+        elif os.getenv( 'USERNAME' ) :
+            _usr=os.getenv( 'USERNAME' )
+        if _usr :
+            return _usr
+        else :
+            return False
+
+    def get_userID( user='' ) :
+        'Retrieves the current user\'s user ID'
+        if not user :
+            user=get_user()
+        try :
+            userID=get( {'q': 'getUserID', 'u': str(user)} )
+            if type(userID)==type(list()) and len(userID)==1 :
+                return userID[0]['ID']
+            else :
+                return userID
+        except Exception as e :
+            print(traceback.print_exc())
+            return False
+else:
+    class FormPostHandler(urllib2.BaseHandler):
+        """
+        Handler for multipart form data
+        """
+        handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
+        
+        def http_request(self, request):
+            data = request.get_data()
+            if data is not None and not isinstance(data, basestring):
+                files = []
+                params = []
+                for key, value in data.items():
                     if isinstance(value, file):
                         files.append((key, value))
                     else:
                         params.append((key, value))
-            if not files:
-                data = urlencode(params, True) # sequencing on
-            else:
-                boundary, data = self.encode(params, files)
-                content_type = 'multipart/form-data; boundary=%s' % boundary
-                request.add_unredirected_header('Content-Type', content_type)
-                
-            if sys.version_info >= (3,0): # Python 3 returns
-                # Return data as encoded bytes
-                # data = urlencode(data)
-                data = data.encode('ascii')
-                request.data = data
-            else:
+                if not files:
+                    data = urllib.urlencode(params, True) # sequencing on
+                else:
+                    boundary, data = self.encode(params, files)
+                    content_type = 'multipart/form-data; boundary=%s' % boundary
+                    request.add_unredirected_header('Content-Type', content_type)
+                    
                 request.add_data(data)
-        return request
-    
-    def encode(self, params, files, boundary=None, buffer=None):
-        if boundary is None:
-            #boundary = mimetools.choose_boundary()
-            boundary = email_gen._make_boundary()
-        if buffer is None:
-            buffer = io.StringIO()
-        for (key, value) in params:
-            buffer.write('--%s\r\n' % boundary)
-            buffer.write('Content-Disposition: form-data; name="%s"' % key)
-            buffer.write('\r\n\r\n%s\r\n' % value)
-        for (key, fd) in files:
-            filename = fd.name.split('/')[-1]
-            content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-            file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-            buffer.write('--%s\r\n' % boundary)
-            buffer.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
-            buffer.write('Content-Type: %s\r\n' % content_type)
-            buffer.write('Content-Length: %s\r\n' % file_size)
-            fd.seek(0)
-            buffer.write('\r\n%s\r\n' % fd.read())
-        buffer.write('--%s--\r\n\r\n' % boundary)
-        buffer = buffer.getvalue()
-        return boundary, buffer
-    
-    def https_request(self, request):
-        return self.http_request(request)
+            return request
+        
+        def encode(self, params, files, boundary=None, buffer=None):
+            if boundary is None:
+                #boundary = mimetools.choose_boundary()
+                boundary = email_gen._make_boundary()
+            if buffer is None:
+                buffer = io.StringIO()
+            for (key, value) in params:
+                buffer.write('--%s\r\n' % boundary)
+                buffer.write('Content-Disposition: form-data; name="%s"' % key)
+                buffer.write('\r\n\r\n%s\r\n' % value)
+            for (key, fd) in files:
+                filename = fd.name.split('/')[-1]
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                buffer.write('--%s\r\n' % boundary)
+                buffer.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
+                buffer.write('Content-Type: %s\r\n' % content_type)
+                buffer.write('Content-Length: %s\r\n' % file_size)
+                fd.seek(0)
+                buffer.write('\r\n%s\r\n' % fd.read())
+            buffer.write('--%s--\r\n\r\n' % boundary)
+            buffer = buffer.getvalue()
+            return boundary, buffer
+        
+        def https_request(self, request):
+            return self.http_request(request)
 
 
 #  API Functions  #
@@ -668,8 +908,10 @@ def get_userID( user='' ) :
         else :
             return userID
     except Exception as e :
-        print(traceback.print_exc())
+        print (traceback.print_exc())
         return False
+
+
 
 def get_userList( url=None ) :
     'Retrieves the list of NIM Users from the NIM Preferences.'
