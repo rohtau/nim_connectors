@@ -18,11 +18,17 @@
 
 #  General Imports :
 import glob, os, platform, re, sys, traceback, time
-from future.standard_library import install_aliases
-install_aliases()
+# from future.standard_library import install_aliases
+# install_aliases()
 
-from urllib.parse import urlparse, urlencode
-from urllib.request import urlopen, Request
+# from urllib.parse import urlparse, urlencode
+# from urllib.request import urlopen, Request
+
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2
+
 try:
     import ssl
 except :
@@ -70,8 +76,6 @@ from .import winTitle
 from .import padding
 _os=platform.system().lower()
 _osCap=platform.system()
-# Global padding used for file versions.
-# padding = 3
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
@@ -1990,6 +1994,10 @@ class GUI(QtGui.QMainWindow) :
             return None
         
         # Get domain name from URL
+        if sys.version_info >= (3,0):
+            from urllib.parse import urlparse
+        else:
+            from urlparse import urlparse
         #parsed_uri = urlparse( self.prefs['NIM_URL'] )
         #updated to use global vars
         connect_info = Api.get_connect_info()
@@ -2018,13 +2026,22 @@ class GUI(QtGui.QMainWindow) :
         #  Set Shot/Asset image :
         if _type and img_loc :
             #print("set image")
-            try :
-                myssl = ssl.create_default_context()
-                myssl.check_hostname=False
-                myssl.verify_mode=ssl.CERT_NONE
-                _data=urlopen( img_loc,context=myssl ).read()
-            except :
-                _data=urlopen( img_loc ).read()
+            if sys.version_info >= (3,0):
+                try :
+                    myssl = ssl.create_default_context()
+                    myssl.check_hostname=False
+                    myssl.verify_mode=ssl.CERT_NONE
+                    _data=urllib.request.urlopen( img_loc,context=myssl ).read()
+                except :
+                    _data=urllib.request.urlopen( img_loc ).read()
+            else:
+                try :
+                    myssl = ssl.create_default_context()
+                    myssl.check_hostname=False
+                    myssl.verify_mode=ssl.CERT_NONE
+                    _data=urllib.urlopen( img_loc,context=myssl ).read()
+                except :
+                    _data=urllib.urlopen( img_loc ).read()
             
             if _data is not None :
                 try :

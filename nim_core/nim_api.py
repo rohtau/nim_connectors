@@ -2049,11 +2049,12 @@ def extract_basename( nim=None, filepath=None ) :
     This is the name convention for a filename:
     [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
     The basename is : [SHOT|ASSET]__[TASK]__[TAG]
-    The we have task and finally VER
     As said, if file hasn't been published before then nim.name('base') is empty  and then this
     function will try to complete parts of the dictionary using the file name.
     Finally if SHOT|ASSET or TASK from the filename, doesn't match the ones in the dictionary
     the function will return an error.
+    If nim object has a basename, something has been already published, then latest version will
+    be returned
 
     Parameters
     ----------
@@ -2080,6 +2081,9 @@ def extract_basename( nim=None, filepath=None ) :
     
     short_task=F.task_toAbbrev( task=nim.name('task') )
 
+    tagname = None
+    vername = None
+    ver = 0
     if not nim.name('base'):
         # File in NIM dictionary hasn't been  published before
         base = os.path.basename(filepath)
@@ -2095,7 +2099,6 @@ def extract_basename( nim=None, filepath=None ) :
         basename = '__'.join(nameparts[:2])
         vername = nameparts[-1]
         ver = int(vername[1:])
-        tagname = None
         if len(nameparts) == 4:
             #there is tag
             tagname = nameparts[2]
@@ -2112,6 +2115,13 @@ def extract_basename( nim=None, filepath=None ) :
     #  Derive basename :
     if not nim.name('tag') and nim.name('base') :
         basename=nim.name('base')
+        nameparts = basename.split('__')
+        if len(nameparts) == 4:
+            #there is tag
+            tagname = nameparts[2]
+        elif len(nameparts) == 5:
+            #there is tag and cat
+            tagname = '__'.join(nameparts[2:4])
     else :
         # Change NIM convention here and use two __ to separate fields in the file name rather than _
         '''
@@ -2129,17 +2139,35 @@ def extract_basename( nim=None, filepath=None ) :
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+                tagname = nim.name('tag') 
             else :
                 basename=nim.name('asset')+'__'+short_task
         elif nim.tab()=='SHOT' :
             if nim.name('tag') :
                 basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+                tagname = nim.name('tag') 
             else :
                 basename=nim.name('shot')+'__'+short_task
+
+    # If there is a basename then there is a version
+    vers = nim.Dict('ver')
+    if vers:
+        ver = int(vers[0]['version'])
+    if filepath:
+        # If file path then extract version from it. Probably the is already something published so there is base and tag,
+        # But the verson on the filepath is probably a new onw and doesn't match latest version in the basenames
+        base = os.path.basename(filepath)
+        filename = base.split('.')[0]
+        nameparts = filename.split('__')
+        if len(nameparts) < 3 or len(nameparts) > 5:
+            P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
+            return False
+        vername = nameparts[-1]
+        ver = int(vername[1:])
     
     #  Returns :
     if basename :
-        return basename
+        return (basename, tagname, ver)
     else :
         P.error('Function api.to_basename() was unable to derive a basename')
         return False

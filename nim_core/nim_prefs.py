@@ -17,9 +17,15 @@
 #  General Imports :
 import os, sys, re, traceback
 from builtins import input
-from future.standard_library import install_aliases
-install_aliases()
-from urllib.parse import urlparse
+# from future.standard_library import install_aliases
+# install_aliases()
+# from urllib.parse import urlparse
+
+# Hack to use urllib in Python 2 and 3
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2
 
 #  NIM Imports :
 if sys.version_info >= (3,0):
@@ -236,7 +242,10 @@ def _verifyURL( url='' ) :
     if not url : return False
 
     # Validate URL Pattern
-    parsedURL = urlparse.urlparse(url)
+    if sys.version_info >= (3,0):
+        parsedURL = urllib.parse.urlparse(url)
+    else:
+        parsedURL = urlparse.urlparse(url)
     min_attributes = ('scheme', 'netloc')
     if not all([getattr(parsedURL, attr) for attr in min_attributes]):
         #error = "'{url}' string has no scheme or netloc.".format(url=parsedURL.geturl())

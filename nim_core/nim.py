@@ -459,8 +459,10 @@ class NIM( object ) :
                             task_abbrev=F.task_toAbbrev( self.name( 'task' ) )
                             base_abbrev=basename['basename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
+                            # print("DEBUG: Compare tok %s with basename: %s and/or base_abrev: %s"%(tok, basename['basename'], base_abbrev))
                             if tok==basename['basename'] or tok==base_abbrev :
                                 self.set_name( elem='base', name=basename['basename'] )
+                                self.nim['file']['basename']=basename['basename']
                                 basenameFound=True
                                 if assetFound==True :
                                     versions=Api.get_vers( assetID=self.ID( 'asset' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
@@ -488,14 +490,14 @@ class NIM( object ) :
 
         # If the path if a file wit a previous version published then we have been able to detect basename and version.
         # Otherwise basename and version haven't been found and we need to guess the from the file path
-        if not basenameFound:
+        # TODO: check if this is actually happening with nuke publishing
+        if not basenameFound or not versionFound:
             # Guess basename from file name.
             (basename, tagname, ver) = Api.extract_basename( self, filePath )
             # Fill file key
             self.nim['file']['basename']=basename
             self.nim['file']['filename']=self.name('file')
             self.set_version(str(ver))
-            # TODO: get version from file and fill in dict
 
         
         #  Derive Server :
@@ -824,7 +826,8 @@ class NIM( object ) :
                         if self.nim['app'] is not None and len(self.nim['app'])>0:
                             self.nim[elem]['Dict']=Api.get_taskTypes(app=self.nim['app'].upper(), shotID=self.nim['shot']['ID'])
                         else:
-                            self.nim[elem]['Dict']=Api.get_taskTypes(shotID=self.nim['shot']['ID'])
+                            self.nim[elem]['Dict']=Api.get_taskTypes()
+                            # self.nim[elem]['Dict']=Api.get_taskTypes(shotID=self.nim['shot']['ID'])
                             
                 elif self.nim['class']=='ASSET' :
                     if self.nim['asset']['name'] not in ['Select...', 'None', ''] :
@@ -990,6 +993,8 @@ class NIM( object ) :
             filetype = 'Image'
         elif myext in ('mov', 'mp4'):
             filetype = 'Movie'
+        elif myext in ('abc'):
+            filetype = 'Alembic'
         if filetype:
             self.nim['fileExt']['fileType']=filetype
         else:

@@ -78,8 +78,6 @@ class jobAwardStatusID:
 #
 # Utilities
 #
-
-
 def logtimer(msg, start, end=0.0):
     '''
     Write log messages to the terminal using click.echo()
@@ -101,8 +99,6 @@ def logtimer(msg, start, end=0.0):
 
 #
 # Jobs
-
-
 def getjobs():
     """
     Get a dictionary with all jobs and IDs
@@ -415,8 +411,6 @@ def getshotsIDDict(jobid, showid=None):
 
 #
 # Assets
-
-
 def getassetIdFromName(jobid, assetname):
     """
     From a shot name returns it's ID
@@ -520,8 +514,6 @@ def getassetPkgName(assetid, assetname="", cat=""):
 
 #
 # Tasks
-
-
 def gettasksTypesIDDict():
     '''
     Create a dictionary with ID as keys and task types names as value
@@ -665,8 +657,6 @@ def getuserTask(userid, tasktype, parent, parentID):
 
 #
 # Elements
-
-
 def getelementsIDDict():
     '''
     Create a dictionary with ID as keys and element name as value
@@ -903,8 +893,6 @@ def findElements(jobid, name="", shotid=0, assetid=0, taskid=0, elementid=0, use
 
 #
 # Files
-
-
 def find_basenames(showid=None, shotid=None, assetid=None):
     files = []
 
@@ -1093,8 +1081,6 @@ def splitName(filename):
 
 #
 # Users
-
-
 def getuserID(username):
     '''
     Get user ID from name
@@ -1113,7 +1099,6 @@ def getuserID(username):
         if user['username'] == username or user['username'] == usernamedomain:
             return int(user['ID'])
     return -1
-
 
 def getuserName(userid):
     '''

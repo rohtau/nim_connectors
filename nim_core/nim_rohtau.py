@@ -22,11 +22,15 @@ import shlex
 import time
 import datetime
 import json
+import shutil
+import stat
+from glob import glob
 from subprocess import Popen
 from datetime   import datetime
 from pprint     import pprint
 from pprint     import pformat
 from builtins   import range
+from urllib.parse import uses_relative
 
 if sys.version_info >= (3,0):
     from . import nim                as Nim
@@ -59,6 +63,16 @@ except ImportError :
             # print("NIM: Failed to UI Modules - UI")
             pass
 
+#
+# Globals
+#
+
+# List of tasks available in publishing system
+pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
+# List of elements available in publishing system
+pubElementsList = ['all', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'roto', 'dmp']
+# User mask. Only user can write/delete
+user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 class pubOverwritePolicy:
     '''
     Enum for different publishing overwrite policies
@@ -90,6 +104,19 @@ class pubState:
     ERROR     = 2 # There was an error and data is not healthy
     NA        = 3 # No Applicable, use for files that don't represent elements, like DCC scene files
     name      = ('Pending', 'Available', 'Error', 'N/A') # state names
+
+    pass
+
+class reviewType:
+    '''
+    Enum for different item types
+    '''
+    NOTYPE        = 0 # Disable review type
+    DAILY         = 1 # Review for dailies
+    EDIT          = 2 # Review for Editorial
+    REF           = 3 # Review used for referrencies
+    MAKEOF        = 4 # Used for making offs
+    name          = ('N/A', 'Daily', 'Edit', 'Reference', 'Making Of') # types names
 
     pass
 
@@ -136,7 +163,7 @@ def openPath( path ):
 
     return True
 
-def elementTypeFolder( elementtype, parent, parentID ):
+def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
     '''
     Based on an element type name or ID and a selected shot/asset return it's folder path.
     The path will be relative to the parent shot/asset
@@ -159,12 +186,13 @@ def elementTypeFolder( elementtype, parent, parentID ):
     str
         Element folder name. empty string if error
     '''
+    elementname=""
     folder = ""
     if len(elementtype) > 0:
-        elmtsTypes = nimApi.get_elementTypes()
-        pprint(elmtsTypes)
+        elmtsTypes = nimAPI.get_elementTypes()
+        # pprint(elmtsTypes)
         if not elementtype.isnumeric():
-            elementname = element
+            elementname = elementtype
             for elm in elmtsTypes:
                 if elm['ID'] == elementtype:
                     elementid = elm['ID']
@@ -179,7 +207,7 @@ def elementTypeFolder( elementtype, parent, parentID ):
         nimP.error("Element type is an empty string. Please set an element type name or ID")
         return ""
 
-    basepaths = nimApi.get_paths( item=parent, ID=parentID )
+    basepaths = nimAPI.get_paths( item=parent, ID=parentID )
     basepath = basepaths['root']
     if elementname in ('plates', 'renders', 'comps'):
        folder =  basepaths[elementname].replace(basepath + '/', '')
@@ -187,6 +215,45 @@ def elementTypeFolder( elementtype, parent, parentID ):
         folder = elementname
 
     return folder
+
+def validateFilename( name ):
+    '''
+    Check if a file name is correct for us to process.
+    Also check if the filename represents as file sequence
+
+    Valid Name
+    ----------
+    A valid name will be imn the form:
+        FileName.Frames.Ext
+    Frames wil have a maximum padding of nim_core.imgpadding. At  the moment is 4.
+    If padding exists then it will be assumed to be a sequence.
+    Filename, frames and ext must be separated by the dot sign .
+
+    Parameters
+    ----------
+    name : str
+        Filename string, including name and extension. Path will be removed
+
+    Returns
+    -------
+    tuple
+        Tuple with two boolean elements: isvalid and isseq
+    '''
+    isvalid = True
+    isseq = False
+    filename = os.path.basename( name )
+    parts = filename.split('.')
+    l = len(parts)
+    if l < 2 or l > 3:
+        nimP.error("Filename not in accordance with convention, needs to have at least name and  extension with optional frames padding: %s"%filename)
+        isvalid = False
+    isseq = l == 3
+    if isseq:
+        if not len(parts[1]) or  len(parts[1]) > imgpadding:
+            nimP.error("Wrong frame padding, the maximum length id %d"%imgpadding)
+            isvalid = False
+            
+    return (isvalid, isseq)
 
 def buildRenderSceneName( scenepath ):
     """
@@ -445,21 +512,78 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     cmd += " outFile=%s "%outdraft
     if not runAsyncCommand( cmd ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
-    # TODO: publish draft movie
     
     return outdraft
 
 #
 # Publishing
 #
+def buildBasename( shot, task, name, subtask='', layer='', cat=''):
+    '''
+    Create basename according to name convention.
+    Basename is the portion of the filename without the version string:
+        [SHOT|ASSET]__[TASK[_SUBTASK]]__[TAG[__LAYER][__CAT]]
+
+    Parameters
+    ----------
+    shot : str
+        Shot/asset name for the render job
+    name : str
+        Element name
+    task : str
+        Task assigned to render job
+    subtask : str:
+        Extra task definition for more granular setups (default: {''})
+    layer : str
+        Another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
+    cat : str
+        Render category, useful to distinguish between final renders and different tests and QD (default: {''})
+
+    Returns
+    -------
+    str
+        Basename according to name convention
+    '''
+    pathtask =  task
+    if len(subtask) > 0:
+        pathtask += "_%s"%subtask
+
+    # Category
+    if cat:
+        pathcat = 'TEST'
+        if cat.upper() == 'AUTO':
+            if task == 'light':
+                pathcat = 'BTY'
+        else:
+            pathcat = cat.upper()
+
+    # element Name
+    elmname = name
+    if len(layer) > 0:
+        elmname += "__%s"%layer
+    if cat:
+        elmname += "__%s"%cat
+
+    basename = "%s__%s__%s"%(shot, pathtask, elmname)
+    return basename
+
 def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     '''
     Query NIM's database to get what would be the next version to be publish for the element.
 
+    Filename or Basename
+    --------------------
+    Filename:
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    Basename:
+        [SHOT|ASSET]__[TASK]__[TAG]
+    
+    
+
     Arguments
     ---------
         filename : str
-            Filename of element to publish. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+            Filename or basename of element to publish.
         parent : str
             Parent for publish element:SHOT or ASSET
         parentID : str
@@ -472,10 +596,14 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     '''
     # (dirname, filename) = os.path.split(path)
     # Extract basename and ver. Assume name convention is: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
-    basename = filename.split('.')[0]
+    if filename.count('.')>0:
+        basename = filename.split('.')[0]
+    else:
+        basename = filename
     basenameparts = basename.split('__')
-    basename = '__'.join(basenameparts[:-1]) # Exclude ver part
-    curver = basenameparts[-1][1:] # Get ver part and remove the initial v
+    if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('V'):
+        basename = '__'.join(basenameparts[:-1]) # Exclude ver part
+    curver = basenameparts[-1][1:] # Get ver part and remove the initial v|V
     # import nuke
     # nuke.tprint("Path: %s"%path)
     # nuke.tprint("Basename: %s, Ver: %s"%(basename, curver))
@@ -594,8 +722,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     path = ""
     # Task
     if not task:
-        # FIXME: do this with log
-        print("Task is empty")
+        nimP.warning("Can't get a correct path for publishing, task is empty")
     pathtask = task
     if len(subtask) > 0:
         pathtask += "_%s"%subtask
@@ -604,46 +731,48 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     if cat:
         pathcat = 'TEST'
         if cat.upper() == 'AUTO':
-            # XXX: the name of the lighting task will probably change
-            if task == 'lighting':
+            if task == 'light':
                 pathcat = 'BTY'
         else:
             pathcat = cat.upper()
 
     # element Name
+    '''
     elmname = name
     if len(layer) > 0:
         elmname += "__%s"%layer
     if cat:
         elmname += "__%s"%pathcat
+    '''
 
     # Ver
-    pathver = "v%03d"%ver
+    pathver = "v%s"%str(ver).zfill(padding)
 
+    basename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat)
     # Files location
-    loc = os.path.normpath( os.path.join(baseloc, pathtask, elmname, pathver))
+    loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
 
     # Files Name
-    name = "%s__%s__%s__%s"%(shot, pathtask, elmname, pathver)
+    filename = "%s__%s"%(basename, pathver)
     if not only_name:
         if isseq:
             if format == 'nim':
-                name += ".####.%s"%ext
+                filename += ".####.%s"%ext
             elif format == 'houdini':
-                name += ".$F4.%s"%ext
+                filename += ".$F4.%s"%ext
             elif format == 'nuke':
-                name += ".%"+"04d.%s"%ext
+                filename += ".%"+"04d.%s"%ext
             else:
-                name += ".####.%s"%ext # By default use Nim padding format
+                filename += ".####.%s"%ext # By default use Nim padding format
                 
         else:
-            name += ".%s"%ext
+            filename += ".%s"%ext
         
     # Form the final path
     # In Houdini we need to do a expansString weith this output
-    path = os.path.join( loc, name )
+    path = os.path.join( loc, filename )
     if len(subfolder):
-        path = os.path.join( loc, subfolder, name )
+        path = os.path.join( loc, subfolder, filename )
     if platform.system() == 'Windows' and force_posix:
         path = toPosix( path )
         loc  = toPosix( loc )
@@ -657,7 +786,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
 
 def checkFileAndElementPublished( nim ):
     '''
-    Check if a file and an element with this basename are already published
+    Check if a file and an element with this basename is already published
 
     Parameters
     ----------
@@ -673,7 +802,7 @@ def checkFileAndElementPublished( nim ):
     basename = nim.name('base')
     ver = nim.version()
     if not basename or not ver:
-        P.warning("NIM dictionary doesn't have basename or version information. Basename: %s, Version: %s"%(basename, ver))
+        nimP.warning("NIM dictionary doesn't have basename or version information. Basename: %s, Version: %s"%(basename, ver))
         return (file, element)
 
     if nim.tab() == 'SHOT':
@@ -719,15 +848,16 @@ def createRenderIcon( elementInfo ):
     middlepath = os.path.normpath(middlepath)
     if platform.system() == 'Windows':
         middlepath = os.path.join('C:', middlepath)
+    print("Create icon from: %s"%middlepath)
     if not os.path.exists(middlepath):
-        nimP.error("Frame for render icon doesnt exists: %s"%middlepath)
+        nimP.error("Frame for render icon doesn't exists: %s"%middlepath)
         return False
     filename = os.path.basename(middlepath)
     rendername = filename.split('.')[0]
     iconname = rendername + ".jpg"
     iconpath = os.path.join(tempfile.gettempdir(), iconname)
-    # print("Create icon from: %s"%middlepath)
-    # print("Crete icon at: %s"%iconpath)
+    print("Create icon from: %s"%middlepath)
+    print("Crete icon at: %s"%iconpath)
 
     cmd = "/opt/deadline10/bin/dpython" # For unix like systems
     if platform.system() == 'Windows':
@@ -744,7 +874,7 @@ def createRenderIcon( elementInfo ):
     
     return iconpath
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , dorender=True, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -782,8 +912,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         Overwrite policy. Whether or not allow to reuse pub elements/files
     state     : pub.pubState
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
-    dorender  : bool
-        Publish render, default True
     plain     : bool
         Output in plain text format.
     jsonout   : bool
@@ -829,8 +957,23 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # print("NIM Dict:")
     # pprint(nim.get_nim())
 
+    # userid
+    if not userid:
+        myuser = nimAPI.get_user()
+        userid = int(nimAPI.get_userID(myuser))
+
     # Get task
     # Try to find a valid task for the task type and user in the shot/asset
+    if not nim.ID( elem='task' ):
+        res['msg'] = "couldn't find a supported task in the path: %s"%path
+    pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
+    if not pid:
+        res['msg'] = "Shot or Asset name in path doesn't exists"
+        return res
+    else:
+        pid = int(pid)
+    pubtask = nimUtl.getuserTask( userid, tasktype=int(nim.ID( elem='task' )), parent=nim.tab().lower(), parentID=pid) 
+    '''
     tasks = nimAPI.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     pubtask = None
     for task in tasks:
@@ -840,6 +983,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # if pubtask:
         # print("Publish task")
         # pprint(pubtask)
+    '''
 
     # First check if there is no file or element published yet with this basename and version
     (file, element) = checkFileAndElementPublished( nim )
@@ -870,10 +1014,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Publish file
     if not file:
         customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
-        addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')),\
-            task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), filename=nim.name('file'), path=nim.filePath(),\
-                serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), pub=False, forceLink=False,\
-                    customKeys=customkeys)
+        addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=pid, task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), \
+            filename=nim.name('file'), path=nim.filePath(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
+                pub=False, forceLink=False, customKeys=customkeys)
         if addfile_result['success']:
             res['fileID'] = addfile_result['ID']
         else:
@@ -886,7 +1029,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Publish element
     # Elements are parent to the same shot/asset of teh file and also "linked" to a task and/or a render preview 
     if not element:
-        addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')), userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
+        addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
             startFrame=start, endFrame=end, handles=handles, metadata='' )
         if not addelmt_result['result']:
             if verbose:
@@ -930,7 +1073,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         'fileID'      : res['fileID'],
         'extraElementsID': res['extraElementsID']
     }
-    metadata = json.dumps(metadata)
+    metampdata = json.dumps(metadata)
     updateelmt_result = nimAPI.update_element( ID=int(res['elementID']), metadata=metadata)
     if updateelmt_result['success'] != 'true':
         nimAPI.delete_element( res['elementID'] )
@@ -1241,7 +1384,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
                 if parent.upper() == 'SHOT':
                     parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
                 else:
-                    parentname = nimAPI.get_asseetInfo( shotID=id)[0]['assetName']
+                    parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
         else:
             if verbose:
                 nimP.error("Need to provide a parent name or ID. It will be a shot name or ID, asset name or ID, etc ...")
@@ -1319,13 +1462,15 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             avgtimestr = str(avgtime.seconds)
             
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
+    print("Task for render: %s"%task['taskID'])
     res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
         renderKey='', renderName=rendername, renderType=rendertype, renderComment=comment, \
         outputDirs=(outdir,), outputFiles=(path,), elementTypeID=elementTypeID, start_datetime=starttimedate, end_datetime=endtimedate, \
         avgTime=avgtimestr, totalTime=rendertimestr, frame=nframes )
     if res['success'] == 'true' and icon and os.path.exists(icon):
         resicon = nimAPI.upload_renderIcon( renderID=int(res['ID']), img=icon) 
-        pprint(resicon)
+        if verbose:
+            pprint(resicon)
     if res['success'] == 'true':
         updateelmt_result = nimAPI.update_element( ID=int(elementInfo['ID']), renderID=int(res['ID']))
         if updateelmt_result['success'] != 'true':
@@ -1433,7 +1578,7 @@ def pubReview(filename, review, job= "", parent="", parentID="", state=pubState.
         return False
     pass
 
-def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', verbose=False):
+def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', reviewtype=reviewType.DAILY, verbose=False):
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
     This is the function to call to get a published path, with pubpath(), and create a render for it.
@@ -1441,7 +1586,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     Render Publish Stages
     ---------------------
     - Create Icon
-    - Publish render from Filename or fileID
+    - Publish render from Filename or fileID, if there is a task available in the shot/asset
     - Link Element associated to the File to the former render
     - Create Review
     - Publish Review
@@ -1469,8 +1614,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         Render start in UTC
     endtimedate      : str
         Render end in UTC
-    icon : str
-        Path to an image to be used as icon for the renders
+    reviewtype      : reviewType
+        Review type: reviewType.DAILY(1), reviewType.EDIT(2), reviewType.REF(3)
     verbose : bool
         Output extra information
 
@@ -1488,6 +1633,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     jobid, jobnumber = 0, ""
     res = {'success' : False}
     fileInfo = None
+
+    # userid
+    if not userid:
+        myuser = nimAPI.get_user()
+        userid = int(nimAPI.get_userID(myuser))
 
     if not fileID:
         if not filename:
@@ -1572,11 +1722,19 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     name =  fileInfo['filename'] 
     (base, shotname, task, tag, ver) = nimUtl.splitName(name)
     rendername = tag + "__" + "v%s"%str(ver).zfill(padding)
-    id = int(fileInfo['parentID'])
+    pid = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
+    if parent.upper() == 'SHOT':
+        parentname = nimAPI.get_shotInfo( shotID=pid)[0]['shotName']
+    else:
+        parentname = nimAPI.get_asseetInfo( shotID=pid)[0]['assetName']
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
-    elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=id if parent.upper()=='ASSET' else '', shotID=id if parent.upper()=='SHOT' else '')
+    # Check availability:
+    available = fileInfo['customKeys']['State'] == 'Available'
+    if not available:
+        nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
+    elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=pid if parent.upper()=='ASSET' else '', shotID=pid if parent.upper()=='SHOT' else '')
     if elementInfo:
         elementInfo=elementInfo[0]
     else:
@@ -1585,28 +1743,37 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         res['success'] = False
         res['msg'] = "Couldn't find an element for the render: %s"%name
         return res
-    taskid = int(elementInfo['taskID']) 
+    if elementInfo['taskID']:
+        taskid = int(elementInfo['taskID']) 
+    else:
+        taskid = 0
     
     # print("Render Element:")
     # pprint(elementInfo)
 
-    # Create icon
-    if verbose:
-        nimP.info("Create render icon ..")
-    icon = createRenderIcon( elementInfo )
-    if not icon:
-        res['msg'] = "Error creating render icon for %s"%base
-        res['success'] = False
-        return res
 
-    # Publish render
-    # XXX: icon is not uploaded coprrectly, appears just white
-    if verbose:
-        nimP.info("Publish render ....")
-    res = pubRender(fileID=fileid, userid =userid, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
-    if not res['success']:
-        return res
-    renderid = res['ID']
+    renderid = 0
+    if taskid:
+        # Can only publish render if there is an available task
+        # Create icon
+        if verbose:
+            nimP.info("Create render icon ..")
+        icon = createRenderIcon( elementInfo )
+        if not icon:
+            res['msg'] = "Error creating render icon for %s"%base
+            res['success'] = False
+            return res
+
+        # Publish render
+        if verbose:
+            nimP.info("Publish render ....")
+        res = pubRender(fileID=fileid, userid =userid, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
+        if not res['success']:
+            return res
+        renderid = res['ID']
+    else:
+        nimP.warning("Couldn't find a task %s for %s %s. Render item won't be published."%(nimUtl.gettasksTypesIDDict()[tasktype], parent, parentname))
+            
 
     # Create draft movie
     if verbose:
@@ -1616,16 +1783,22 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     if not draft:
         return False
 
-    print("Draft movie: %s"%draft)
-
     # Create review
     draftPosix = toPosix(draft)
-    print("Draft posix: %s"%draftPosix)
     # TODO: test parenting this to a task. So get task for user, and use task as parent and the taskID. Pass renderID=renderid
+    # If taskid i not 0 then parent to task, otherwise parent to shot/asset
     # At the moment Im parenting to the render, according to thei thread if I parent to the task I can get verioning.
     # http://community.nim-labs.com/viewtopic.php?f=34&t=294&p=680&hilit=stack#p680
-    res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, name=rendername, description=comment) 
-    print(res_review)
+    # res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, name=rendername, description=comment) 
+    # Add review to render item or to parent item
+    keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
+    if renderid:
+        res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+    else:
+        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        
+    # res_review = nimAPI.upload_reviewItem( itemID=taskid, itemType='task', userID=userid, path=draftPosix, name=rendername, description=comment) 
+    # print(res_review)
     # res_review = eval(res_review.decode())
     # if res_review['success'] != 'true':
         # res['success'] = False
@@ -1638,29 +1811,108 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     return res
 
-def pubImport(job, path, name, parent='shot', parentID="", task="", element='', file="",user="", version=0, overwrite=pubOverwritePolicy.NOT_ALLOW, comment='', asrender=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
-    #TODO
+def pubImport(job, path, name='', parent='shot', parentID="", task="", element='', file="",user="", version=0, start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, 
+              comment='', asrender=False, reviewtype=reviewType.DAILY, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+    '''
+    Copy elements data from an arbitrary location into the project according to the publishing details
 
+    Parameters
+    ----------
+    job : str
+        number or ID for job
+    path : str
+        Path to data to publish. I can be a static file or a sequence (User #### for padding)
+    name : str
+        Alternative name for publish item when importing to job.
+    parent : str
+        Parent for this publish element. Where the element will be published. By default 'shot'
+    parentID : str
+        ID or name if parent entity. Name of shot, asset or show to render to
+    task : str
+        name or ID of task type to list items from.
+    element : str
+        Element type of published item. Empty if item is not an element
+    file : str
+        File type. Usually DCC scene type. Empty if item is not a scene file.By default ""
+    user : str
+        User who owns the published item. If not provided use current user
+    version : int
+        Publish version. 0 to automatically up and publish to last version
+    start : int
+        Start frame.
+    end : int
+        End frame.
+    handles : int
+        Frame handles.
+    overwrite : pub.pubOverwritePolicy
+        Overwrite policy. Whether or not allow to reuse pub elements/files
+    comment : str
+        Publish comment.
+    asrender : bool
+        create render elements and publish render and review items
+    reviewtype      : reviewType
+        Review type: reviewType.DAILY(1), reviewType.EDIT(2), reviewType.REF(3)
+    plain : bool
+        Output in plain text format.
+    jsonout : bool
+        Output in JSON format
+    profile : bool
+        Test different stages performance and output results
+    dryrun : bool
+        Go thorough the whole process, return information of actions to take but don't modify anything
+    verbose : bool
+        Output extra information
+
+    Returns
+    -------
+    bool
+        True if no errors
+    '''
 
     ver = 0
     parentname = ""
     id = 0
     jobid, jobnumber = 0, ""
+    res = {'success' : False, 'msg' : None}
+    isseq = False
+    files = []
+
+    # check path and get absolute path. This allows to pass a relative path to current location
+    (filepath, filename) = os.path.split( path )
+    (isvalid, isseq) = validateFilename( filename )
+    abspath = os.path.abspath( path )
+    parts = path.split('.')
+    
+    # Check files path
+    if not isseq :
+        if os.path.exists(path):
+            files.append(path)
+    else:
+        parts[1] = '*'
+        pat = '.'.join(parts)
+        files = glob( pat )
+    if not files:
+        nimP.error("Can't files file/s for specified path: %s"%path)
+        res['msg'] = "Can't files file/s for specified path: %s"%path
+        return res
 
     if job:
         (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
         if not jobid:
-            sys.exit()
+            res['msg'] = "Cne't get id for job: %s"%job
+            return res
+    else:
+        res['msg'] = "Please select a job to publish to"
+        return res
 
-    (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
     if not parentID:
-        # Get shot or asset name from filename
-        parentID = shotname
+        res['msg'] = "Need to provided a shot/asset name to publish to"
+        return res
 
     if not isinstance(parentID, int) and not parentID.isnumeric():
         if not jobid:
-            log("If parent is defined as a name, a job number or ID need to be provided")
-            return False
+            res['msg'] = "If parent is defined as a name, a job number or ID need to be provided"
+            return res
         parentname = parentID
         if parent.upper() == 'SHOT':
             id = nimUtl.getshotIdFromName( jobid, parentname )
@@ -1668,8 +1920,8 @@ def pubImport(job, path, name, parent='shot', parentID="", task="", element='', 
             id = nimUtl.getassetIdFromName( jobid, parentname )
             
         if not id:
-            log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
-            return False
+            res['msg'] = "Couldn't find shot/asset %s in %s "%(parentname, jobnumber)
+            return res
     else:
         id=int(parentID)
         if parent.upper() == 'SHOT':
@@ -1677,14 +1929,79 @@ def pubImport(job, path, name, parent='shot', parentID="", task="", element='', 
         else:
             parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
 
-    # Get target path according to name convention
+    jobloc = nimUtl.getjobLocation(jobid)
+    if not jobloc:
+        return res
+    baseloc = elementTypeFolder( element, parent, id )
+    if baseloc:
+        basepath = nimAPI.get_paths( item=parent, ID=id )['root']
+        baseloc = os.path.join(basepath, baseloc)
+    if not baseloc:
+        res['msg'] = "Can't get a base path for element %s in %s %s"%(element, parent.lower(), parentname)
+        return res
+    baseloc = os.path.join(os.path.dirname(jobloc), baseloc) # Remove job number folder from jobloc, is already included at the start of baseloc
+        
+    # Get name
+    if not name:
+        nimP.warning("Publish name not provided, filename will be used: %s"%filename)
+        name = filename.split('.')[0]
+    # Create basename
+    basename = buildBasename( parentname, task, name)
+    if verbose:
+        nimP.info("Basename: %s"%basename)
 
-    # def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='nim', only_name=False, only_loc=False, force_posix=False  ):
+    #Get version from basename
+    if not version:
+        version = getNextPublishVer ( basename, parent=parent.upper(), parentID=id)
+        nimP.info("Find next version for %s: %d"%(basename, version))
+    if verbose:
+        nimP.info("Version to publish: %d"%version)
+
+    # Get target path according to name convention
+    pubpath = publishOutputPath ( baseloc, shot=parentname, name=name, ver=version, task=task,  ext=parts[-1], isseq=isseq )
+    if verbose:
+        nimP.info("Pub path: %s"%pubpath)
+
     # Copy data to target location with correct name
+    pubdirname = os.path.dirname(pubpath)
+    try:
+        os.makedirs( pubdirname, mode=user_mask, exist_ok=True)
+    except Exception as e:
+        res['msg'] = str(e)
+        return res
+    if not isseq:
+        try:
+            shutil.copy( path, pubpath )
+        except Exception as e:
+            res['msg'] = str(e)
+            return res
+        if verbose:
+            print("File %s\n\t->Imported into: %s"%(path, pubpath))
+    else:
+        nimP.info("Copying files into: %s"%os.path.dirname(pubpath))
+        for f in files:
+            framestr = f.split('.')[1] #Assume string before extension is the frame, this is our name convention
+            dest = pubpath.replace('####', framestr)
+            try:
+                shutil.copy( f, dest )
+            except Exception as e:
+                res['msg'] = str(e)
+                return res
+            if verbose:
+                print("File %s\n\t->Imported into: %s"%(f, dest))
 
     # Call to pubPath() to publish it
+    pubres = pubPath(pubpath, user, comment=comment, start=start, end=end, handles=handles, overwrite=overwrite, state=pubState.AVAILABLE , plain=plain, jsonout=jsonout, profile=profile, dryrun=dryrun, verbose=verbose)
+    if not pubres['success']:
+        res['msg'] = pubres['msg']
+        return res
 
-    # Crate render if needed
+    # Create render if needed
+    if asrender:
+        pubrender = createRender( fileID=pubres['fileID'], userid=user, comment=comment, reviewtype=reviewtype, verbose=verbose)
+        pprint(pubrender)
+
+    res['success'] = True
     return res
 #
 # UI
