@@ -624,7 +624,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #XXX: What?? This scenes folder is hardcoded???
     if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
     else : projDir=fileDir
-    
+
     
     #  Convert file directory :
     #P.info("fileDir: %s" % fileDir)

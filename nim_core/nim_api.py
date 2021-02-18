@@ -2039,7 +2039,7 @@ def to_nimDir( nim=None ) :
 
 def extract_basename( nim=None, filepath=None ) :
     '''
-    Try to extract a basename and tag from a nim dictionary
+    Try to extract a basename and tag from a nim dictionary or a filepath.
     The difference with to_basename() is that this function doesn't require
     to have a nim dictionary with a published basename, if the file basename
     hasn't been published yet then it will guess name elements from the file name.
@@ -2071,20 +2071,18 @@ def extract_basename( nim=None, filepath=None ) :
     (basename, tag, ver)=('', '', '')
     
     #  Error Check :
-    if not nim :
-        P.error( 'Please pass api.to_basename() a NIM dictionary.' )
-        return False
-    path = nim.filePath() if nim.filePath() else filepath
+    # if not nim :
+        # P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+        # return False
+    path = nim.filePath() if nim and nim.filePath() else filepath
     if not path:
         P.error( 'Please pass api.extract_basename() a Nim dictionary with a filepath or a explicit File Path.' )
         return False
     
-    short_task=F.task_toAbbrev( task=nim.name('task') )
-
     tagname = None
     vername = None
     ver = 0
-    if not nim.name('base'):
+    if not nim or not nim.name('base'):
         # File in NIM dictionary hasn't been  published before
         base = os.path.basename(filepath)
 
@@ -2107,8 +2105,9 @@ def extract_basename( nim=None, filepath=None ) :
             #there is tag and cat
             tagname = '__'.join(nameparts[2:4])
             basename = '__'.join(nameparts[:4])
-        nim.set_name( elem='base', name=basename )
-        nim.set_name( elem='tag', name=tagname)
+        if nim:
+            nim.set_name( elem='base', name=basename )
+            nim.set_name( elem='tag', name=tagname)
         # nim.set_name( elem='ver', name=vername)
         return (basename, tagname, ver)
     
@@ -2136,6 +2135,7 @@ def extract_basename( nim=None, filepath=None ) :
             else :
                 basename=nim.name('shot')+'_'+short_task
         '''
+        short_task=F.task_toAbbrev( task=nim.name('task') )
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')

@@ -70,7 +70,7 @@ except ImportError :
 # List of tasks available in publishing system
 pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
 # List of elements available in publishing system
-pubElementsList = ['all', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'roto', 'dmp']
+pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'roto', 'dmp']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 class pubOverwritePolicy:
@@ -494,7 +494,9 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     cmd += " inFile=%s "%path
     # Out draft movie path
     outdraft = os.path.join( os.path.dirname(path), 'Draft' ) # Draft location
-    draftname = os.path.basename(path).split('.')[0] + ".mov" # Draft name
+    (basename, tagname, ver) = nimAPI.extract_basename( filepath=os.path.basename(path) )
+    draftname = "%s_v%s.mov"%(basename, str(ver).zfill(2))
+    # draftname = os.path.basename(path).split('.')[0] + ".mov" # Draft name
     if outfile:
         if len(os.path.splitext(outfile)) >= 2:
             # This is a complete path with filename
@@ -1489,95 +1491,6 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     
     return res
 
-def pubReview(filename, review, job= "", parent="", parentID="", state=pubState.PENDING, verbose=False):
-    '''
-    Publish a review for a given filename item
-    filename is the basename for the already published item
-
-    Filename or Basename
-    --------------------
-    If the first argument is a filename only that basename and version will be modified.
-    On the other hand if a basename is passed all version will be modified.
-    Filename convention:  [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
-    Basename convention:  [SHOT|ASSET]__[TASK]__[TAG]
-    Examples:
-        Filename: RND_001__comp__comp__OUT__v007.####.exr
-        Basename: RND_001__comp__comp__OUT
-
-    Publish Review
-    --------------
-    A review, usually for dailies, is publish following the next steps:
-    - If published file has renderID in the metadat grab it from there
-    - If not then published for task or shot
-    
-
-    Parameters
-    filename : str
-        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
-        It can also be in the form of a basename without version information:  [SHOT|ASSET]__[TASK]__[TAG]
-    job : str
-        number or ID for job
-    parent : str
-        Parent for publish element:SHOT or ASSET
-    parentID : str
-        Shot or Asset ID 
-    version : int, optional
-        Version number if file is designed by basename, by default 1
-    state : pub.pubState
-        Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
-    verbose : bool
-        Output extra information
-
-    Returns
-    -------
-    bool
-        False if an error occurs. Otherwise True
-    '''
-    ver = 0
-    parentname = ""
-    jobid, jobnumber = 0, ""
-
-    if job:
-        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
-        if not jobid:
-            sys.exit()
-
-    if (isinstance(parentID, int) and parentID>0) or (isinstance(parentID, str) and len(parentID) > 0):
-        if not isinstance(parentID, int) and not parentID.isnumeric():
-            if not jobid:
-                log("If parent is defined as a name, a job number or ID need to be provided")
-                return False
-            parentname = parentID
-            if parent.upper() == 'SHOT':
-                id = nimUtl.getshotIdFromName( jobid, parentname )
-            else:
-                id = nimUtl.getassetIdFromName( jobid, parentname )
-                
-            if not id:
-                log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
-                return False
-        else:
-            id=int(parentID)
-            if parent.upper() == 'SHOT':
-                parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
-            else:
-                parentname = nimAPI.get_asseetInfo( shotID=id)[0]['assetName']
-    else:
-        nimP.error("Need to provide a parent name or ID. It will be a shot name or ID, asset name or ID, etc ...")
-        return False
-
-    base= filename.split('.')[0]
-    base = base.split('__')
-    ver = int(base[-1][1:])
-    shotname = base[0]
-    base= '__'.join(base[0:-1]) # Remove version
-
-    # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
-    if shotname != parentname:
-        nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
-        return False
-    pass
-
 def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', reviewtype=reviewType.DAILY, verbose=False):
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
@@ -1721,7 +1634,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
     (base, shotname, task, tag, ver) = nimUtl.splitName(name)
-    rendername = tag + "__" + "v%s"%str(ver).zfill(padding)
+    # rendername = tag + "__" + "v%s"%str(ver).zfill(padding)
+    rendername = tag + "_" + "v%s"%str(ver).zfill(2)
     pid = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     if parent.upper() == 'SHOT':
@@ -1792,12 +1706,15 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, name=rendername, description=comment) 
     # Add review to render item or to parent item
     keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
+    '''
     if renderid:
         res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
     else:
         res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+    '''
         
     # res_review = nimAPI.upload_reviewItem( itemID=taskid, itemType='task', userID=userid, path=draftPosix, name=rendername, description=comment) 
+    res_review = nimAPI.upload_reviewItem( itemID=pid, itemType='shot', userID=userid, path=draftPosix, name=rendername, description=comment) # Adding reviews to shot
     # print(res_review)
     # res_review = eval(res_review.decode())
     # if res_review['success'] != 'true':
