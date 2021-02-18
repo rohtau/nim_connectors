@@ -18,6 +18,8 @@
 
 #  General Imports :
 import glob, os, platform, re, sys, traceback, time
+from datetime   import datetime
+from datetime   import timedelta
 # from future.standard_library import install_aliases
 # install_aliases()
 
@@ -46,6 +48,7 @@ if sys.version_info >= (3,0):
     from . import nim_print as P
     from . import nim_win as Win
     from . import nim_rohtau as nimRt
+    from . import nim_rohtau_utils as nimUtl
 else:
     import nim as Nim
     import nim_api as Api
@@ -54,6 +57,7 @@ else:
     import nim_print as P
     import nim_win as Win
     import nim_rohtau as nimRt
+    import nim_rohtau_utils as nimUtl
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -65,6 +69,8 @@ except ImportError :
         try : from PyQt4 import QtCore, QtGui
         except ImportError : 
             print("NIM UI: Failed to UI Modules")
+
+
 
 #  Variables :
 WIN=''
@@ -2369,6 +2375,12 @@ class GUI(QtGui.QMainWindow) :
         global padding
         
         P.debug('file_open - filePath: %s' % filePath)
+
+        if not filePath:
+            P.error('Sorry, no version selected.')
+            Win.popup( title='NIM Error', msg='Sorry, no file specified.\nPlease select a version to open.' )
+            return False
+            
          
         # Get Server OS Path from server ID
         P.info("FileID: %s" % self.nim.ID('ver'))
@@ -2753,6 +2765,34 @@ class GUI(QtGui.QMainWindow) :
 
         tag=self.nim.Input('tag').text()
         task=self.nim.Input('task').currentText()
+
+        # Check if task exist, if not then offer option to create new task
+        # Try to find a valid task for the task type and user in the shot/asset
+        userInfo=self.nim.userInfo()
+        taskid = nimUtl.gettaskTypesIdFromName( task )
+        pubtask = nimUtl.getuserTask(int(userInfo['ID']), taskid, self.nim.tab().lower(), self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.ID('asset'))
+        if not pubtask:
+            msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
+            P.warning( msg )
+            res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+            print(res)
+            print("Create new task? %s"%res)
+            if res == 'OK':
+                msg = "%s task created by %s on scene creation"%(task, userInfo['name'])
+                now = datetime.now()
+                start = now.isoformat()
+                starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+                end = now + timedelta(days=5)
+                endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+                taskres = Api.add_task( assetID=self.nim.ID('asset') if self.nim.tab().upper() == 'ASSET' else None, shotID=self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else None,
+                                       taskTypeID=taskid, userID=int(userInfo['ID']), taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+                pprint(taskres)
+                if taskres['success'] != 'true':
+                    msg = "Couldn't create task %s for %s in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
+                    P.error(msg)
+                    Win.popup( title='NIM - Save Error', msg=msg )
+                    return False
+        
         basename=Api.to_basename( nim=self.nim )
         if self.app=='Maya' : 
             import maya.cmds as mc

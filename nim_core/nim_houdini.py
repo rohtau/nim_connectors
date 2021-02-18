@@ -20,6 +20,9 @@ import nim as Nim
 import nim_file as F
 import nim_print as P
 import nim_api as Api
+import nim_rohtau as Rt
+import nim_rohtau_utils as Utl
+from pprint import pprint
 #  Houdini Imports :
 import hou
 #  Import Python GUI packages :
@@ -62,6 +65,8 @@ def set_vars( nim ) :
     makeGlobalAttrs = False
     h_root = hou.node("/")
     
+    h_root.setUserData("nim_version", str(version)) 
+
     h_root.setUserData("nim_user", str(userInfo['name'])) 
     h_root.setUserData("nim_userID", str(userInfo['ID'])) 
     h_root.setUserData("nim_class", str(nim.tab())) 
@@ -95,17 +100,21 @@ def set_vars( nim ) :
     h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
     h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
     # Try to find a valid task for the task type and user in the shot/asset
-    tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    taskfound = False
-    for task in tasks:
-        if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(userInfo['ID']):
+    pubtask = Utl.getuserTask(int(userInfo['ID']), int(nim.ID(elem='task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    if pubtask:
+        h_root.setUserData("nim_task", str(pubtask['taskName']))
+        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    # tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # taskfound = False
+    # for task in tasks:
+        # if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(userInfo['ID']):
             # print("Found task %d!"%int(task['taskID']))
             # print(task)
-            h_root.setUserData("nim_task", str(task['taskName']))
-            h_root.setUserData("nim_taskID", str(task['taskID'])) 
-            taskfound = True
-            break
-    if not taskfound and hou.isUIAvailable():
+            # h_root.setUserData("nim_task", str(task['taskName']))
+            # h_root.setUserData("nim_taskID", str(task['taskID'])) 
+            # taskfound = True
+            # break
+    if not pubtask and hou.isUIAvailable():
         hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
         h_root.setUserData("nim_task", '')
         h_root.setUserData("nim_taskID", '0') 
@@ -129,7 +138,7 @@ def set_vars( nim ) :
 
 def dump_vars( ):
     from pprint import pformat
-    
+
     dump = "HIP file Publishing data from NIM:\n"
     dump += pformat( hou.node('/').userDataDict(), indent=2, depth=4 )
     dump += "\n\n Session environment variables:\n"
@@ -172,12 +181,18 @@ def check_vars():
     iserror = False
     entityIsCorrect = True
 
+    # Version:
+    if 'nim_version' not in nimhipdata or nimhipdata['nim_version'] != version:
+        errors += "NIM data saved with a different version of the NIM API. Using NIM %s, data saved using NIM %s"%(version, nimhipdata['nim_version'] if 'nim_version' in nimhipdata else 'N/A')
+        iserror = True
+
     # Job
     if nimpubdata.name('job') != nimhipdata['nim_jobName'] or nimpubdata.ID('job') != nimhipdata['nim_jobID']:
         errors += "Job information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('job'), nimpubdata.ID('job'), nimhipdata['nim_jobName'], nimhipdata['nim_jobID'])
         iserror = True
     # Job path
-    nimpubjobpath  = os.path.normpath(os.path.join(os.path.normpath(nimpubdata.name('server')), nimpubdata.name('job').split()[0]))
+    nimpubjobpath = os.path.normpath(os.path.join(os.path.normpath(nimpubdata.server('path')), nimpubdata.name('job').split()[0]))
+    nimpubjobpath = Rt.toPosix( nimpubjobpath, force=True )
     # nimpubjobpath = nimpubdata.name('server') + '/' + nimpubdata.name('job').split()[0]
     if nimpubjobpath != nimhipdata['nim_jobPath']:
         errors += "Job Path information doesn't match. NIM data %s -> HIP data %s\n"%(nimpubjobpath, nimhipdata['nim_jobPath'])
@@ -215,20 +230,17 @@ def check_vars():
         errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('task'), nimpubdata.ID('task'), nimhipdata['nim_type'], nimhipdata['nim_typeID'])
         iserror = True
     # Try to find a valid task for the task type and user in the shot/asset
-    tasks = Api.get_taskInfo( itemClass=nimpubdata.get_nim()['class'].lower(), itemID=int(nimpubdata.ID('shot')) if nimpubdata.get_nim()['class'] == 'SHOT' else int(nimpubdata.ID('asset')))
-    taskfound = False
-    for task in tasks:
-        if task['typeID'] == nimpubdata.ID('task') and task['userID'] == str(nimpubdata.ID('user')):
-            print("Found task %d!"%int(task['taskID']))
-            if 'nim_taskID' not in nimhipdata:
-                errors += "HIP data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimpubdata.name('task')
-                iserror = True
-            elif (task(['taskID']) != nimhipdata['nim_taskID']) or (task(['taskName']) != nimhipdata['nim_task']):
-                errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(task['taskName'], task['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
-                iserror = True
-            taskfound = True
-            break
-    if not taskfound and hou.isUIAvailable():
+    pubtask = Utl.getuserTask(int(nimpubdata.ID('user')), int(nimpubdata.ID('task')), nimpubdata.get_nim()['class'].lower(), int(nimpubdata.ID('shot')) if nimpubdata.get_nim()['class'] == 'SHOT' else int(nimpubdata.ID('asset')))
+    # pprint(pubtask)
+    if pubtask:
+        if 'nim_taskID' not in nimhipdata:
+            errors += "HIP data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimpubdata.name('task')
+            iserror = True
+        elif (pubtask['taskID'] != nimhipdata['nim_taskID']) or (pubtask['taskName'] != nimhipdata['nim_task']):
+            errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(task['taskName'], task['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
+            iserror = True
+        
+    if not pubtask and hou.isUIAvailable():
         hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nimpubdata.name('task'), userInfo['name'], nimpubdata.name('shot')), severity= hou.severityType.Warning)
     # Version
     if nimpubdata.ID('ver') != nimhipdata['nim_fileID']:
@@ -291,12 +303,6 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading userName')
 
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_user' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_user' )
-        P.debug( 'User = %s' % value )
-        nim.set_user( userName=value )
-    '''
 
 
     #  User ID :
@@ -306,12 +312,6 @@ def get_vars( nim=None ) :
         P.info('Reading userID')
     else:
         P.error('Failed reading userID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_userID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_userID' )
-        P.debug( 'User ID = %s' % value )
-        nim.set_userID( userID=value )
-    '''
 
     #  Tab/Class :
     nim_class = h_root.userData("nim_class")
@@ -321,12 +321,6 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading nim_class')
 
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_class' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_class' )
-        P.debug( 'Tab = %s' % value )
-        nim.set_tab( value )
-    '''
 
 
 
@@ -337,12 +331,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_server')
     else:
         P.error('Failed reading nim_server')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_server' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_server' )
-        P.debug( 'Server = %s' % value )
-        nim.set_server( path=value )
-    '''
 
 
     #  Server ID :
@@ -352,12 +340,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_serverID')
     else:
         P.error('Failed reading nim_serverID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_serverID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_serverID' )
-        P.debug( 'Server ID = %s' % value )
-        nim.set_ID( elem='server', ID=value )
-    '''
 
 
 
@@ -368,12 +350,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_jobName')
     else:
         P.error('Failed reading nim_jobName')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_jobName' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_jobName' )
-        P.debug( 'Job = %s' % value )
-        nim.set_name( elem='job', name=value )
-    '''
 
 
     #  Job ID :
@@ -383,12 +359,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_jobID')
     else:
         P.error('Failed reading nim_jobID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_jobID' )
-        P.debug( 'Job ID = %s' % value )
-        nim.set_ID( elem='job', ID=value )
-    '''
 
 
 
@@ -399,12 +369,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_showName')
     else:
         P.error('Failed reading nim_showName')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_showName' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_showName' )
-        P.debug( 'Show = %s' % value )
-        nim.set_name( elem='show', name=value )
-    '''
 
 
 
@@ -415,12 +379,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_showID')
     else:
         P.error('Failed reading nim_showID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_showID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_showID' )
-        P.debug( 'Show ID = %s' % value )
-        nim.set_ID( elem='show', ID=value )
-    '''
 
 
     
@@ -431,12 +389,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_shot')
     else:
         P.error('Failed reading nim_shot')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_shot' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_shot' )
-        P.debug( 'Shot = %s' % value )
-        nim.set_name( elem='shot', name=value )
-    '''
 
 
     
@@ -447,12 +399,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_shotID')
     else:
         P.error('Failed reading nim_shotID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_shotID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_shotID' )
-        P.debug( 'Shot ID = %s' % value )
-        nim.set_ID( elem='shot', ID=value )
-    '''
 
 
     
@@ -463,12 +409,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_asset')
     else:
         P.error('Failed reading nim_asset')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_asset' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_asset' )
-        P.debug( 'Asset = %s' % value )
-        nim.set_name( elem='asset', name=value )
-    '''
 
     
     #  Asset ID :
@@ -478,12 +418,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_assetID')
     else:
         P.error('Failed reading nim_assetID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_assetID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_assetID' )
-        P.debug( 'Asset ID = %s' % value )
-        nim.set_ID( elem='asset', ID=value )
-    '''
 
     
     #  File ID :
@@ -493,20 +427,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_fileID')
     else:
         P.error('Failed reading nim_fileID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_assetID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_assetID' )
-        P.debug( 'Asset ID = %s' % value )
-        nim.set_ID( elem='asset', ID=value )
-    '''
-    '''
-    if mc.attributeQuery( 'defaultRenderGlobals.nim_fileID' ) :
-        value=mc.attributeQuery( 'nim_fileID', node='defaultRenderGlobals' )
-        P.debug( 'Class = %s' % value )
-        nim.set_tab( tab=value )
-    '''
-    #TODO: Check if Maya code is error or intentional
-
 
     
     #  Shot/Asset Name :
@@ -520,19 +440,6 @@ def get_vars( nim=None ) :
             #nim.set_tab( nim_name.Get() )
     else:
         P.error('Failed reading nim_name')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_name' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_name' )
-        #  Determine what the tab is set to :
-        if nim.tab()=='SHOT' :
-            P.debug( 'Shot Name = %s' % value )
-            #  No corresponding NIM attribute :
-            #nim.set_tab( value )
-        elif nim.tab()=='ASSET' :
-            P.debug( 'Asset Name = %s' % value )
-            #  No corresponding NIM attribute :
-            #nim.set_tab( value )
-    '''
 
 
 
@@ -543,13 +450,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_basename')
     else:
         P.error('Failed reading nim_basename')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_basename' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_basename' )
-        P.debug( 'Basename = %s' % value )
-        nim.set_name( elem='base', name=value )
-    
-    '''
 
 
 
@@ -560,13 +460,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_type')
     else:
         P.error('Failed reading nim_type')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_type' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_type' )
-        P.debug( 'Task = %s' % value )
-        nim.set_name( elem='task', name=value )
-    
-    '''
 
 
 
@@ -577,13 +470,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_typeID')
     else:
         P.error('Failed reading nim_typeID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_typeID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_typeID' )
-        P.debug( 'Task ID = %s' % value )
-        nim.set_ID( elem='task', ID=value )
-    
-    '''
 
 
     
@@ -594,13 +480,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_typeFolder')
     else:
         P.error('Failed reading nim_typeFolder')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_typeFolder' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_typeFolder' )
-        P.debug( 'Task Folder = %s' % value )
-        nim.set_taskFolder( folder=value )
-    
-    '''
 
     
     #  Tag :
@@ -610,13 +489,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_tag')
     else:
         P.error('Failed reading nim_tag')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_tag' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_tag' )
-        P.debug( 'Tag = %s' % value )
-        nim.set_name( elem='tag', name=value )
-    
-    '''
 
     
     #  File Type :
@@ -626,13 +498,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_fileType')
     else:
         P.error('Failed reading nim_fileType')
-
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_fileType' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_fileType' )
-        P.debug( 'File Type = %s' % value )
-        nim.set_name( elem='file', name=value )
-    '''
 
     #  Print dictionary :
     #P.info('\nNIM Dictionary from get vars...')

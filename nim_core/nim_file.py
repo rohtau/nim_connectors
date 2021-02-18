@@ -622,9 +622,16 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
    
     #  Project Directory :
     #XXX: What?? This scenes folder is hardcoded???
-    if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
-    else : projDir=fileDir
-
+    # if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
+    # else : projDir=fileDir
+    # This add support to create project folders correctly according with supported scene folder names.
+    # If the base name is recognisedd as a scene name then the project folder will be it's parent, otherwise
+    # create projects at the same level as the scenes.
+    scenefolder = os.path.basename(fileDir)
+    if scenefolder in ('scenes', 'hip'):
+        projDir = os.path.dirname( fileDir )
+    else:
+        projDir = fileDir
     
     #  Convert file directory :
     #P.info("fileDir: %s" % fileDir)

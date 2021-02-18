@@ -2272,9 +2272,22 @@ def to_fileDir( nim=None ) :
     
     if nimDir :
         if basename :
+            # TODO: modify scenes paths here!    
             #  Derive File Directory from NIM :
-            if nim.app()=='Maya' : fileDir=os.path.join( nimDir, basename, 'scenes' )
-            elif nim.app()=='3dsMax' : fileDir=os.path.join( nimDir, basename, 'scenes' )
+            # Add app folder name, plus scenes folder.
+            if nim.app():
+                print("Detected app: %s"%nim.app())
+                scenesfolder = ""
+                if nim.app() in ('Maya', '3dsMax'):
+                    scenesfolder = 'scenes'
+                elif nim.app() in ('Houdini'):
+                    scenesfolder = 'hip'
+                if scenesfolder:
+                    fileDir=os.path.join( nimDir, basename, nim.app().lower(), scenesfolder )
+                else:
+                    fileDir=os.path.join( nimDir, basename, nim.app().lower())
+            # if nim.app()=='Maya' : fileDir=os.path.join( nimDir, basename, 'scenes' )
+            # elif nim.app()=='3dsMax' : fileDir=os.path.join( nimDir, basename, 'scenes' )
             else : fileDir=os.path.join( nimDir, basename )
             #  Return :
             if fileDir : return os.path.normpath( fileDir )
