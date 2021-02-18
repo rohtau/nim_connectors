@@ -89,6 +89,9 @@ class NIM( object ) :
 
         # Publishing elements types:
         self.nim['elements'] = Api.get_elementTypes()
+
+        # NIM version
+        self.nim['nimver'] = version # Init nim version on object construct
         
         #  App Specific :
         if self.nim['app']=='C4D' :
@@ -702,9 +705,13 @@ class NIM( object ) :
 
     # Get elements type list
     def get_elementTypes( self ):
-        'Returns dictioney with available elements types for publishing'
+        'Returns dictionary with available elements types for publishing'
         return self.nim['elements']
     
+    # Get NIM version
+    def get_nimVer( self ):
+        'Returns NIM version'
+        return self.nim['nimver']
     
     #  Set Attributes :
     #===------------------
@@ -1042,6 +1049,12 @@ class NIM( object ) :
         self.nim['file']['shotPath']=shotPath
         return
 
+    # Get NIM version
+    def set_nimVer( self, ver='' ):
+        'Set NIM version'
+        self.nim['nimver'] = ver
+        return
+    
     pass # End of class NIM
 
 

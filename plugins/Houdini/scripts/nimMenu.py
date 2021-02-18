@@ -112,3 +112,9 @@ if action == 'user':
 
 if action == 'reload':
 	reloadScriptsAction()
+
+if action == 'dump':
+    dumpPublishInfo()
+
+if action == 'reset':
+	resetPublishInfo()

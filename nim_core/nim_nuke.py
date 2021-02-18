@@ -45,16 +45,16 @@ def _knobInfo( nim=None ) :
     knobNames=( 'nim_server', 'nim_serverID', 'nim_user', 'nim_userID',
         'nim_job', 'nim_jobID', 'nim_tab', 'nim_asset', 'nim_assetID', 'nim_show', 'nim_showID',
         'nim_shot', 'nim_shotID', 'nim_basename', 'nim_version', 'nim_fileID', 'nim_task', 'nim_taskID', 'nim_type', 'nim_typeID', 'nim_taskFolder', 
-        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements' )
+        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_version' )
     knobLabels=( 'Server Path', 'Server ID', 'User Name', 'User ID',
         'Job Name', 'Job ID', 'Entity', 'Asset Name', 'Asset ID', 'Show Name', 'Show ID',
         'Shot Name', 'Shot ID', 'Basename', 'Version', 'File ID', 'Task Name', 'Task ID', 'Task Type', 'Task Type ID', 'Task Folder', 
-        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements' )
+        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'NIM Version' )
     knobCmds=(  nim.server(), nim.ID('server'), userInfo['name'], userInfo['ID'],
         nim.name('job'), nim.ID('job'), nim.tab(),nim.name('asset'), nim.ID('asset'), nim.name('show'),
         nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), '', '', nim.name('task'),
         nim.ID('task'), nim.taskFolder(), nim.jobPath(), nim.shotPath(), nim.compPath(), nim.renderPath(), nim.platesPath(),
-        str(nim.get_elementTypes()) )
+        str(nim.get_elementTypes()), version )
     return ( knobNames, knobLabels, knobCmds )
 
 def set_vars( nim=None ) :
@@ -213,6 +213,11 @@ def check_vars():
 
     progressTask.setMessage("Compare data")
     progressTask.setProgress(75) 
+
+    # Version:
+    if nim.get_nimVer() != version:
+        errors += "NIM data saved with a different version of the NIM API. Using NIM %s, data saved using NIM %s"%(version, nim.get_nimVer())
+        iserror = True
 
     # Job
     if nimdata.name('job') != nim.name('job') or nimdata.ID('job') != nim.ID('job') :
@@ -447,6 +452,9 @@ def get_vars( nim=None ) :
                 elif knobNames[x]=='nim_fileID' :
                     nim.set_ID( elem='ver', ID=str(int(knob.value())) if type(knob.value()) is int or type(knob.value()) is float or   len (knob.value()) else '' )
                     nim.set_ID( elem='ver', ID=nim.ID('ver') if nim.ID('ver') != '0' else None) # In the UI an int 0 is actually a None value inside a python dict for NIM
+                #  NIM version :
+                elif knobNames[x]=='nim_version' :
+                    nim.set_nimVer(knob.value())
 
     return nim
 

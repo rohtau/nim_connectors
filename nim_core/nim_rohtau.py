@@ -20,7 +20,6 @@ import re
 import subprocess
 import shlex
 import time
-import datetime
 import json
 import shutil
 import stat
