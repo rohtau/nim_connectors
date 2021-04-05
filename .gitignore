@@ -1,4 +1,6 @@
 .DS_Store
 *.pyc
+*.bak
+tags
 !nimDarktheme.pyc
 !resources_rc.pyc

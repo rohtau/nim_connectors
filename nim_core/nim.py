@@ -862,6 +862,7 @@ class NIM( object ) :
             #            self.nim[elem]['Dict']=Api.get_tasks(app=self.nim['app'].upper(), assetID=self.nim['asset']['ID'])
 
         elif elem=='base' :
+            bases = None
             if self.nim['filter']['name']=='Published' :
                 if self.nim['class']=='SHOT' and self.nim['task']['name'] :
                     bases=Api.get_basesAllPub( shotID=self.nim['shot']['ID'], taskID=self.nim['task']['ID'], username=self.userInfo()['name'] )
@@ -872,7 +873,8 @@ class NIM( object ) :
                     bases=Api.get_bases( shotID=self.nim['shot']['ID'], taskID=self.nim['task']['ID'] )
                 elif self.nim['class']=='ASSET' and self.nim['task']['name'] :
                     bases=Api.get_bases( assetID=self.nim['asset']['ID'], taskID=self.nim['task']['ID'] )
-            self.nim[elem]['Dict']=bases
+            if bases:
+                self.nim[elem]['Dict']=bases
                 
         elif elem=='ver' :
             if self.nim['filter']['name']=='Published' :

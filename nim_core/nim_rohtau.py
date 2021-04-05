@@ -28,8 +28,14 @@ from subprocess import Popen
 from datetime   import datetime
 from pprint     import pprint
 from pprint     import pformat
-from builtins   import range
-from urllib.parse import uses_relative
+builtin_mod_available = True
+try:
+    from builtins import range
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to regular range() if the builtin version doesn't exists.
+    builtin_mod_available = False
+# from urllib.parse import uses_relative
 
 if sys.version_info >= (3,0):
     from . import nim                as Nim
@@ -519,11 +525,14 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 #
 # Publishing
 #
-def buildBasename( shot, task, name, subtask='', layer='', cat=''):
+def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=False):
     '''
     Create basename according to name convention.
     Basename is the portion of the filename without the version string:
         [SHOT|ASSET]__[TASK[_SUBTASK]]__[TAG[__LAYER][__CAT]]
+
+    If isfolder is set then return the folder basename, this is the same as the file basenames except for the shot and tasks names
+    which are removed to avoid complexity in the file path. Shot and task are supposed to be already in the path.
 
     Parameters
     ----------
@@ -539,6 +548,8 @@ def buildBasename( shot, task, name, subtask='', layer='', cat=''):
         Another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
     cat : str
         Render category, useful to distinguish between final renders and different tests and QD (default: {''})
+    isfolder : bool
+        whether or not return the folder basename. This is the same as the file basename without the shot and task components
 
     Returns
     -------
@@ -566,7 +577,10 @@ def buildBasename( shot, task, name, subtask='', layer='', cat=''):
         elmname += "__%s"%cat
 
     basename = "%s__%s__%s"%(shot, pathtask, elmname)
-    return basename
+    if isfolder:
+        return elmname
+    else:
+        return basename
 
 def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     '''
@@ -605,9 +619,6 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('V'):
         basename = '__'.join(basenameparts[:-1]) # Exclude ver part
     curver = basenameparts[-1][1:] # Get ver part and remove the initial v|V
-    # import nuke
-    # nuke.tprint("Path: %s"%path)
-    # nuke.tprint("Basename: %s, Ver: %s"%(basename, curver))
     if parent == 'SHOT':
         lastver = nimAPI.get_baseVer( shotID=parentID, basename=basename )
     else:
@@ -646,7 +657,6 @@ def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
     basenameparts = basename.split('__')
     basename = '__'.join(basenameparts[:-1]) # Exclude ver part
     curver = basenameparts[-1][1:] # Get ver part and remove the initial v
-    # import nuke
     if parent == 'SHOT':
         vers = nimAPI.get_vers( shotID=parentID, basename=basename )
     else:
@@ -749,9 +759,11 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     # Ver
     pathver = "v%s"%str(ver).zfill(padding)
 
-    basename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat)
     # Files location
+    basename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat)
     loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
+    # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
+    # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 
     # Files Name
     filename = "%s__%s"%(basename, pathver)
@@ -1054,7 +1066,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     # Update file
     # Link file to elements and render preview if needed. Update comment
-    pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) + ". " + comment.strip("'")
+    pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
+    if comment.strip("''"):
+        pubcomment += ". " + comment.strip("'")
     metadata = {
         'elementID'      : res['elementID'],
         'extraElementsID': res['extraElementsID']
@@ -1452,10 +1466,69 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     if elementInfo:
         nframes = int(elementInfo['endFrame']) - int(elementInfo['startFrame'])
 
+    # Ensure starttimedate and endtimedate are in the correct format.
+    # Convert several ISO variants datetime string used by NIM
+    # NIM uses this date time format: "2017-01-01 08:00:00" ->
+    # "%Y-%m-%d %H:%M:%S"
+    # Supported ISO variants: 
+    # 2011-11-04
+    # 2011-11-04T00:05:23
+    # 2011-11-04 00:05:23.283
+    # 2011-11-04 00:05:23.283+00:00
+    # 2011-11-04T00:05:23+04:00
+    # Microseconds are  always removed
+    if starttimedate:
+        if sys.version_info >= (3,0): # Python 3 returns
+            try:
+                # Test ISO format
+                starttimedate = datetime.fromisoformat(starttimedate)
+                starttime = start.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError as e:
+                nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+                starttimedate = ''
+        else:
+            # Python 2
+            try:
+                #Test ISO format
+                starttimedate = datetime.strptime(starttimedate, "%Y-%m-%d %H:%M:%S")
+                starttime = start.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError as e:
+                try :
+                    #Test ISO format 2
+                    starttimedate = datetime.strptime(starttimedate, "%Y-%m-%dT%H:%M:%S")
+                    starttime = start.strftime("%Y-%m-%dT%H:%M:%S")
+                except ValueError as e:
+                    nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+                    starttimedate = ''
+
+    if endtimedate:
+        if sys.version_info >= (3,0): # Python 3 returns
+            try:
+                # Test ISO format
+                endtimedate = datetime.fromisoformat(endtimedate)
+                endtime = end.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError as e:
+                nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+                endtimedate = ''
+        else:
+            # Python 2
+            try:
+                #Test ISO format
+                endtimedate = datetime.strptime(endtimedate, "%Y-%m-%d %H:%M:%S")
+                endtime = start.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError as e:
+                try :
+                    #Test ISO format 2
+                    endtimedate = datetime.strptime(endtimedate, "%Y-%m-%dT%H:%M:%S")
+                    endtime = start.strftime("%Y-%m-%dT%H:%M:%S")
+                except ValueError as e:
+                    nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+                    endtimedate = ''
+
     if starttimedate and endtimedate:
         # Calculate total time and average time for render
-        starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-        endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        # starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        # endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
         rendertime = endtime - starttime
         rendertimestr = str(rendertime.seconds)
         if nframes:
@@ -1506,16 +1579,18 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     Parameters
     ----------
+    fileID : int
+        If passed all info about the render will be gather from the published File. filename, userid, job, parent and parentID wont be needed.
     filename : str
-        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext. Not needed if fileID is passed.
     userid    : int
-        User ID who owns the published item.
+        User ID who owns the published item.Not needed if fileID is passed.
     job : str
-        number or ID for job
+        number or ID for job .Not needed if fileID is passed.
     parent : str
-        Parent for publish element:SHOT or ASSET
+        Parent for publish element:SHOT or ASSET.Not needed if fileID is passed.
     parentID : str
-        Shot or Asset ID 
+        Shot or Asset ID .Not needed if fileID is passed.
     comment   : str
         Render comment.
     rendertype   : str
@@ -1548,7 +1623,12 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     # userid
     if not userid:
+        # FIXME: apparently when calling to this from nuke it cant get the user
+        # correctly
         myuser = nimAPI.get_user()
+        if not myuser:
+            nimP.error("Can't get user from NIM. Is user correctly setup?")
+            return res
         userid = int(nimAPI.get_userID(myuser))
 
     if not fileID:
@@ -1688,6 +1768,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         nimP.warning("Couldn't find a task %s for %s %s. Render item won't be published."%(nimUtl.gettasksTypesIDDict()[tasktype], parent, parentname))
             
 
+    '''
     # Create draft movie
     if verbose:
         nimP.info("Create render review ......")
@@ -1706,12 +1787,15 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # Add review to render item or to parent item
     keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
     '''
+    '''
+    # DEPRECATED
     if renderid:
         res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
     else:
         res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
     '''
         
+    '''
     # res_review = nimAPI.upload_reviewItem( itemID=taskid, itemType='task', userID=userid, path=draftPosix, name=rendername, description=comment) 
     res_review = nimAPI.upload_reviewItem( itemID=pid, itemType='shot', userID=userid, path=draftPosix, name=rendername, description=comment) # Adding reviews to shot
     # print(res_review)
@@ -1720,6 +1804,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         # res['success'] = False
         # res['msg'] = "Error creating review for render: %s"%res_review['error']
         # return res
+    '''
     
 
     res['sucess'] = True
@@ -1922,122 +2007,127 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
 #
 # UI
 #
-if 'QtGui' in sys.modules:
-    class DisplayMessage( QtGui.QDialog ) :
+# if 'QtGui' in sys.modules:
+class DisplayMessage( QtGui.QDialog ) :
 
-        def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
-            '''
-            Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
-            the option to choose Ok by default. An optional button can be added.
+    def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
+        '''
+        Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
+        the option to choose Ok by default. An optional button can be added.
 
 
-            Arguments:
-                msg {str} -- Message to show
+        Arguments:
+            msg {str} -- Message to show
 
-            Keyword Arguments:
-                title {str} -- Window title (default: {""})
-                buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
-                default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
-                parent {[type]} -- Parent UI dialog, usually None (default: {None})
-            '''
-            super( DisplayMessage, self ).__init__(parent)
-            self.value          = default_button
-            self.msg            = msg
-            self.title          = title
-            self.labels         = buttons
-            self.default_button = default_button
-            self.details        = details
-            self.buttons        = []
-            self.Info           = 0
-            self.Warning        = 1
-            self.Error          = 2
-            
-            #  Layouts :
-            self.layout=QtGui.QVBoxLayout()
-            self.setLayout( self.layout )
-            
-            #  Text :
-            self.textLayout = QtGui.QHBoxLayout()
-            self.icon = QtGui.QLabel() 
-            # TODO: add severity parameter and change icon accordantly 
-            # https://joekuan.files.wordpress.com/2015/09/screen3.png
-            self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
-            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
-            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
-            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
-            self.text=QtGui.QLabel(self.msg)
-            self.textLayout.addWidget(self.icon)
-            self.textLayout.addWidget(self.text)
-            self.layout.addLayout( self.textLayout )
-            # Details
-            self.detail=QtGui.QTextEdit(self.details)
-            if self.details:
-                self.detail.setReadOnly( True )
-                self.detail.hide()
-                self.layout.addWidget( self.detail )
-            
-            #  Button Layout :
-            self.btn_layout=QtGui.QHBoxLayout()
-            self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
-            self.btn_layout.addStretch()
-
-            #  Create Buttons :
-            for label, idx in zip(self.labels, list(range(len(self.labels)))):
-                button = QtGui.QPushButton( label )
-                button.my_own_data = str(idx)  # <<< set your own property
-                button.clicked.connect( self.click_handler )
-                sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
-                button.setSizePolicy( sizePolicy )
-                self.btn_layout.addWidget( button )
-            if self.details:
-                button = QtGui.QPushButton( "Show Details ..." )
-                button.clicked.connect( self.click_details )
-                self.btn_layout.addWidget( button )
-                
-
-            # Title
-            self.setWindowTitle(title)
-
-            # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
-            self.setModal( True )
-            self.show()
-            
-            return
+        Keyword Arguments:
+            title {str} -- Window title (default: {""})
+            buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
+            default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
+            parent {[type]} -- Parent UI dialog, usually None (default: {None})
+        '''
+        super( DisplayMessage, self ).__init__(parent)
+        self.value          = default_button
+        self.msg            = msg
+        self.title          = title
+        self.labels         = buttons
+        self.default_button = default_button
+        self.details        = details
+        self.buttons        = []
+        self.Info           = 0
+        self.Warning        = 1
+        self.Error          = 2
         
-        def click_handler( self ) :
-            'Sets the value to be returned, when a button is pushed'
-            target = self.sender()  # <<< get the event target, i.e. the button widget
-            data = target.my_own_data  # <<< get your own property
-            # nuke.tprint("Pressed button: %d"%int(data))
-            self.value = int(data)
-            self.close()
-            return
-
-        def click_details( self ) :
-            'Show details text'
-            target = self.sender()  # <<< get the event target, i.e. the button widget
-            self.detail.show()
-            # data = target.my_own_data  # <<< get your own property
-            # nuke.tprint("Pressed button: %d"%int(data))
-            # self.value = int(data)
-            # self.close()
-            return
+        #  Layouts :
+        self.layout=QtGui.QVBoxLayout()
+        self.setLayout( self.layout )
         
-        def btn(self) :
-            'Returns the button that was pushed'
-            return self.value
-
-        def CloseEvent( self, event):
-            nuke.tprint("Closing ....")
+        #  Text :
+        self.textLayout = QtGui.QHBoxLayout()
+        self.icon = QtGui.QLabel() 
+        # TODO: add severity parameter and change icon accordantly 
+        # https://joekuan.files.wordpress.com/2015/09/screen3.png
+        self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
+        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
+        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
+        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
+        self.text=QtGui.QLabel(self.msg)
+        self.textLayout.addWidget(self.icon)
+        self.textLayout.addWidget(self.text)
+        self.layout.addLayout( self.textLayout )
+        # Details
+        self.detail=QtGui.QTextEdit(self.details)
+        if self.details:
+            self.detail.setReadOnly( True )
+            self.detail.hide()
+            self.layout.addWidget( self.detail )
         
-        @staticmethod
-        def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
-            'Returns the name of the button that was pushed'
-            dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
-            # mainapp = QtGui.QApplication.activeWindow()
-            # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
-            result=dialog.exec_()
-            value=dialog.btn()
-            return value
+        #  Button Layout :
+        self.btn_layout=QtGui.QHBoxLayout()
+        self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+        self.btn_layout.addStretch()
 
-        pass
+        #  Create Buttons :
+        if builtin_mod_available:
+            buttons_labels_idx = zip(self.labels, list(range(len(self.labels))))
+        else:
+            buttons_labels_idx = zip(self.labels, range(len(self.labels)))
+            
+        for label, idx in buttons_labels_idx:
+            button = QtGui.QPushButton( label )
+            button.my_own_data = str(idx)  # <<< set your own property
+            button.clicked.connect( self.click_handler )
+            sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
+            button.setSizePolicy( sizePolicy )
+            self.btn_layout.addWidget( button )
+        if self.details:
+            button = QtGui.QPushButton( "Show Details ..." )
+            button.clicked.connect( self.click_details )
+            self.btn_layout.addWidget( button )
+            
+
+        # Title
+        self.setWindowTitle(title)
+
+        # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
+        self.setModal( True )
+        self.show()
+        
+        return
+    
+    def click_handler( self ) :
+        'Sets the value to be returned, when a button is pushed'
+        target = self.sender()  # <<< get the event target, i.e. the button widget
+        data = target.my_own_data  # <<< get your own property
+        # nuke.tprint("Pressed button: %d"%int(data))
+        self.value = int(data)
+        self.close()
+        return
+
+    def click_details( self ) :
+        'Show details text'
+        target = self.sender()  # <<< get the event target, i.e. the button widget
+        self.detail.show()
+        # data = target.my_own_data  # <<< get your own property
+        # nuke.tprint("Pressed button: %d"%int(data))
+        # self.value = int(data)
+        # self.close()
+        return
+    
+    def btn(self) :
+        'Returns the button that was pushed'
+        return self.value
+
+    def CloseEvent( self, event):
+        nuke.tprint("Closing ....")
+    
+    @staticmethod
+    def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
+        'Returns the name of the button that was pushed'
+        dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
+        # mainapp = QtGui.QApplication.activeWindow()
+        # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
+        result=dialog.exec_()
+        value=dialog.btn()
+        return value
+
+    pass

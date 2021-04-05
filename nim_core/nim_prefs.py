@@ -16,7 +16,13 @@
 
 #  General Imports :
 import os, sys, re, traceback
-from builtins import input
+builtin_mod_available = True
+try:
+    from builtins import input
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to raw_input instead of input if builtin is not available
+    builtin_mod_available = False
 # from future.standard_library import install_aliases
 # install_aliases()
 # from urllib.parse import urlparse
@@ -214,7 +220,10 @@ def _inputURL() :
     if isGUI :
         url=Win.popup( title=winTitle+' - Get URL', msg=msg, type='input', defaultInput=nim_URL )
     else :
-        url=input(msg)
+        if builtin_mod_available:
+            url=input(msg)
+        else:
+            url=raw_input(msg)
     #P.info( 'NIM URL Set to: %s' % url ) 
     if url : 
         # Check for '/nimAPI.php?' at end of URL
@@ -420,7 +429,10 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                         msg='Preferences already exist.\nWould you like to re-create your preferences?', \
                         type='okCancel' )
                 else :
-                    recreate=input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
+                    if builtin_mod_available:
+                        recreate=input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
+                    else:
+                        recreate=raw_input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
                     if recreate == 'Y' or recreate == 'y':
                         recreate='OK'
 
@@ -454,7 +466,10 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                 if isGUI :
                     keepGoing=Win.popup( title=winTitle+' - Get URL', msg=msg, type='okCancel' )
                 else :
-                    keepGoing=input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
+                    if builtin_mod_available:
+                        keepGoing=input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
+                    else:
+                        keepGoing=raw_input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
                     if keepGoing == 'Y' or keepGoing == 'y' :
                         keepGoing = 'OK'
 

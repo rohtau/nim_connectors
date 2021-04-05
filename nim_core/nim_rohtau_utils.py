@@ -1062,7 +1062,7 @@ def splitName(filename):
     '''
     filenoext = filename.split('.')[0]
     basenameparts = filenoext.split('__')
-    if len(basenameparts) < 4:
+    if len(basenameparts) < 3:
         nimP.error(
             "Filename not following name convention. Not enough fields: %s" % filename)
         return False
@@ -1075,7 +1075,7 @@ def splitName(filename):
     ver = int(ver)
     shotname = basenameparts[0]
     tasktype = basenameparts[1]
-    tag = basenameparts[2]
+    tag = basenameparts[2] if len(basenameparts) > 2 else "" # tag is optional
 
     return (basename, shotname, tasktype, tag, ver)
 

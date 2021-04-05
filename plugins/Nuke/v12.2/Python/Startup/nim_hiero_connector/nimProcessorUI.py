@@ -587,7 +587,9 @@ class NimProcessorUIBase(IProcessorUI):
       
       for key, value in sorted(self.nim_elementTypesDict.items(), reverse=False):
         self.nim_elementTypeChooser.addItem(key)
-        if nimHieroConnector.g_nim_elementTypeID == value:
+        # Set default elemetn based on name not on ID
+        #if nimHieroConnector.g_nim_elementTypeID == value:
+        if nimHieroConnector.g_nim_element == key:
           #print "Found matching elementTypeID, elementType=", key
           self.pref_elementType = key
           elemIndex = elemIter
@@ -641,7 +643,10 @@ class NimProcessorUIBase(IProcessorUI):
         self.nim_taskFolderDict[task['ID']] = task['folder']
       for key, value in sorted(self.nim_taskTypesDict.items(), reverse=False):
         self.nim_taskTypeChooser.addItem(key)
-        if nimHieroConnector.g_nim_expTaskTypeID == value:
+        # Set default export task for Nuke scripts based on task name
+        #if nimHieroConnector.g_nim_expTaskTypeID == value:
+        print("Look for element %s in %s"%(nimHieroConnector.g_nim_expTask, key))
+        if nimHieroConnector.g_nim_expTask == key:
           self.pref_taskType = key
           taskIndex = taskIter
         taskIter += 1

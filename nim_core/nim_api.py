@@ -43,11 +43,23 @@ if sys.version_info >= (3,0):
 else:
     import urllib, urllib2
 
-from builtins import input
+builtin_mod_available = True
+try:
+    from builtins import input
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to raw_input instead of input if builtin is not available
+    builtin_mod_available = False
+    
+        
 
 if sys.version_info >= (3,0): # fix isinstance(something, file) -> isinstance(something, IOBase)
     import _io
     # from _io import _IOBase
+
+
+# XXX: only for testing under nuke
+import nuke
 
 
 try :
@@ -204,7 +216,11 @@ def get_connect_info() :
         if isGUI :
             reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
         else :
-            reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+            if builtin_mod_available:
+                reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+            else:
+                reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+                
             if reply == 'Y' or reply == 'y' :
                 reply = 'OK'
                 
@@ -403,7 +419,11 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             if isGUI :
                 reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
             else :
-                reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+                if builtin_mod_available:
+                    reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+                else:
+                    reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+                    
                 if reply == 'Y' or reply == 'y' :
                     reply = 'OK'
 
@@ -466,7 +486,11 @@ def upload( params=None, nimURL=None, apiKey=None ) :
 
     # _actionURL = nimURL.encode('ascii')
     # _actionURL = nimURL
-    _actionURL = re.sub('[?]', '', nimURL)
+    if sys.version_info >= (3,0):
+        _actionURL = re.sub('[?]', '', nimURL)
+    else:
+        _actionURL = nimURL.encode('ascii')
+
 
     P.info("API URL: %s" % _actionURL)
     
@@ -537,7 +561,7 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     try:
         if sys.version_info >= (3,0): # Python 3 returns
             # Now in Python 3 we need to encode the data parameter in Request. opener.open(url, data)
-            # the problem is that the paramters dictionary is serialized using urlencode everything is converted into strings.
+            # the problem is that the parameters dictionary is serialized using urlencode everything is converted into strings.
             # NIM in Python 2 was passing file objects from open() and then later extracting the names from there to pass the path.
             # In Python 3 files are now _io_BufferefRead, but we can pass an object (binary) anymore due to the serialization, so
             # when an _io.BufferedRead is detected we extract the name and for the key in the dictionary to be 'file'
@@ -553,7 +577,20 @@ def upload( params=None, nimURL=None, apiKey=None ) :
             data = urllib.parse.urlencode(filterparams).encode("ascii")
             result = opener.open(_actionURL, data).read()
         else:
-            result = opener.open(_actionURL, params).read()
+            # XXX Only for testing render from Nuke
+            nuke.tprint("Opener URL: %s, Parms: %s"%(_actionURL, params))
+            # result = opener.open(_actionURL, params).read()
+            # result = opener.open( unicode(_actionURL, "utf-8"), unicode(params, "utf-8")).read()
+            # FIXME: unicode in one parameter error: 
+            # Opener URL: https://nim.rohtau.com/nimAPI.php, Parms: {'q': 'uploadRenderIcon', 'renderKey': '', 'file': <open file u'z:\\pablo\\appdata\\local\\temp\\RND_001__comp__testPublish__OUT__v020.jpg', mode 'rb' at 0x000001714D9169C0>, 'renderID': 1068}
+            # unicode argument expected, got 'str'a
+            data = urllib.urlencode(params)
+            req = urllib2.Request(_actionURL, data)
+            response = opener.open(req)
+            result = response.read()
+            # result = opener.open( unicode(_actionURL, "utf-8"), params).read()
+            nuke.tprint( "Result: %s" % result )
+
         P.info( "Result: %s" % result )
 
         # Test for failed API Validation
@@ -586,12 +623,27 @@ def upload( params=None, nimURL=None, apiKey=None ) :
     #except urllib.error.HTTPError as e: # Python 3
     except Exception as e:
         print(e)
-        if e.code == 500:
-            P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
-            return False
+        nuke.tprint(e)
+        if sys.version_info >= (3,0): # Python 3 returns
+            if e is urllib.error.HTTPError :
+                if e.code() == 500:
+                    P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+                    return False
+                else:
+                    P.error("Unanticipated error occurred uploading image: %s" % (e))
+                    return False
+            else:
+                raise e
         else:
-            P.error("Unanticipated error occurred uploading image: %s" % (e))
-            return False
+            if e is urllib2.HTTPError:
+                if e.getcode() == 500:
+                    P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+                    return False
+                else:
+                    P.error("Unanticipated error occurred uploading image: %s" % (e))
+                    return False
+            else:
+                raise e
 
     '''
     # Removing after showing false error.. 
@@ -606,6 +658,7 @@ def upload( params=None, nimURL=None, apiKey=None ) :
 
 
 if sys.version_info >= (3,0):
+    # Python 3
     class FormPostHandler(urllib.request.BaseHandler):
         """
         Handler for multipart form data
@@ -613,181 +666,74 @@ if sys.version_info >= (3,0):
         handler_order = urllib.request.HTTPHandler.handler_order - 10 # needs to run first
         
         def http_request(self, request):
-            if sys.version_info >= (3,0):
-                data =  dict(urllib.parse.parse_qsl(request.data.decode()))
-            else:
-                data = request.get_data()
+            data =  dict(urllib.parse.parse_qsl(request.data.decode()))
             if data is not None and not isinstance(data, str):
                 files = []
                 params = []
                 for key, value in list(data.items()):
-                    if sys.version_info >= (3,0):
-                        '''
-                        if isinstance(value, _io.BufferedReader):
-                            files.append((key, value))
-                        else:
-                            params.append((key, value))
-                        '''
-                        # In Python 3 we have to encode all data. When restoring it I always get a string from the serialized dictionary.
-                        # For files what we rally need is the name, so this i what we pass as a string rather than the _io.BufferedRead object.
-                        # All data tha tis suppose to have a file path must have the key 'file'.
-                        # This is enforced above when we encode a IO descriptor
-                        # DECODE REQUEST DATA
-                        if key == 'file':
-                            files.append((key, value))
-                        else:
-                            params.append((key, value))
+                    '''
+                    if isinstance(value, _io.BufferedReader):
+                        files.append((key, value))
                     else:
-                        if isinstance(value, file):
-                            files.append((key, value))
-                        else:
-                            params.append((key, value))
+                        params.append((key, value))
+                    '''
+                    # In Python 3 we have to encode all data. When restoring it I always get a string from the serialized dictionary.
+                    # For files what we rally need is the name, so this i what we pass as a string rather than the _io.BufferedRead object.
+                    # All data tha tis suppose to have a file path must have the key 'file'.
+                    # This is enforced above when we encode a IO descriptor
+                    # DECODE REQUEST DATA
+                    if key == 'file':
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
                 if not files:
-                    if sys.version_info >= (3,0):
-                        # Encode, to bytes, for Python 3
-                        data = urllib.parse.urlencode(params, True).encode('ascii') # sequencing on
-                    else:
-                        data = urllib.parse.urlencode(params, True) # sequencing on
+                    # Encode, to bytes, for Python 3
+                    data = urllib.parse.urlencode(params, True).encode('ascii') # sequencing on
                 else:
                     boundary, data = self.encode(params, files)
                     content_type = 'multipart/form-data; boundary=%s' % boundary
                     request.add_unredirected_header('Content-Type', content_type)
                     
-                if sys.version_info >= (3,0):
-                    # data is already in bytes from encode()
-                    request.data = data
-                else:
-                    request.add_data(data)
+                # data is already in bytes from encode()
+                request.data = data
             return request
         
         def encode(self, params, files, boundary=None, buffer=None):
             'Helper function to encode dat using mimetypes'
-            if sys.version_info >= (3,0):
-                if boundary is None:
-                    #boundary = mimetools.choose_boundary()
-                    boundary = email_gen._make_boundary()
-                if buffer is None:
-                    # In Python 3 is all about bytes no string, so here we need to use byte strings and encode all string vars
-                    buffer = io.BytesIO()
-                for (key, value) in params:
-                    buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
-                    buffer.write(b'Content-Disposition: form-data; name="%s"' % key.encode('ascii'))
-                    buffer.write(b'\r\n\r\n%s\r\n' % value.encode('ascii'))
-                for (key, filepath) in files:
-                    # In Python3 we don't pass file descriptors anymore.
-                    # Due to serialization issues when encoding parameters dictionaries we
-                    # pass only strings. So our files are now file paths
-                    filename = os.path.basename(filepath)
-                    content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-                    fd = open(filepath,'rb')
-                    file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-                    buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
-                    buffer.write(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key.encode('ascii'), filename.encode('ascii')))
-                    buffer.write(b'Content-Type: %s\r\n' % content_type.encode('ascii'))
-                    buffer.write(b'Content-Length: %d\r\n' % file_size)
-                    fd.seek(0)
-                    buffer.write(b'\r\n%s\r\n' % fd.read())
-                    fd.close()
-                buffer.write(b'--%s--\r\n\r\n' % boundary.encode('ascii'))
-            else:
-                if boundary is None:
-                    #boundary = mimetools.choose_boundary()
-                    boundary = email_gen._make_boundary()
-                if buffer is None:
-                    # buffer = io.StringIO()
-                    buffer = io.StringIO()
-                for (key, value) in params:
-                    buffer.write('--%s\r\n' % boundary)
-                    buffer.write('Content-Disposition: form-data; name="%s"' % key)
-                    buffer.write('\r\n\r\n%s\r\n' % value)
-                for (key, fd) in files:
-                    filename = fd.name.split('/')[-1]
-                    content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-                    file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-                    buffer.write('--%s\r\n' % boundary)
-                    buffer.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
-                    buffer.write('Content-Type: %s\r\n' % content_type)
-                    buffer.write('Content-Length: %s\r\n' % file_size)
-                    fd.seek(0)
-                    buffer.write('\r\n%s\r\n' % fd.read())
-                buffer.write('--%s--\r\n\r\n' % boundary)
-                    
+            if boundary is None:
+                #boundary = mimetools.choose_boundary()
+                boundary = email_gen._make_boundary()
+            if buffer is None:
+                # In Python 3 is all about bytes no string, so here we need to use byte strings and encode all string vars
+                buffer = io.BytesIO()
+            for (key, value) in params:
+                buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                buffer.write(b'Content-Disposition: form-data; name="%s"' % key.encode('ascii'))
+                buffer.write(b'\r\n\r\n%s\r\n' % value.encode('ascii'))
+            for (key, filepath) in files:
+                # In Python3 we don't pass file descriptors anymore.
+                # Due to serialization issues when encoding parameters dictionaries we
+                # pass only strings. So our files are now file paths
+                filename = os.path.basename(filepath)
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                fd = open(filepath,'rb')
+                file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                buffer.write(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key.encode('ascii'), filename.encode('ascii')))
+                buffer.write(b'Content-Type: %s\r\n' % content_type.encode('ascii'))
+                buffer.write(b'Content-Length: %d\r\n' % file_size)
+                fd.seek(0)
+                buffer.write(b'\r\n%s\r\n' % fd.read())
+                fd.close()
+            buffer.write(b'--%s--\r\n\r\n' % boundary.encode('ascii'))
             buffer = buffer.getvalue()
             return boundary, buffer
         
         def https_request(self, request):
             return self.http_request(request)
 
-
-    #  API Functions  #
-
-    def get_app() :
-        'Figure out what app is running.'
-        app=''
-        try :
-            import maya.cmds as mc
-            return 'Maya'
-        except :pass
-        try :
-            import nuke
-            return 'Nuke'
-        except : pass
-        try :
-            import c4d
-            return 'C4D'
-        except : pass
-        try :
-            import hiero.ui
-            return 'Hiero'
-        except : pass
-        try :
-            import MaxPlus
-            return '3dsMax'
-        except : pass
-        try :
-            import hou
-            return 'Houdini'
-        except : pass
-        try:
-            import cinesync
-            return 'Cinesync'
-        except : pass
-        try :
-            nim_app = os.environ.get('NIM_APP', '-1')
-            if nim_app == 'Flame':
-                return 'Flame'
-        except: pass
-        return None
-
-
-    #  Users  #
-
-    def get_user() :
-        'Retrieves the current user\'s username'
-        #  Get username :
-        if os.getenv( 'USER' ) :
-            _usr=os.getenv( 'USER' )
-        elif os.getenv( 'USERNAME' ) :
-            _usr=os.getenv( 'USERNAME' )
-        if _usr :
-            return _usr
-        else :
-            return False
-
-    def get_userID( user='' ) :
-        'Retrieves the current user\'s user ID'
-        if not user :
-            user=get_user()
-        try :
-            userID=get( {'q': 'getUserID', 'u': str(user)} )
-            if type(userID)==type(list()) and len(userID)==1 :
-                return userID[0]['ID']
-            else :
-                return userID
-        except Exception as e :
-            print(traceback.print_exc())
-            return False
 else:
+    # Python 2
     class FormPostHandler(urllib2.BaseHandler):
         """
         Handler for multipart form data
@@ -795,12 +741,22 @@ else:
         handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
         
         def http_request(self, request):
+            # FIXME: so data is coming as a request string like:
+            # q=uploadRenderIcon&renderKey=&file=%3Copen+file+u%27z%3A%5C%5Cpablo%5C%5Cappdata%5C%5Clocal%5C%5Ctemp%5C%5CRND_001__comp__testPublish__OUT__v020.jpg%27%2C+mode+%27rb%27+at+0x000001F54CA5EA50%3E&renderID=1080
+            # It needs to be converted back in to dictionary and after back into
+            # a request string
             data = request.get_data()
+            nuke.tprint("Processing request data")
+            nuke.tprint(data)
             if data is not None and not isinstance(data, basestring):
+                nuke.tprint("Data:")
+                nuke.tprint("data")
                 files = []
                 params = []
                 for key, value in data.items():
                     if isinstance(value, file):
+                        nuke.tprint("Adding file")
+                        nuke.tprint(value)
                         files.append((key, value))
                     else:
                         params.append((key, value))
@@ -825,7 +781,9 @@ else:
                 buffer.write('Content-Disposition: form-data; name="%s"' % key)
                 buffer.write('\r\n\r\n%s\r\n' % value)
             for (key, fd) in files:
-                filename = fd.name.split('/')[-1]
+                # filename = fd.name.split('/')[-1]
+                filename = os.path.basename( fd.name )
+                nuke.tprint("File name to upload: %s"%filename)
                 content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                 file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
                 buffer.write('--%s\r\n' % boundary)
@@ -884,6 +842,8 @@ def get_app() :
 
 
 #  Users  #
+# TODO: improve this using getpass instead of looking into envars.
+# getpass is multiplatform
 
 def get_user() :
     'Retrieves the current user\'s username'
@@ -910,8 +870,6 @@ def get_userID( user='' ) :
     except Exception as e :
         print (traceback.print_exc())
         return False
-
-
 
 def get_userList( url=None ) :
     'Retrieves the list of NIM Users from the NIM Preferences.'
