@@ -68,6 +68,7 @@ except ImportError :
             # print("NIM: Failed to UI Modules - UI")
             pass
 
+
 #
 # Globals
 #
@@ -87,6 +88,7 @@ class pubOverwritePolicy:
     ALLOW_ALL  = 2
 
     pass
+
 class pubState:
     '''
     Enum for different publishing data state
@@ -624,8 +626,6 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     else:
         lastver = nimAPI.get_baseVer( assetID=parentID, basename=basename )
     if lastver:
-        # nuke.tprint("Last version available:")
-        # nuke.tprint(pformat(lastver, indent=4))
         lastverstr = lastver[0]['version'].encode('utf8')
         newver = int(lastverstr) + 1
         return newver
@@ -662,8 +662,6 @@ def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
     else:
         vers = nimAPI.get_vers( assetID=parentID, basename=basename )
     if vers:
-        # nuke.tprint("Versions available:")
-        # nuke.tprint(pformat(vers, indent=4))
         if pub:
             vers = [ver for ver in  vers if int(ver['isPublished'])==1]
         return vers
@@ -692,7 +690,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     Arguments
     ---------
         baseloc : str
-            Base directory for  the files
+            Base directory fore the files
         shot : str
             Shot/asset name for the render job
         name : str
@@ -1436,7 +1434,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     # pprint(fileInfo)
     path = fileInfo['filepath']
     (base, shotname, task, tag, ver) = nimUtl.splitName( fileInfo['filename'] )
-    rendername = tag + "__" + "v%s"%str(ver).zfill(padding)
+    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
     id = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     outdir = os.path.dirname(path)
@@ -1482,24 +1480,31 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             try:
                 # Test ISO format
                 starttimedate = datetime.fromisoformat(starttimedate)
-                starttime = start.strftime("%Y-%m-%d %H:%M:%S")
+                starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError as e:
                 nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
                 starttimedate = ''
         else:
             # Python 2
+            # Supported formats:
+            # 2011-11-04 00:05:23 -> Used by NIM
+            # 2011-11-04T00:05:23
+            if starttimedate.count('.') > 0:
+                starttimedate = starttimedate.split('.')[0] # Remove miliseconds. After .
             try:
                 #Test ISO format
                 starttimedate = datetime.strptime(starttimedate, "%Y-%m-%d %H:%M:%S")
-                starttime = start.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError as e:
                 try :
                     #Test ISO format 2
                     starttimedate = datetime.strptime(starttimedate, "%Y-%m-%dT%H:%M:%S")
-                    starttime = start.strftime("%Y-%m-%dT%H:%M:%S")
+                    starttimedate = datetime.strptime(str(starttimedate).replace("T", " "), "%Y-%m-%d %H:%M:%S")
                 except ValueError as e:
                     nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
                     starttimedate = ''
+            if starttimedate:
+                starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
+
 
     if endtimedate:
         if sys.version_info >= (3,0): # Python 3 returns
@@ -1512,29 +1517,35 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
                 endtimedate = ''
         else:
             # Python 2
+            # Supported formats:
+            # 2011-11-04 00:05:23 -> Used by NIM
+            # 2011-11-04T00:05:23
+            if endtimedate.count('.') > 0:
+                endtimedate = endtimedate.split('.')[0] # Remove miliseconds. After .
             try:
                 #Test ISO format
                 endtimedate = datetime.strptime(endtimedate, "%Y-%m-%d %H:%M:%S")
-                endtime = start.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError as e:
                 try :
                     #Test ISO format 2
                     endtimedate = datetime.strptime(endtimedate, "%Y-%m-%dT%H:%M:%S")
-                    endtime = start.strftime("%Y-%m-%dT%H:%M:%S")
+                    endtimedate = datetime.strptime( str(endtimedate).replace("T", " "), "%Y-%m-%d %H:%M:%S" )
                 except ValueError as e:
-                    nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+                    nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
                     endtimedate = ''
+            if endtimedate:
+                endtime= endtimedate.strftime("%Y-%m-%d %H:%M:%S")
 
     if starttimedate and endtimedate:
         # Calculate total time and average time for render
         # starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
         # endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-        rendertime = endtime - starttime
+        rendertime = endtimedate - starttimedate
         rendertimestr = str(rendertime.seconds)
         if nframes:
             avgtime = rendertime // nframes
             avgtimestr = str(avgtime.seconds)
-            
+
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
     print("Task for render: %s"%task['taskID'])
     res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
@@ -1638,7 +1649,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             res['success'] = False
             res['msg']     = "Need to provide a FileID or a filename in order to publish a render from them"
             return res
-            return False
         
         if not userid or not nimUtl.getuserName(userid):
             nimP.error("Wrong user id: %d"%userid)
@@ -1713,8 +1723,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
     (base, shotname, task, tag, ver) = nimUtl.splitName(name)
-    # rendername = tag + "__" + "v%s"%str(ver).zfill(padding)
-    rendername = tag + "_" + "v%s"%str(ver).zfill(2)
+    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
     pid = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     if parent.upper() == 'SHOT':
@@ -1744,7 +1753,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # print("Render Element:")
     # pprint(elementInfo)
 
-
     renderid = 0
     if taskid:
         # Can only publish render if there is an available task
@@ -1762,13 +1770,14 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             nimP.info("Publish render ....")
         res = pubRender(fileID=fileid, userid =userid, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
         if not res['success']:
+            res['success'] = False
+            res['msg']     = "Error publishing render %s in %s %s"%(basename, shotname, parentname)
             return res
-        renderid = res['ID']
+        renderid = int(res['ID'].encode('ascii'))
     else:
         nimP.warning("Couldn't find a task %s for %s %s. Render item won't be published."%(nimUtl.gettasksTypesIDDict()[tasktype], parent, parentname))
             
 
-    '''
     # Create draft movie
     if verbose:
         nimP.info("Create render review ......")
@@ -1779,35 +1788,24 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     # Create review
     draftPosix = toPosix(draft)
-    # TODO: test parenting this to a task. So get task for user, and use task as parent and the taskID. Pass renderID=renderid
-    # If taskid i not 0 then parent to task, otherwise parent to shot/asset
-    # At the moment Im parenting to the render, according to thei thread if I parent to the task I can get verioning.
-    # http://community.nim-labs.com/viewtopic.php?f=34&t=294&p=680&hilit=stack#p680
-    # res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, name=rendername, description=comment) 
     # Add review to render item or to parent item
     keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
-    '''
-    '''
-    # DEPRECATED
     if renderid:
         res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
     else:
         res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
-    '''
         
-    '''
-    # res_review = nimAPI.upload_reviewItem( itemID=taskid, itemType='task', userID=userid, path=draftPosix, name=rendername, description=comment) 
-    res_review = nimAPI.upload_reviewItem( itemID=pid, itemType='shot', userID=userid, path=draftPosix, name=rendername, description=comment) # Adding reviews to shot
-    # print(res_review)
-    # res_review = eval(res_review.decode())
-    # if res_review['success'] != 'true':
-        # res['success'] = False
-        # res['msg'] = "Error creating review for render: %s"%res_review['error']
-        # return res
-    '''
-    
+    if not res:
+        res['success'] = False
+        res['msg']     = "Error publishing review for render %s in %s %s"%(basename, shotname, parentname)
+        return res
+    # res_review = eval(res_review)
 
-    res['sucess'] = True
+    res['success'] = True
+    p = re.compile('^.+"ID":"\(\d+\)".+$')
+    m = p.match(res_review)
+    if m:
+        res['reviewID'] = int(m.group(1))
     res['msg'] = "Render %s created in %s %s"%(rendername, parent, shotname)
 
     return res
@@ -2098,7 +2096,6 @@ class DisplayMessage( QtGui.QDialog ) :
         'Sets the value to be returned, when a button is pushed'
         target = self.sender()  # <<< get the event target, i.e. the button widget
         data = target.my_own_data  # <<< get your own property
-        # nuke.tprint("Pressed button: %d"%int(data))
         self.value = int(data)
         self.close()
         return
@@ -2108,7 +2105,6 @@ class DisplayMessage( QtGui.QDialog ) :
         target = self.sender()  # <<< get the event target, i.e. the button widget
         self.detail.show()
         # data = target.my_own_data  # <<< get your own property
-        # nuke.tprint("Pressed button: %d"%int(data))
         # self.value = int(data)
         # self.close()
         return
@@ -2118,7 +2114,7 @@ class DisplayMessage( QtGui.QDialog ) :
         return self.value
 
     def CloseEvent( self, event):
-        nuke.tprint("Closing ....")
+        print("Closing ....")
     
     @staticmethod
     def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :

@@ -58,10 +58,6 @@ if sys.version_info >= (3,0): # fix isinstance(something, file) -> isinstance(so
     # from _io import _IOBase
 
 
-# XXX: only for testing under nuke
-import nuke
-
-
 try :
     import ssl
 except :
@@ -460,106 +456,87 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 #       nimURL optional (not passing the nimURL will trigger a prefs read)
 #       apiKey optional (required if passing nimURL and Require API Keys is enabled)
 #
-def upload( params=None, nimURL=None, apiKey=None ) :
 
-    isGUI = False
-    try :
-        #Validate Against DCC Environment
-        if F.get_app() is not None :
-            isGUI = True
-    except :
-        pass
-    
-    connect_info = None
-    if not nimURL :
-        connect_info = get_connect_info()
-    if connect_info :
-        nimURL = connect_info['nim_apiURL']
-        nim_apiUser = connect_info['nim_apiUser']
-        nim_apiKey = connect_info['nim_apiKey']
-    else :
-        nim_apiUser = ''
-        nim_apiKey = ''
-    
-    if apiKey :
-        nim_apiKey = apiKey
 
-    # _actionURL = nimURL.encode('ascii')
-    # _actionURL = nimURL
-    if sys.version_info >= (3,0):
+if sys.version_info >= (3,0):
+    # upload() Python 3
+    def upload( params=None, nimURL=None, apiKey=None ) :
+
+        isGUI = False
+        try :
+            #Validate Against DCC Environment
+            if F.get_app() is not None :
+                isGUI = True
+        except :
+            pass
+        
+        connect_info = None
+        if not nimURL :
+            connect_info = get_connect_info()
+        if connect_info :
+            nimURL = connect_info['nim_apiURL']
+            nim_apiUser = connect_info['nim_apiUser']
+            nim_apiKey = connect_info['nim_apiKey']
+        else :
+            nim_apiUser = ''
+            nim_apiKey = ''
+        
+        if apiKey :
+            nim_apiKey = apiKey
+
         _actionURL = re.sub('[?]', '', nimURL)
-    else:
-        _actionURL = nimURL.encode('ascii')
 
 
-    P.info("API URL: %s" % _actionURL)
-    
-    # Test for SSL Redirection
-    isRedirected = False
-    try:
-        testCmd = {'q': 'testAPI'}
-        if sys.version_info >= (3,0):
+        P.info("API URL: %s" % _actionURL)
+        
+        # Test for SSL Redirection
+        isRedirected = False
+        try:
+            testCmd = {'q': 'testAPI'}
             cmd=urllib.parse.urlencode(testCmd)
             testURL="".join(( nimURL, cmd ))
             req = urllib.request.Request(testURL)
-        else:
-            cmd=urllib.urlencode(testCmd)
-            testURL="".join(( nimURL, cmd ))
-            req = urllib2.Request(testURL)
 
 
-        try :
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            if sys.version_info >= (3,0):
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
                 res = urllib.request.urlopen(req, context=ssl_ctx)
-            else:
-                res = urllib2.urlopen(req, context=ssl_ctx)
-        except :
-            if sys.version_info >= (3,0):
+            except :
                 res = urllib.request.urlopen(req)
-            else:
-                res = urllib2.urlopen(req)
-            #pass
-        
-        finalurl = res.geturl()
-        #P.info("Request URL: %s" % finalurl)
-        if nimURL.startswith('http:') and finalurl.startswith('https'):
-            isRedirected = True
-            _actionURL = _actionURL.replace("http:","https:")
-            P.info("Redirect: %s" % _actionURL)
-    except Exception as e:
-        P.error("Failed to test for redirect: %s"%e)
+                #pass
+            
+            finalurl = res.geturl()
+            #P.info("Request URL: %s" % finalurl)
+            if nimURL.startswith('http:') and finalurl.startswith('https'):
+                isRedirected = True
+                _actionURL = _actionURL.replace("http:","https:")
+                P.info("Redirect: %s" % _actionURL)
+        except Exception as e:
+            P.error("Failed to test for redirect: %s"%e)
 
-    # Create opener with extended form post support
-    try:
-        try :
-            P.info( "Opening Connection on HTTPS" )
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            if sys.version_info >= (3,0):
+        # Create opener with extended form post support
+        try:
+            try :
+                P.info( "Opening Connection on HTTPS" )
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
                 opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_ctx), FormPostHandler)
-            else:
-                opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ssl_ctx), FormPostHandler)
 
-        except :
-            P.info( "Opening Connection on HTTP" )
-            if sys.version_info >= (3,0):
+            except :
+                P.info( "Opening Connection on HTTP" )
                 opener = urllib.request.build_opener(FormPostHandler)
-            else:
-                opener = urllib2.build_opener(FormPostHandler)
 
-        opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
-    except:
-        P.error( "Failed building url opener")
-        P.error( traceback.format_exc() )
-        return False
+            opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
+        except:
+            P.error( "Failed building url opener")
+            P.error( traceback.format_exc() )
+            return False
 
 
-    try:
-        if sys.version_info >= (3,0): # Python 3 returns
+        try:
             # Now in Python 3 we need to encode the data parameter in Request. opener.open(url, data)
             # the problem is that the parameters dictionary is serialized using urlencode everything is converted into strings.
             # NIM in Python 2 was passing file objects from open() and then later extracting the names from there to pass the path.
@@ -576,55 +553,39 @@ def upload( params=None, nimURL=None, apiKey=None ) :
                     filterparams[prm] = params[prm]
             data = urllib.parse.urlencode(filterparams).encode("ascii")
             result = opener.open(_actionURL, data).read()
-        else:
-            # XXX Only for testing render from Nuke
-            nuke.tprint("Opener URL: %s, Parms: %s"%(_actionURL, params))
-            # result = opener.open(_actionURL, params).read()
-            # result = opener.open( unicode(_actionURL, "utf-8"), unicode(params, "utf-8")).read()
-            # FIXME: unicode in one parameter error: 
-            # Opener URL: https://nim.rohtau.com/nimAPI.php, Parms: {'q': 'uploadRenderIcon', 'renderKey': '', 'file': <open file u'z:\\pablo\\appdata\\local\\temp\\RND_001__comp__testPublish__OUT__v020.jpg', mode 'rb' at 0x000001714D9169C0>, 'renderID': 1068}
-            # unicode argument expected, got 'str'a
-            data = urllib.urlencode(params)
-            req = urllib2.Request(_actionURL, data)
-            response = opener.open(req)
-            result = response.read()
-            # result = opener.open( unicode(_actionURL, "utf-8"), params).read()
-            nuke.tprint( "Result: %s" % result )
 
-        P.info( "Result: %s" % result )
+            P.info( "Result: %s" % result )
 
-        # Test for failed API Validation
-        if type(result)==type(list()) and len(result)==1 :
-            try :
-                error_msg = result[0]['error']
-                P.error( error_msg )
-                if(error_msg == 'API Key Not Found.') :
-                    #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
-                    #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
-                    api_result = Win.setApiKey()
+            # Test for failed API Validation
+            if type(result)==type(list()) and len(result)==1 :
+                try :
+                    error_msg = result[0]['error']
+                    P.error( error_msg )
+                    if(error_msg == 'API Key Not Found.') :
+                        #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
+                        api_result = Win.setApiKey()
 
-                if(error_msg == 'Failed to validate user.') :
-                    #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
-                    #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
-                    api_result = Win.setApiKey()
+                    if(error_msg == 'Failed to validate user.') :
+                        #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
+                        api_result = Win.setApiKey()
 
-                if(error_msg == 'API Key Expired.') :
-                    if isGUI :
-                        Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
-                                                            Please contact your NIM Administrator to update your NIM API KEY expiration.' )
-                    else :
-                        print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
-                                Please contact your NIM Administrator to update your NIM API KEY expiration.')
-                    #return False <-- returning false loads reset prefs msgbox
-            except :
-                pass
+                    if(error_msg == 'API Key Expired.') :
+                        if isGUI :
+                            Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
+                                                                Please contact your NIM Administrator to update your NIM API KEY expiration.' )
+                        else :
+                            print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                    Please contact your NIM Administrator to update your NIM API KEY expiration.')
+                        #return False <-- returning false loads reset prefs msgbox
+                except :
+                    pass
 
-    #except urllib2.HTTPError, e: # Python 2
-    #except urllib.error.HTTPError as e: # Python 3
-    except Exception as e:
-        print(e)
-        nuke.tprint(e)
-        if sys.version_info >= (3,0): # Python 3 returns
+        #except urllib2.HTTPError, e: # Python 2
+        #except urllib.error.HTTPError as e: # Python 3
+        except Exception as e:
+            print(e)
             if e is urllib.error.HTTPError :
                 if e.code() == 500:
                     P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
@@ -634,31 +595,20 @@ def upload( params=None, nimURL=None, apiKey=None ) :
                     return False
             else:
                 raise e
+
+        '''
+        # Removing after showing false error.. 
+        # Now passing result json to calling function
         else:
-            if e is urllib2.HTTPError:
-                if e.getcode() == 500:
-                    P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+            if params["file"] is not None:
+                if not str(result).startswith("1"):
+                    P.error("Could not upload file successfully, but not sure why.\nUrl: %s\nError: %s" % (_actionURL, str(result)))
                     return False
-                else:
-                    P.error("Unanticipated error occurred uploading image: %s" % (e))
-                    return False
-            else:
-                raise e
-
-    '''
-    # Removing after showing false error.. 
-    # Now passing result json to calling function
-    else:
-        if params["file"] is not None:
-            if not str(result).startswith("1"):
-                P.error("Could not upload file successfully, but not sure why.\nUrl: %s\nError: %s" % (_actionURL, str(result)))
-                return False
-    '''
-    return result
+        '''
+        return result
 
 
-if sys.version_info >= (3,0):
-    # Python 3
+
     class FormPostHandler(urllib.request.BaseHandler):
         """
         Handler for multipart form data
@@ -733,7 +683,130 @@ if sys.version_info >= (3,0):
             return self.http_request(request)
 
 else:
-    # Python 2
+    # upload () Python 2
+    import cStringIO
+    def upload( params=None, nimURL=None, apiKey=None ) :
+        isGUI = False
+        try :
+            #Validate Against DCC Environment
+            if F.get_app() is not None :
+                isGUI = True
+        except :
+            pass
+        
+        connect_info = None
+        if not nimURL :
+            connect_info = get_connect_info()
+        if connect_info :
+            nimURL = connect_info['nim_apiURL']
+            nim_apiUser = connect_info['nim_apiUser']
+            nim_apiKey = connect_info['nim_apiKey']
+        else :
+            nim_apiUser = ''
+            nim_apiKey = ''
+        
+        if apiKey :
+            nim_apiKey = apiKey
+
+        _actionURL = nimURL.encode('ascii')
+
+        P.info("API URL: %s" % _actionURL)
+        
+        # Test for SSL Redirection
+        isRedirected = False
+        try:
+            testCmd = {'q': 'testAPI'}
+            cmd=urllib.urlencode(testCmd)
+            testURL="".join(( nimURL, cmd ))
+            req = urllib2.Request(testURL)
+
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                res = urllib2.urlopen(req, context=ssl_ctx)
+            except :
+                res = urllib2.urlopen(req)
+                #pass
+            
+            finalurl = res.geturl()
+            #P.info("Request URL: %s" % finalurl)
+            if nimURL.startswith('http:') and finalurl.startswith('https'):
+                isRedirected = True
+                _actionURL = _actionURL.replace("http:","https:")
+                P.info("Redirect: %s" % _actionURL)
+        except:
+            P.error("Failed to test for redirect.")
+
+        # Create opener with extended form post support
+        try:
+            try :
+                P.info( "Opening Connection on HTTPS" )
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+            except :
+                P.info( "Opening Connection on HTTP" )
+                opener = urllib2.build_opener(FormPostHandler)
+
+            opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
+        except:
+            P.error( "Failed building url opener")
+            P.error( traceback.format_exc() )
+            return False
+
+
+        try:
+            result = opener.open(_actionURL, params).read()
+            P.info( "Result: %s" % result )
+
+            # Test for failed API Validation
+            if type(result)==type(list()) and len(result)==1 :
+                try :
+                    error_msg = result[0]['error']
+                    P.error( error_msg )
+                    if(error_msg == 'API Key Not Found.') :
+                        #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'Failed to validate user.') :
+                        #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'API Key Expired.') :
+                        if isGUI :
+                            Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
+                                                                Please contact your NIM Administrator to update your NIM API KEY expiration.' )
+                        else :
+                            print 'NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                    Please contact your NIM Administrator to update your NIM API KEY expiration.'
+                        #return False <-- returning false loads reset prefs msgbox
+                except :
+                    pass
+
+        except urllib2.HTTPError, e:
+            if e.code == 500:
+                P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+                return False
+            else:
+                P.error("Unanticipated error occurred uploading image: %s" % (e))
+                return False
+
+        '''
+        # Removing after showing false error.. 
+        # Now passing result json to calling function
+        else:
+            if params["file"] is not None:
+                if not str(result).startswith("1"):
+                    P.error("Could not upload file successfully, but not sure why.\nUrl: %s\nError: %s" % (_actionURL, str(result)))
+                    return False
+        '''
+        return result
+
+
     class FormPostHandler(urllib2.BaseHandler):
         """
         Handler for multipart form data
@@ -741,22 +814,12 @@ else:
         handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
         
         def http_request(self, request):
-            # FIXME: so data is coming as a request string like:
-            # q=uploadRenderIcon&renderKey=&file=%3Copen+file+u%27z%3A%5C%5Cpablo%5C%5Cappdata%5C%5Clocal%5C%5Ctemp%5C%5CRND_001__comp__testPublish__OUT__v020.jpg%27%2C+mode+%27rb%27+at+0x000001F54CA5EA50%3E&renderID=1080
-            # It needs to be converted back in to dictionary and after back into
-            # a request string
             data = request.get_data()
-            nuke.tprint("Processing request data")
-            nuke.tprint(data)
             if data is not None and not isinstance(data, basestring):
-                nuke.tprint("Data:")
-                nuke.tprint("data")
                 files = []
                 params = []
                 for key, value in data.items():
                     if isinstance(value, file):
-                        nuke.tprint("Adding file")
-                        nuke.tprint(value)
                         files.append((key, value))
                     else:
                         params.append((key, value))
@@ -775,15 +838,13 @@ else:
                 #boundary = mimetools.choose_boundary()
                 boundary = email_gen._make_boundary()
             if buffer is None:
-                buffer = io.StringIO()
+                buffer = cStringIO.StringIO()
             for (key, value) in params:
                 buffer.write('--%s\r\n' % boundary)
                 buffer.write('Content-Disposition: form-data; name="%s"' % key)
                 buffer.write('\r\n\r\n%s\r\n' % value)
             for (key, fd) in files:
-                # filename = fd.name.split('/')[-1]
-                filename = os.path.basename( fd.name )
-                nuke.tprint("File name to upload: %s"%filename)
+                filename = fd.name.split('/')[-1]
                 content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                 file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
                 buffer.write('--%s\r\n' % boundary)
@@ -798,6 +859,10 @@ else:
         
         def https_request(self, request):
             return self.http_request(request)
+
+    
+   
+    
 
 
 #  API Functions  #
