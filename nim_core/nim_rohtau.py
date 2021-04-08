@@ -1168,6 +1168,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     elif jsonout and not profile:
         return jsonstr
     else:
+        res['version']   = int(res['version'])
+        res['fileID']    = int(res['fileID'].encode('ascii'))
+        res['elementID'] = int(res['elementID'].encode('ascii'))
         return res
 
     pass

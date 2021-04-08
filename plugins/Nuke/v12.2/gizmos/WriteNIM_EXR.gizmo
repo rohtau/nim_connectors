@@ -5,7 +5,6 @@ Gizmo {
  knobChanged "\nn = nuke.thisNode()\nk = nuke.thisKnob()\nprint k.name()\nif k.name()=='nimCompTag':\n    print 'changed'\n    nuke.thisNode()\['nim_outputFileText'].setValue(nuke.thisNode()\['nimFilename'].value())\n"
  addUserKnob {20 User l WriteNIM_EXR}
  addUserKnob {26 nim_outputFileText l Filename T "expected integer but got \"\""}
- addUserKnob {41 nimCompPrefix l "Render Prefix" T WriteNIM_EXR_n11.nimCompPrefix}
  addUserKnob {41 nimCompTag l "Render Tag" T WriteNIM_EXR_n11.nimCompTag}
  addUserKnob {41 nimFilename l INVISIBLE +INVISIBLE T WriteNIM_EXR_n11.nimFilename}
  addUserKnob {22 refreshFilename l "Refresh Filename" t "This is a check to visualize the output filename.  The output filename will always be correct.  This button just refreshed the display label incase the file was versioned up or the tag changed while the preference pane was open." T "nuke.thisNode()\['nim_outputFileText'].setValue(nuke.thisNode()\['nimFilename'].value())" +STARTLINE}
@@ -80,14 +79,14 @@ Gizmo {
   xpos 559
   ypos -38
   addUserKnob {20 User}
-  addUserKnob {1 nimCompPrefix l "Render Prefix"}
   addUserKnob {1 nimCompTag l "Render Tag"}
   addUserKnob {1 nimPath l "NIM Path"}
   nimPath "\[ value root.nim_compPath ]"
   addUserKnob {1 nimFolder l "NIM Folder"}
-  nimFolder "\[ if \{ !\[string equal \[string trim \[value nimCompPrefix] \" \"] \"\"] \} \{return \[string trim \[value nimCompPrefix]_ \" \"]\} ]\[value root.nim_basename]_v\[format %02d \[value root.nim_version]]\[ if \{ !\[string equal \[string trim \[value nimCompTag] \" \"] \"\"] \} \{return _\[string trim \[value nimCompTag] \" \"]\} ]"
+  nimFolder "\[value root.nim_basename]\[ if \{ !\[string equal \[string trim \[value nimCompTag] \" \"] \"\"] \} \{return _\[string trim \[value nimCompTag] \" \"]\} ]/v\[format %03d \[value root.nim_version]]"  
   addUserKnob {1 nimFilename l "NIM Filename"}
-  nimFilename "\[ if \{ !\[string equal \[string trim \[value nimCompPrefix] \" \"] \"\"] \} \{return \[string trim \[value nimCompPrefix]_ \" \"]\} ]\[value root.nim_basename]_v\[format %02d \[value root.nim_version]]\[ if \{ !\[string equal \[string trim \[value nimCompTag] \" \"] \"\"] \} \{return _\[string trim \[value nimCompTag] \" \"]\} ].%04d.\[value file_type]"
+  nimFilename "\[value root.nim_basename]\[ if \{ !\[string equal \[string trim \[value nimCompTag] \" \"] \"\"] \} \{return _\[string trim \[value nimCompTag] \" \"]\} ]__v\[format %03d \[value root.nim_version]].%04d.\[value file_type]" 
+
  }
  Output {
   name Output1
