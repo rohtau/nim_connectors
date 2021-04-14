@@ -34,6 +34,7 @@
 
 #  General Imports :
 import json, os, re, sys, traceback
+import tempfile
 from pprint import pformat
 from pprint import pprint
 
@@ -99,6 +100,7 @@ else:
 #  Variables :
 from .import version 
 from .import winTitle 
+from .import nimAPIConnectInfoFile 
 
 '''
 isGUI = True
@@ -193,6 +195,30 @@ def testAPI(nimURL=None, nim_apiUser='', nim_apiKey='') :
 # Get NIM Connection Information
 def get_connect_info() :
     'Returns the connection information from preferences'
+
+
+    # Load connect info from temp folder. User from non login sessions. Like
+    # from Deadline
+    nimAPIConnectInfo = None
+    if nimAPIConnectInfoFile :
+        # print("NIM API Connect Info file: %s"%nimAPIConnectInfoFile)
+        if os.path.exists(nimAPIConnectInfoFile):
+            # print("cat %s:"%nimAPIConnectInfoFile)
+            with open( nimAPIConnectInfoFile, 'r') as f:
+                cat = f.readline()
+                # print(cat)
+                try:
+                    nimAPIConnectInfo = eval(cat)
+                except (ValueError, SyntaxError):
+                    nimAPIConnectInfo = None
+                    pass
+                # print("Connection info dict:")
+                # pprint(nimAPIConnectInfo)
+        else:
+            P.error("nimAPIConnectInfoFile doesn't exist")
+    if nimAPIConnectInfo:
+        return nimAPIConnectInfo
+
 
     isGUI = False
     try :

@@ -395,7 +395,7 @@ def runAsyncCommand( cmd ):
     try:
         proc = Popen(args, shell=True)
     except subprocess.CalledProcessError:
-        nimP.errir( "Command: %s "%cmd)
+        nimP.error( "Command: %s "%cmd)
         return False
     except FileNotFoundError:
         nimP.error( "Comand is not available in PATH: %s"%cmd)
@@ -469,8 +469,11 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # set PYTHONPATH=c:\dev\deadlinerepository10\draft\Windows\64bit
     # set MAGICK_CONFIGURE_PATH=c:\dev\deadlinerepository10\draft\Windows\64bit 
     #  \opt\deadline10\bin\dpython \studio\pipeline\deadline\draft\DraftCreateSimpleMovie.py frameList start-end inFile renderedframespath outFile renderoutput/Draft/draft.mov
+
+    # XXX: careful here these paths to dpython are harcoded. This will be a
+    # problem someday ...
     # Use Deadline's python
-    cmd = "/opt/deadline10/bin/dpython" # For unix like systems
+    cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
     if platform.system() == 'Windows':
         cmd = "C:\\opt\\deadline10\\bin\\dpython"
     # Default studio Draft template, or use override from envvar or override from argument.
@@ -859,7 +862,6 @@ def createRenderIcon( elementInfo ):
     middlepath = os.path.normpath(middlepath)
     if platform.system() == 'Windows':
         middlepath = os.path.join('C:', middlepath)
-    print("Create icon from: %s"%middlepath)
     if not os.path.exists(middlepath):
         nimP.error("Frame for render icon doesn't exists: %s"%middlepath)
         return False
@@ -870,7 +872,9 @@ def createRenderIcon( elementInfo ):
     print("Create icon from: %s"%middlepath)
     print("Crete icon at: %s"%iconpath)
 
-    cmd = "/opt/deadline10/bin/dpython" # For unix like systems
+    # XXX: careful here these paths to dpython are harcoded. This will be a
+    # problem someday ...
+    cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
     if platform.system() == 'Windows':
         cmd = "C:\\opt\\deadline10\\bin\\dpython"
     # Default studio Draft template, or use override from envvar or override from argument.
@@ -878,10 +882,23 @@ def createRenderIcon( elementInfo ):
     cmd += " %s "%os.path.normpath(draftTemplate)
     # In Frame
     cmd += " inFile=%s "%middlepath
-    # Out draft movie path
+    # Out render icon path
     cmd += " outFile=%s "%iconpath
-    if not runAsyncCommand( cmd ):
-        nimP.error("Can't create Render Icon: %s"%iconpath)
+    try:
+        ret = subprocess.check_output(cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        nimP.error( "Draft command for render icon generation: %s "%cmd)
+        nimP.error("Command: %s"%e.cmd)
+        nimP.error("Outut: %s"%e.output)
+        nimP.error("Error code: %d"%e.returncode)
+        return False
+    except FileNotFoundError:
+        nimP.error( "Can't find command in path %s"%cmd.split()[0])
+        return False
+    print("Output:")
+    print(ret)
+    # if not runAsyncCommand( cmd ):
+        # nimP.error("Can't create Render Icon: %s"%iconpath)
     
     return iconpath
 
@@ -1175,7 +1192,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     pass
 
-def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDING, verbose=False):
+def setPubState(fileID= None, filename="", job= "", parent="", parentID="", state=pubState.PENDING, verbose=False, nimURL=None, apiKey=None ):
     '''
     Set the data state for a published file.
     File is defined by a filename or basename
@@ -1203,10 +1220,15 @@ def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDIN
         Basename: RND_001__comp__comp__OUT
 
     If parentID, name or ID of shot or asset is not provided it will be extracted from the file name itself.
+
+    If fileID is supplied then filename, job, parent and/or parentID are not needed, File to be modified will be refered directly from it's ID.
+    This is the most straightforward way of using this function.
     
 
     Parameters
     ----------
+    fileID : int
+        File ID. If this is supplied then filename, job, parent and parent ID are not needed.
     filename : str
         Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
         It can also be in the form of a basename without version information:  [SHOT|ASSET]__[TASK]__[TAG]
@@ -1214,7 +1236,7 @@ def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDIN
         number or ID for job
     parent : str
         Parent for publish element:SHOT or ASSET
-    parentID : str
+    parentID : int
         Shot or Asset ID 
     version : int, optional
         Version number if file is designed by basename, by default 1
@@ -1222,6 +1244,10 @@ def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDIN
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
     verbose : bool
         Output extra information
+    nimUrl: str
+        NIM API Url in case this function is called from a non user environment, for instance the render farm
+    apiKey: str
+        NIM API key in case this function is called from a non user environment, for instance the render farm
 
     Returns
     -------
@@ -1233,70 +1259,81 @@ def setPubState(filename, job= "", parent="", parentID="", state=pubState.PENDIN
     parentname = ""
     id = 0
     jobid, jobnumber = 0, ""
+    fileinfo = None
 
-    if job:
-        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
-        if not jobid:
-            sys.exit()
+    if not fileID:
+        if job:
+            (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+            if not jobid:
+                sys.exit()
 
-    (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
-    if not parentID:
-        # Get shot or asset name from filename
-        parentID = shotname
+        (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        if not parentID:
+            # Get shot or asset name from filename
+            parentID = shotname
 
-    if not isinstance(parentID, int) and not parentID.isnumeric():
-        if not jobid:
-            log("If parent is defined as a name, a job number or ID need to be provided")
-            return False
-        parentname = parentID
-        if parent.upper() == 'SHOT':
-            id = nimUtl.getshotIdFromName( jobid, parentname )
-        else:
-            id = nimUtl.getassetIdFromName( jobid, parentname )
-            
-        if not id:
-            log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
-            return False
-    else:
-        id=int(parentID)
-        if parent.upper() == 'SHOT':
-            parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
-        else:
-            parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
-
-
-    # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
-    if shotname != parentname:
-        nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
-        return False
-
-    if parent.upper() == 'SHOT':
-        vers = nimAPI.get_vers( shotID=id, basename=base)
-    else:
-        vers = nimAPI.get_vers( assetID=id, basename=base)
-    if vers:
-        # pprint(vers)
-        if verbose:
-            nimP.info("Modify state for publish item %s at %s %s"%(base, parent.lower(), parentname))
-        for verfile in vers:
-            if filename:
-                if int(verfile['version']) != ver:
-                    continue
-            
-            # customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
-            customkeys = verfile['customKeys']
-            customkeys['State'] = pubState.name[state]
-            res = nimAPI.update_file( verfile['fileID'], customKeys=customkeys)
-            # pprint(res)
-            if res['success'] == 'true':
-                nimP.info("Item %s state changed to: %s"%(verfile['filename'], pubState.name[state]))
+        if not isinstance(parentID, int) and not parentID.isnumeric():
+            if not jobid:
+                log("If parent is defined as a name, a job number or ID need to be provided")
+                return False
+            parentname = parentID
+            if parent.upper() == 'SHOT':
+                id = nimUtl.getshotIdFromName( jobid, parentname )
             else:
-                nimP.error("Couldn't change state for %s"%verfile['filename'])
-                pprint(res)
+                id = nimUtl.getassetIdFromName( jobid, parentname )
+                
+            if not id:
+                log("Couldn't find shot/asset %s in %s "%(parentname, jobnumber), severity='error')
+                return False
+        else:
+            id=int(parentID)
+            if parent.upper() == 'SHOT':
+                parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
+            else:
+                parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
+
+
+        # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
+        if shotname != parentname:
+            nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
+            return False
+
+        if parent.upper() == 'SHOT':
+            vers = nimAPI.get_vers( shotID=id, basename=base)
+        else:
+            vers = nimAPI.get_vers( assetID=id, basename=base)
+        if vers:
+            # pprint(vers)
+            if verbose:
+                nimP.info("Modify state for publish item %s at %s %s"%(base, parent.lower(), parentname))
+            for verfile in vers:
+                if filename:
+                    if int(verfile['version']) != ver:
+                        continue
+                    else:
+                        fileinfo = verfile
+                        break
+    else:
+        # Grab just published info
+        info = nimAPI.get_verInfo( fileID )
+        fileinfo = info[0]
+
+            
+    if fileinfo:
+        # customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
+        customkeys = fileinfo['customKeys']
+        customkeys['State'] = pubState.name[state]
+        res = nimAPI.update_file( fileinfo['fileID'], customKeys=customkeys)
+        # pprint(res)
+        if res['success'] == 'true':
+            nimP.info("Item %s state changed to: %s"%(fileinfo['filename'], pubState.name[state]))
+        else:
+            nimP.error("Couldn't change state for %s"%fileinfo['filename'])
+            pprint(res)
 
     return True
 
-def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
+def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
     '''
     Publish a new render from a basename
     This is needed to get file sequences available in the render and review sections
@@ -1312,11 +1349,18 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     ----
     starttimedate and endtimedate are expected to be passed in datetime.isoformat: 2015-02-04T20:55:08.914461+00:00
     NIM uses this date time format: "2017-01-01 08:00:00"
+
+    Render Key
+    ----------
+    When publishing from the farm we need a way to link several publishing stages to the same render.
+    This is done using the farm job id as part of the log for the render in NIM.
+    This allows to refer to a rent item in NIM without knowing the render ID.
+    With this method the publishing process can be splitted into different stages, like one task publishing the render and another
+    in parallel creating the Draft review movie.
     
 
     Parameters
     ----------
-    
     filename : str
         Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
     userid    : int
@@ -1326,7 +1370,9 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     parent : str
         Parent for publish element:SHOT or ASSET
     parentID : str
-        Shot or Asset ID 
+        Shot or Asset ID
+    renderkey : str
+        Render ID in the farm. For instance from Deadline wit will be Deadline's job id.
     comment   : str
         Render comment.
     rendertype   : str
@@ -1451,11 +1497,16 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     # pprint(elementInfo)
     task = nimUtl.getuserTask( userid, tasktype=tasktype, parent=parent, parentID=id) 
     if not task:
+        user = nimUtl.getuserName(userid)
         if verbose:
-            nimP.error("Can't find a task of type %s at %s %s for user %s"%(tasktype, parent.lower(), parentname, nimAPI.get_user() ))
-        res['success'] = False
-        res['msg']     = "Can't find a task of type %s at %s %s for user %s"%(tasktype, parent.lower(), parentname, nimAPI.get_user() )
-        return res
+            if user:
+                msg = "Can't find a task of type %s at %s %s for user %s"%(tasktype, parent.lower(), parentname, user )
+            else:
+                msg = "Can't find a task of type %s at %s %s for user ID %d"%(tasktype, parent.lower(), parentname, userid )
+            nimP.error(msg)
+            res['msg']     = msg
+            res['success'] = False
+            return res
     # print("Task:")
     # pprint(task)
     metadata = eval(fileInfo['metadata'])
@@ -1552,7 +1603,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
     print("Task for render: %s"%task['taskID'])
     res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
-        renderKey='', renderName=rendername, renderType=rendertype, renderComment=comment, \
+        renderKey=renderkey, renderName=rendername, renderType=rendertype, renderComment=comment, \
         outputDirs=(outdir,), outputFiles=(path,), elementTypeID=elementTypeID, start_datetime=starttimedate, end_datetime=endtimedate, \
         avgTime=avgtimestr, totalTime=rendertimestr, frame=nframes )
     if res['success'] == 'true' and icon and os.path.exists(icon):
@@ -1577,7 +1628,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     
     return res
 
-def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", comment='', rendertype='', starttimedate='', endtimedate='', reviewtype=reviewType.DAILY, verbose=False):
+def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', comment='', rendertype='', starttimedate='', endtimedate='', doreview=True, reviewtype=reviewType.DAILY, verbose=False):
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
     This is the function to call to get a published path, with pubpath(), and create a render for it.
@@ -1605,6 +1656,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         Parent for publish element:SHOT or ASSET.Not needed if fileID is passed.
     parentID : str
         Shot or Asset ID .Not needed if fileID is passed.
+    renderkey : str
+        Render ID in the farm. For instance from Deadline wit will be Deadline's job id.
     comment   : str
         Render comment.
     rendertype   : str
@@ -1617,6 +1670,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         Render end in UTC
     reviewtype      : reviewType
         Review type: reviewType.DAILY(1), reviewType.EDIT(2), reviewType.REF(3)
+    doreview : bool
+        Create review movie and publish it with the render
     verbose : bool
         Output extra information
 
@@ -1720,6 +1775,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         fileInfo = info[0]
 
 
+    # Retrieve file info
     # print("File version to publish render to:")
     # pprint(fileInfo)
     fileid = int(fileInfo['fileID'])
@@ -1760,6 +1816,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     if taskid:
         # Can only publish render if there is an available task
         # Create icon
+        '''
         if verbose:
             nimP.info("Create render icon ..")
         icon = createRenderIcon( elementInfo )
@@ -1767,51 +1824,163 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             res['msg'] = "Error creating render icon for %s"%base
             res['success'] = False
             return res
+        '''
+        icon=""
 
         # Publish render
         if verbose:
             nimP.info("Publish render ....")
-        res = pubRender(fileID=fileid, userid =userid, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
+        res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
         if not res['success']:
             res['success'] = False
             res['msg']     = "Error publishing render %s in %s %s"%(basename, shotname, parentname)
             return res
         renderid = int(res['ID'].encode('ascii'))
+        res['ID'] = renderid
     else:
         nimP.warning("Couldn't find a task %s for %s %s. Render item won't be published."%(nimUtl.gettasksTypesIDDict()[tasktype], parent, parentname))
             
 
-    # Create draft movie
-    if verbose:
-        nimP.info("Create render review ......")
-    frange   = elementInfo['startFrame'] + "-" + elementInfo['endFrame']
-    draft    = createDraftMovie( path, str(frange))
-    if not draft:
-        return False
+    if doreview:
+        # Create draft movie
+        if verbose:
+            nimP.info("Create render review ......")
+        frange   = elementInfo['startFrame'] + "-" + elementInfo['endFrame']
+        draft    = createDraftMovie( path, str(frange))
+        if not draft:
+            return False
 
-    # Create review
-    draftPosix = toPosix(draft)
-    # Add review to render item or to parent item
-    keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
-    if renderid:
-        res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
-    else:
-        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
-        
+        # Create review
+        draftPosix = toPosix(draft)
+        # Add review to render item or to parent item
+        keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
+        if renderid:
+            res_review = nimAPI.upload_reviewItem( itemID=renderid, itemType='render', userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        else:
+            res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        if res_review:
+            p = re.compile('^.+"ID":"\(\d+\)".+$')
+            m = p.match(res_review)
+            if m:
+                res['reviewID'] = int(m.group(1))
+            
     if not res:
         res['success'] = False
         res['msg']     = "Error publishing review for render %s in %s %s"%(basename, shotname, parentname)
         return res
-    # res_review = eval(res_review)
 
     res['success'] = True
-    p = re.compile('^.+"ID":"\(\d+\)".+$')
-    m = p.match(res_review)
-    if m:
-        res['reviewID'] = int(m.group(1))
     res['msg'] = "Render %s created in %s %s"%(rendername, parent, shotname)
 
     return res
+
+def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, userID=None, reviewtype=reviewType.NOTYPE, comment=""):
+    '''
+    Publish review movie.
+    A fileID for the render files needs 
+
+    Where The Review is Published
+    -----------------------------
+    A review in NIM can be published to a parent entity in the project, like job, show, asset, show or task.
+    It can also be published linked to a render item. Similar to tasks, renders are published relative to a task, shot or asset.
+    Another way to link a review to a render item is using a renderkey. This is usually the job id in the farm and is used to link
+    renders to reviews when they are published in different tasks in the farm.
+    When a render finished a new job to generate the review movie is spawn, but probably the render is not yet published, so to create a link between a revciew movie that is in the 
+    process of making and a render that will be published shortly the job id is used as a link between the different tasks in the farm.
+    When the review is published it can find the render item if the former was published with the renderkey information.
+
+    Usually reviews are published to a task, providing a taskid, a render, providing a renderid and if any of the two area passed to this function it will use the parent of the file
+    published using fileID to log the review to the shot or asset where the file was published.
+
+    In the farm it is always good to provide a renderkey to ensure review will be correctly linked to our render.
+    createRender() also has a renderkey parameter in order to publish the render item with this information.
+
+     Parameters
+    ----------
+    fileID : int
+        FileID for the render that created the review
+    reviewpath : str
+        Path to review movie to publish
+    taskID : int
+        ID for task to publish to. If not published then the preview will be published relative to the FileID parent (shot,asset, show)
+    renderID : int
+        ID for render item to publish to. If not published then the preview will be published relative to the FileID parent (shot,asset, show)
+    renderkey : str
+        Render Job ID used to identify render published items. If provided the review item will be linked to a render item that was published using the same render key.
+    comment : str
+        Review comment/description
+    
+    Return
+    ------
+    reviewid : int
+        Review ID or False if error
+    '''
+    info = nimAPI.get_verInfo( fileID )
+    if not info:
+        nimP.error("Can't retrieve information from FileID: %d"%fileID)
+    fileInfo = info[0]
+    # print("File Info:")
+    # pprint(info)
+    path = fileInfo['filepath']
+    name =  fileInfo['filename'] 
+    (base, shotname, task, tag, ver) = nimUtl.splitName(name)
+    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
+    pid = int(fileInfo['parentID'])
+    parent = fileInfo['fileClass'].lower()
+    if parent.upper() == 'SHOT':
+        parentname = nimAPI.get_shotInfo( shotID=pid)[0]['shotName']
+    else:
+        parentname = nimAPI.get_asseetInfo( shotID=pid)[0]['assetName']
+    outdir = os.path.dirname(path)
+    tasktype = int(fileInfo['task_type_ID'])
+    if not userID:
+        userID = int(fileInfo['userID'].encode('ascii'))
+        username = nimUtl.getuserName(userid)
+    # Check availability:
+    available = fileInfo['customKeys']['State'] == 'Available'
+    if not available:
+        nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
+    elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=pid if parent.upper()=='ASSET' else '', shotID=pid if parent.upper()=='SHOT' else '')
+    if elementInfo:
+        elementInfo=elementInfo[0]
+    else:
+        if verbose:
+            nimP.error("Couldn't find an element for the render: %s"%name)
+        res['success'] = False
+        res['msg'] = "Couldn't find an element for the render: %s"%name
+        return res
+    if elementInfo['taskID']:
+        taskid = int(elementInfo['taskID']) 
+        if not taskID:
+            taskid = taskid
+    else:
+        taskid = 0
+
+    keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
+    if renderID:
+        res_review = nimAPI.upload_reviewItem( itemID=renderID, itemType='render', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+    elif taskID:
+        res_review = nimAPI.upload_reviewItem( itemID=taskID, itemType='task', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+
+    else:
+        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+
+    # Return review ID
+    # print("Review result:")
+    # print(res_review)
+    if res_review:
+        p = re.compile('^.+"ID":"(\d+)".+$')
+        m = p.match(res_review)
+        if m:
+            # print("Return review ID: %d"%int(m.group(1)))
+            return int(m.group(1))
+        else:
+            nimP.warning("Can't get review ID from upload query:")
+            nimP.warning(res_review)
+            return True
+
+    return False
+
 
 def pubImport(job, path, name='', parent='shot', parentID="", task="", element='', file="",user="", version=0, start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, 
               comment='', asrender=False, reviewtype=reviewType.DAILY, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
@@ -2008,125 +2177,125 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
 #
 # UI
 #
-# if 'QtGui' in sys.modules:
-class DisplayMessage( QtGui.QDialog ) :
+if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtGui' in sys.modules:
+    class DisplayMessage( QtGui.QDialog ) :
 
-    def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
-        '''
-        Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
-        the option to choose Ok by default. An optional button can be added.
+        def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
+            '''
+            Inspired in houdini's displayMessage, simple modal dialog to present a message and have the user
+            the option to choose Ok by default. An optional button can be added.
 
 
-        Arguments:
-            msg {str} -- Message to show
+            Arguments:
+                msg {str} -- Message to show
 
-        Keyword Arguments:
-            title {str} -- Window title (default: {""})
-            buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
-            default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
-            parent {[type]} -- Parent UI dialog, usually None (default: {None})
-        '''
-        super( DisplayMessage, self ).__init__(parent)
-        self.value          = default_button
-        self.msg            = msg
-        self.title          = title
-        self.labels         = buttons
-        self.default_button = default_button
-        self.details        = details
-        self.buttons        = []
-        self.Info           = 0
-        self.Warning        = 1
-        self.Error          = 2
-        
-        #  Layouts :
-        self.layout=QtGui.QVBoxLayout()
-        self.setLayout( self.layout )
-        
-        #  Text :
-        self.textLayout = QtGui.QHBoxLayout()
-        self.icon = QtGui.QLabel() 
-        # TODO: add severity parameter and change icon accordantly 
-        # https://joekuan.files.wordpress.com/2015/09/screen3.png
-        self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
-        # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
-        self.text=QtGui.QLabel(self.msg)
-        self.textLayout.addWidget(self.icon)
-        self.textLayout.addWidget(self.text)
-        self.layout.addLayout( self.textLayout )
-        # Details
-        self.detail=QtGui.QTextEdit(self.details)
-        if self.details:
-            self.detail.setReadOnly( True )
-            self.detail.hide()
-            self.layout.addWidget( self.detail )
-        
-        #  Button Layout :
-        self.btn_layout=QtGui.QHBoxLayout()
-        self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
-        self.btn_layout.addStretch()
-
-        #  Create Buttons :
-        if builtin_mod_available:
-            buttons_labels_idx = zip(self.labels, list(range(len(self.labels))))
-        else:
-            buttons_labels_idx = zip(self.labels, range(len(self.labels)))
+            Keyword Arguments:
+                title {str} -- Window title (default: {""})
+                buttons {tuple} -- Labels of buttosn to show (default: {("Ok",)})
+                default_button {int} -- Default button index returned if Enter or window is closed (default: {0})
+                parent {[type]} -- Parent UI dialog, usually None (default: {None})
+            '''
+            super( DisplayMessage, self ).__init__(parent)
+            self.value          = default_button
+            self.msg            = msg
+            self.title          = title
+            self.labels         = buttons
+            self.default_button = default_button
+            self.details        = details
+            self.buttons        = []
+            self.Info           = 0
+            self.Warning        = 1
+            self.Error          = 2
             
-        for label, idx in buttons_labels_idx:
-            button = QtGui.QPushButton( label )
-            button.my_own_data = str(idx)  # <<< set your own property
-            button.clicked.connect( self.click_handler )
-            sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
-            button.setSizePolicy( sizePolicy )
-            self.btn_layout.addWidget( button )
-        if self.details:
-            button = QtGui.QPushButton( "Show Details ..." )
-            button.clicked.connect( self.click_details )
-            self.btn_layout.addWidget( button )
+            #  Layouts :
+            self.layout=QtGui.QVBoxLayout()
+            self.setLayout( self.layout )
             
+            #  Text :
+            self.textLayout = QtGui.QHBoxLayout()
+            self.icon = QtGui.QLabel() 
+            # TODO: add severity parameter and change icon accordantly 
+            # https://joekuan.files.wordpress.com/2015/09/screen3.png
+            self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
+            self.text=QtGui.QLabel(self.msg)
+            self.textLayout.addWidget(self.icon)
+            self.textLayout.addWidget(self.text)
+            self.layout.addLayout( self.textLayout )
+            # Details
+            self.detail=QtGui.QTextEdit(self.details)
+            if self.details:
+                self.detail.setReadOnly( True )
+                self.detail.hide()
+                self.layout.addWidget( self.detail )
+            
+            #  Button Layout :
+            self.btn_layout=QtGui.QHBoxLayout()
+            self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+            self.btn_layout.addStretch()
 
-        # Title
-        self.setWindowTitle(title)
+            #  Create Buttons :
+            if builtin_mod_available:
+                buttons_labels_idx = zip(self.labels, list(range(len(self.labels))))
+            else:
+                buttons_labels_idx = zip(self.labels, range(len(self.labels)))
+                
+            for label, idx in buttons_labels_idx:
+                button = QtGui.QPushButton( label )
+                button.my_own_data = str(idx)  # <<< set your own property
+                button.clicked.connect( self.click_handler )
+                sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
+                button.setSizePolicy( sizePolicy )
+                self.btn_layout.addWidget( button )
+            if self.details:
+                button = QtGui.QPushButton( "Show Details ..." )
+                button.clicked.connect( self.click_details )
+                self.btn_layout.addWidget( button )
+                
 
-        # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
-        self.setModal( True )
-        self.show()
+            # Title
+            self.setWindowTitle(title)
+
+            # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
+            self.setModal( True )
+            self.show()
+            
+            return
         
-        return
-    
-    def click_handler( self ) :
-        'Sets the value to be returned, when a button is pushed'
-        target = self.sender()  # <<< get the event target, i.e. the button widget
-        data = target.my_own_data  # <<< get your own property
-        self.value = int(data)
-        self.close()
-        return
+        def click_handler( self ) :
+            'Sets the value to be returned, when a button is pushed'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            data = target.my_own_data  # <<< get your own property
+            self.value = int(data)
+            self.close()
+            return
 
-    def click_details( self ) :
-        'Show details text'
-        target = self.sender()  # <<< get the event target, i.e. the button widget
-        self.detail.show()
-        # data = target.my_own_data  # <<< get your own property
-        # self.value = int(data)
-        # self.close()
-        return
-    
-    def btn(self) :
-        'Returns the button that was pushed'
-        return self.value
+        def click_details( self ) :
+            'Show details text'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            self.detail.show()
+            # data = target.my_own_data  # <<< get your own property
+            # self.value = int(data)
+            # self.close()
+            return
+        
+        def btn(self) :
+            'Returns the button that was pushed'
+            return self.value
 
-    def CloseEvent( self, event):
-        print("Closing ....")
-    
-    @staticmethod
-    def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
-        'Returns the name of the button that was pushed'
-        dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
-        # mainapp = QtGui.QApplication.activeWindow()
-        # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
-        result=dialog.exec_()
-        value=dialog.btn()
-        return value
+        def CloseEvent( self, event):
+            print("Closing ....")
+        
+        @staticmethod
+        def get_btn( msg, title="", buttons=("Ok",), default_button=0, details='', parent=None )  :
+            'Returns the name of the button that was pushed'
+            dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, details=details, parent=parent)
+            # mainapp = QtGui.QApplication.activeWindow()
+            # dialog=DisplayMessage( msg, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
+            result=dialog.exec_()
+            value=dialog.btn()
+            return value
 
-    pass
+        pass
