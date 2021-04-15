@@ -584,6 +584,13 @@ def setupWriteForRendering( renderscene, writeNode ):
     if stickynode is None:
         stickynode = nuke.createNode('StickyNote', "name %s label \"Render scene from: %s\" note_font_size 20"%("__renderStickyNote", nuke.root().name()) )
 
+    # Disable reading mode for rendering. It cause problems if we are rendering
+    # and reading the output from the same script. File descriptor issues:
+    if writeNode.knob("tmp_reading") is not None:
+        writeNode.knob("tmp_reading").setValue(writeNode.knob('reading').value())
+
+    writeNode.knob('reading').setValue(False)
+
     return True
 
 def restoreRenderingSetup( writeNode ):
@@ -604,6 +611,10 @@ def restoreRenderingSetup( writeNode ):
     stickynode = nuke.toNode("__renderStickyNote")
     if stickynode  is not None:
         nuke.delete(stickynode)
+
+    # Restore reading state
+    if writeNode.knob("tmp_reading") is not None:
+        writeNode.knob("reading").setValue(writeNode.knob('tmp_reading').value())
     
     return True
 

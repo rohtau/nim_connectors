@@ -219,7 +219,8 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
     if elementname in ('plates', 'renders', 'comps'):
        folder =  basepaths[elementname].replace(basepath + '/', '')
     else:
-        folder = elementname
+        # Put non special elements under the pub folder
+        folder = "pub/%s"%elementname
 
     return folder
 
