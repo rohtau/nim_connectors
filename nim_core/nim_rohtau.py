@@ -582,6 +582,10 @@ def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=Fals
         elmname += "__%s"%cat
 
     basename = "%s__%s__%s"%(shot, pathtask, elmname)
+    if not elmname:
+        # No tag
+        basename = "%s__%s"%(shot, pathtask)
+
     if isfolder:
         return elmname
     else:
@@ -798,6 +802,47 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     else:
         return path
 
+def checkFileAlreadyPublished( nim ):
+    '''
+    Check if a file is already published and with a different File Type in custom keys.
+    This allows to check if we are trying to publish to different file types with the same
+    name.
+    For instance publish a scene with the same name for Houdini and Nuke, or publishing a 
+    render with the same name as the scene.
+
+    Parameters
+    ----------
+    nim : NIM Object
+        NIM dictionary with all the publish information
+
+    Returns
+    -------
+    dict
+        Dict with two keys: success and type. If error return dict with success key set as False and type with the file type of the existing publish.
+    '''
+    res = {'success' : True}
+    mycustomkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType']}
+    basename = nim.name('base')
+    ver = nim.version()
+    if not basename or not ver:
+        nimP.warning("NIM dictionary doesn't have basename or version information. Basename: %s, Version: %s"%(basename, ver))
+        res['success'] = True
+        return res
+
+    if nim.tab() == 'SHOT':
+        vers = nimAPI.get_vers( shotID=int(nim.ID('shot')), basename=nim.name('base'))
+    else:
+        vers = nimAPI.get_vers( assetID=int(nim.ID('asset')), basename=nim.name('base'))
+    if vers:
+        fileinfo = vers[0]
+        customkeys = fileinfo['customKeys']
+        if 'File Type' in customkeys and customkeys['File Type'] != mycustomkeys['File Type']:
+            res['success'] = False
+            res['type'] = customkeys['File Type']
+            return res
+
+    return res
+
 def checkFileAndElementPublished( nim ):
     '''
     Check if a file and an element with this basename is already published
@@ -1013,7 +1058,15 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         # pprint(pubtask)
     '''
 
-    # First check if there is no file or element published yet with this basename and version
+    # Check if there is already a file published with different file type
+    check_res = checkFileAlreadyPublished( nim )
+    if not check_res or not check_res['success']:
+        res['success'] = False
+        res['msg'] = "A file with name %s and file type %s is already published. Trying to save with file type %s. Please change the name of your file."%(nim.name('base'), check_res['type'], nim.nim['fileExt']['fileType'])
+        nimP.error(res['msg'])
+        return res if not plain and not jsonout else False
+
+    # Check if there is no file or element published yet with this basename and version
     (file, element) = checkFileAndElementPublished( nim )
     if file:
         res['fileID'] = file['fileID']

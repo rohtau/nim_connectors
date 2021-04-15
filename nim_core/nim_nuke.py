@@ -598,7 +598,7 @@ def restoreRenderingSetup( writeNode ):
     '''
     metadatanode = nuke.toNode(writeNode.name() + '_metadata')
     if metadatanode is None:
-        error("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
+        P.error("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
         return False
     nuke.delete(metadatanode)
     stickynode = nuke.toNode("__renderStickyNote")
