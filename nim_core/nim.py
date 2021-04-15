@@ -416,7 +416,7 @@ class NIM( object ) :
                         # Task
                         stoptasksearch = False
                         for task in self.Dict('task') :
-                            # Tasks names will be matched agains full task name, shot task name or folder name.
+                            # Tasks names will be matched against full task name, shot task name or folder name.
                             # This is for backwards compatibility with older shows.
                             # The convention is to use the task short name as the task name in the path.
                             # So short task name is need as the task path.

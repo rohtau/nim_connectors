@@ -76,7 +76,7 @@ except ImportError :
 # List of tasks available in publishing system
 pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
 # List of elements available in publishing system
-pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'roto', 'dmp']
+pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'precomp', 'roto', 'dmp']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 class pubOverwritePolicy:
@@ -220,7 +220,8 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
        folder =  basepaths[elementname].replace(basepath + '/', '')
     else:
         # Put non special elements under the pub folder
-        folder = "pub/%s"%elementname
+        # folder = "pub/%s"%elementname
+        folder = elementname
 
     return folder
 
@@ -1028,8 +1029,12 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     nim.ingest_filePath( filePath=posixpath, checkfile=False )
     if not nim.mode() :
         nim.set_mode('ver')
+
     # print("NIM Dict:")
     # pprint(nim.get_nim())
+    # import nuke
+    # nuke.tprint("NIM Dict:")
+    # nuke.tprint(pformat(nim.get_nim()))
 
     # userid
     if not userid:
