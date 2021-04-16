@@ -562,7 +562,7 @@ def buildBasename( shot, task, name, elemtype='', layer='', isfolder=False):
         Basename according to name convention
     '''
     if elemtype:
-        taskname = "%s_%s"%(elemtype, task)
+        taskname = "%s_%s"%(task, elemtype)
     else:
         taskname =  task
     # subtask is DEPRECATED

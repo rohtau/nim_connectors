@@ -326,7 +326,7 @@ def elementType_toAbbrev( elem ):
     if elem == 'renders':
         return 'cg'
     elif elem == 'comps' or elem == 'comp':
-        return 'comp'
+        return '2d'
         # return '2d'
     else:
         return elem
