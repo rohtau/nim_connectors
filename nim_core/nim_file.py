@@ -317,6 +317,22 @@ def task_toAbbrev( task='' ) :
     '''
     return return_task
 
+def elementType_toAbbrev( elem ):
+    'Returns the short version for some element types'
+    if not elem:
+        return ""
+    if elem == 'plates':
+        return 'plate'
+    if elem == 'renders':
+        return 'cg'
+    elif elem == 'comps' or elem == 'comp':
+        return 'comp'
+        # return '2d'
+    else:
+        return elem
+    pass
+
+
 def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLink=True ) :
     '''
     Save the new version file on the file system.

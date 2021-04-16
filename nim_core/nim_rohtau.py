@@ -532,11 +532,11 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 #
 # Publishing
 #
-def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=False):
+def buildBasename( shot, task, name, elemtype='', layer='', isfolder=False):
     '''
     Create basename according to name convention.
     Basename is the portion of the filename without the version string:
-        [SHOT|ASSET]__[TASK[_SUBTASK]]__[TAG[__LAYER][__CAT]]
+        [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG[_LAYER]]
 
     If isfolder is set then return the folder basename, this is the same as the file basenames except for the shot and tasks names
     which are removed to avoid complexity in the file path. Shot and task are supposed to be already in the path.
@@ -549,12 +549,10 @@ def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=Fals
         Element name
     task : str
         Task assigned to render job
-    subtask : str:
-        Extra task definition for more granular setups (default: {''})
+    elemtype : str
+        Name of the element being published, like: cg, 2d, cache, cam, etc ... .Not used for scene files. (default: {''})
     layer : str
         Another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
-    cat : str
-        Render category, useful to distinguish between final renders and different tests and QD (default: {''})
     isfolder : bool
         whether or not return the folder basename. This is the same as the file basename without the shot and task components
 
@@ -563,11 +561,17 @@ def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=Fals
     str
         Basename according to name convention
     '''
-    pathtask =  task
-    if len(subtask) > 0:
-        pathtask += "_%s"%subtask
+    if elemtype:
+        taskname = "%s_%s"%(elemtype, task)
+    else:
+        taskname =  task
+    # subtask is DEPRECATED
+    # if len(subtask) > 0:
+        # pathtask += "_%s"%subtask
 
     # Category
+    # DEPRECATED
+    '''
     if cat:
         pathcat = 'TEST'
         if cat.upper() == 'AUTO':
@@ -575,21 +579,23 @@ def buildBasename( shot, task, name, subtask='', layer='', cat='', isfolder=Fals
                 pathcat = 'BTY'
         else:
             pathcat = cat.upper()
+    '''
 
     # element Name
-    elmname = name
+    tag = name
     if len(layer) > 0:
-        elmname += "__%s"%layer
-    if cat:
-        elmname += "__%s"%cat
+        tag += "_%s"%layer
+    # cat is  DEPRECATED
+    # if cat:
+        # elmname += "__%s"%cat
 
-    basename = "%s__%s__%s"%(shot, pathtask, elmname)
-    if not elmname:
+    basename = "%s__%s__%s"%(shot, taskname, tag)
+    if not tag:
         # No tag
-        basename = "%s__%s"%(shot, pathtask)
+        basename = "%s__%s"%(shot, taskname)
 
     if isfolder:
-        return elmname
+        return tag
     else:
         return basename
 
@@ -600,9 +606,9 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     Filename or Basename
     --------------------
     Filename:
-        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]__[VER].####.ext
     Basename:
-        [SHOT|ASSET]__[TASK]__[TAG]
+        [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]
     
     
 
@@ -622,6 +628,9 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     '''
     # (dirname, filename) = os.path.split(path)
     # Extract basename and ver. Assume name convention is: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    # (basename, shotname, tasktype, elem, tag, ver) = nimUtl.splitName(filename)
+    fileparts = nimUtl.splitName(filename)
+    '''
     if filename.count('.')>0:
         basename = filename.split('.')[0]
     else:
@@ -630,10 +639,11 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('V'):
         basename = '__'.join(basenameparts[:-1]) # Exclude ver part
     curver = basenameparts[-1][1:] # Get ver part and remove the initial v|V
+    '''
     if parent == 'SHOT':
-        lastver = nimAPI.get_baseVer( shotID=parentID, basename=basename )
+        lastver = nimAPI.get_baseVer( shotID=parentID, basename=fileparts['base'] )
     else:
-        lastver = nimAPI.get_baseVer( assetID=parentID, basename=basename )
+        lastver = nimAPI.get_baseVer( assetID=parentID, basename=fileparts['base'] )
     if lastver:
         lastverstr = lastver[0]['version'].encode('utf8')
         newver = int(lastverstr) + 1
@@ -678,7 +688,7 @@ def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
         return False
     pass
 
-def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', layer='', cat='', subfolder='', isseq=False, format='nim', only_name=False, only_loc=False, force_posix=False  ):
+def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', layer='', subfolder='', isseq=False, format='nim', only_name=False, only_loc=False, force_posix=False  ):
     '''
     Build output path for a publish element according with the name convention
     This is elements name convention:
@@ -693,7 +703,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     - Nuke (nuke)
     - Nim (nim)
 
-    If we need to store temp files for the render we can use the subfolder option. for instance if we need to store IFD files for Mantra
+    If we need to store temp files for the render we can use the subfolder option. For instance if we need to store IFD files for Mantra
     we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
 
     Arguments
@@ -708,20 +718,18 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
             Element version
         task : str
             Task assigned to render job
+        elem : str:
+            Element type name
         ext : str
             Element file type extension (default: {'exr'})
-        subtask : str:
-            Extra task definition for more granular setups (default: {''})
         layer : str
             Another extra identifier to group elements, usually by distance or "importance" in the shot.(default: {''})
-        cat : str
-            Render category, useful to distinguish between final renders and different tests and QD (default: {''})
         subfolder : str
             Used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
         isseq : bool
             Define whether or not the path is a sequence or single file
         format : str
-            Output format for host app. this is mostly needed because every app uses a different way of setting padding for sequences.
+            Output format for host app. This is mostly needed because every app uses a different way of setting padding for sequences.
         only_name : bool
             Just output the file base name without padding or extension. (default: {False})
         only_loc : bool
@@ -742,10 +750,13 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
     if not task:
         nimP.warning("Can't get a correct path for publishing, task is empty")
     pathtask = task
-    if len(subtask) > 0:
-        pathtask += "_%s"%subtask
+    # subtask is DEPRECATED
+    # if len(subtask) > 0:
+        # pathtask += "_%s"%subtask
 
+    # Category is DEPRECATED
     # Category
+    '''
     if cat:
         pathcat = 'TEST'
         if cat.upper() == 'AUTO':
@@ -753,21 +764,13 @@ def publishOutputPath ( baseloc, shot, name, ver, task,  ext='exr', subtask='', 
                 pathcat = 'BTY'
         else:
             pathcat = cat.upper()
-
-    # element Name
-    '''
-    elmname = name
-    if len(layer) > 0:
-        elmname += "__%s"%layer
-    if cat:
-        elmname += "__%s"%pathcat
     '''
 
     # Ver
     pathver = "v%s"%str(ver).zfill(padding)
 
     # Files location
-    basename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat)
+    basename = buildBasename( shot, task, name, elemtype=elem, layer=layer)
     loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
@@ -1326,10 +1329,13 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
             if not jobid:
                 sys.exit()
 
-        (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        # (base, shotname, task, elem, tag, ver) = nimUtl.splitName( filename )
+        fileparts = nimUtl.splitName( filename )
+        if not fileparts:
+            return False
         if not parentID:
             # Get shot or asset name from filename
-            parentID = shotname
+            parentID = fileparts['shot']
 
         if not isinstance(parentID, int) and not parentID.isnumeric():
             if not jobid:
@@ -1353,21 +1359,21 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
 
 
         # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
-        if shotname != parentname:
-            nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(base, shotname, parentname))
+        if fileparts['shot'] != parentname:
+            nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(fileparts['base'], fileparts['shot'], parentname))
             return False
 
         if parent.upper() == 'SHOT':
-            vers = nimAPI.get_vers( shotID=id, basename=base)
+            vers = nimAPI.get_vers( shotID=id, basename=fileparts['base'])
         else:
-            vers = nimAPI.get_vers( assetID=id, basename=base)
+            vers = nimAPI.get_vers( assetID=id, basename=fileparts['base'])
         if vers:
             # pprint(vers)
             if verbose:
-                nimP.info("Modify state for publish item %s at %s %s"%(base, parent.lower(), parentname))
+                nimP.info("Modify state for publish item %s at %s %s"%(fileparts['base'], parent.lower(), parentname))
             for verfile in vers:
                 if filename:
-                    if int(verfile['version']) != ver:
+                    if int(verfile['version']) != fileparts['ver']:
                         continue
                     else:
                         fileinfo = verfile
@@ -1400,9 +1406,9 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     Filename or Basename
     --------------------
     The first argument is a filename only that basename and version will be modified.
-    Filename convention:  [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+    Filename convention:  [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]__[VER].####.ext
     Examples:
-        Filename: RND_001__comp__comp__OUT__v007.####.exr
+        Filename: RND_001__comp_2d__OUT__v007.####.exr
 
     Time
     ----
@@ -1421,7 +1427,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     Parameters
     ----------
     filename : str
-        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]__[VER].####.ext
     userid    : int
         User ID who owns the published item.
     job : str
@@ -1474,10 +1480,11 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
         if not userid or not nimUtl.getuserName(userid):
             nimP.error("Wrong user id: %d"%userid)
             
-        (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        # (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        fileparts = nimUtl.splitName( filename )
         if not parentID:
             # Use shot/asset name from file name if not provided
-            parentID = shotname
+            parentID = fileparts['shot']
 
         if (isinstance(parentID, int) and parentID>0) or (isinstance(parentID, str) and len(parentID) > 0):
             if not isinstance(parentID, int) and not parentID.isnumeric():
@@ -1515,21 +1522,21 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
 
 
         # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
-        if shotname != parentname:
+        if fileparts['shot'] != parentname:
             if verbose:
-                nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(basename, shotname, parentname))
+                nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(fileparts['base'], fileparts['shot'], parentname))
             res['success'] = False
-            res['msg']     = "Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(basename, shotname, parentname)
+            res['msg']     = "Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(fileparts['base'], fileparts['shot'], parentname)
             return res
 
         if parent.upper() == 'SHOT':
-            vers = nimAPI.get_vers( shotID=id, basename=base)
+            vers = nimAPI.get_vers( shotID=id, basename=fileparts['base'])
         else:
-            vers = nimAPI.get_vers( assetID=id, basename=base)
+            vers = nimAPI.get_vers( assetID=id, basename=fileparts['base'])
         if vers:
             # pprint(vers)
             for verfile in vers:
-                if int(verfile['version']) == ver:
+                if int(verfile['version']) == fileparts['ver']:
                     fileInfo = verfile
                     break
     else:
@@ -1541,8 +1548,9 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     # print("File version to publish render to:")
     # pprint(fileInfo)
     path = fileInfo['filepath']
-    (base, shotname, task, tag, ver) = nimUtl.splitName( fileInfo['filename'] )
-    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
+    # (base, shotname, task, tag, ver) = nimUtl.splitName( fileInfo['filename'] )
+    fileparts = nimUtl.splitName( fileInfo['filename'] )
+    rendername = fileparts['base'] + "__" + "v%s"%str(fileparts['ver']).zfill(padding)
     id = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     outdir = os.path.dirname(path)
@@ -1660,7 +1668,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             avgtimestr = str(avgtime.seconds)
 
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
-    print("Task for render: %s"%task['taskID'])
+    # print("Task for render: %s"%task['taskID'])
     res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
         renderKey=renderkey, renderName=rendername, renderType=rendertype, renderComment=comment, \
         outputDirs=(outdir,), outputFiles=(path,), elementTypeID=elementTypeID, start_datetime=starttimedate, end_datetime=endtimedate, \
@@ -1770,10 +1778,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         if not userid or not nimUtl.getuserName(userid):
             nimP.error("Wrong user id: %d"%userid)
             
-        (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        # (base, shotname, task, tag, ver) = nimUtl.splitName( filename )
+        fileparta = nimUtl.splitName( filename )
         if not parentID:
             # Use shot/asset name from file name if not provided
-            parentID = shotname
+            parentID = fileparts['shot']
 
         if (isinstance(parentID, int) and parentID>0) or (isinstance(parentID, str) and len(parentID) > 0):
             if not isinstance(parentID, int) and not parentID.isnumeric():
@@ -1811,21 +1820,21 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
 
         # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
-        if shotname != parentname:
+        if fileparts['shot'] != parentname:
             if verbose:
-                nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(basename, shotname, parentname))
+                nimP.error("Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(fileparts['base'], fileparts['shot'], parentname))
             res['success'] = False
-            res['msg']     = "Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(basename, shotname, parentname)
+            res['msg']     = "Wrong basename name. Basename %s shot/asset and selected shot/assset are different: %s / %s"%(fileparts['base'], fileparts['shot'], parentname)
             return res
 
         if parent.upper() == 'SHOT':
-            vers = nimAPI.get_vers( shotID=id, basename=base)
+            vers = nimAPI.get_vers( shotID=id, basename=fileparts['base'])
         else:
-            vers = nimAPI.get_vers( assetID=id, basename=base)
+            vers = nimAPI.get_vers( assetID=id, basename=fileparts['base'])
         if vers:
             # pprint(vers)
             for verfile in vers:
-                if int(verfile['version']) == ver:
+                if int(verfile['version']) == fileparts['ver']:
                     fileInfo = verfile
                     break
     else:
@@ -1840,8 +1849,9 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     fileid = int(fileInfo['fileID'])
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
-    (base, shotname, task, tag, ver) = nimUtl.splitName(name)
-    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
+    # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
+    fileparts = nimUtl.splitName(name)
+    rendername = fileparts['base'] + "__" + "v%s"%str(fileparts['ver']).zfill(padding)
     pid = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     if parent.upper() == 'SHOT':
@@ -1892,7 +1902,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
         if not res['success']:
             res['success'] = False
-            res['msg']     = "Error publishing render %s in %s %s"%(basename, shotname, parentname)
+            res['msg']     = "Error publishing render %s in %s %s"%(fileparts['base'], fileparts['shot'], parentname)
             return res
         renderid = int(res['ID'].encode('ascii'))
         res['ID'] = renderid
@@ -1925,11 +1935,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             
     if not res:
         res['success'] = False
-        res['msg']     = "Error publishing review for render %s in %s %s"%(basename, shotname, parentname)
+        res['msg']     = "Error publishing review for render %s in %s %s"%(fileparts['base'], fileparts['shot'], parentname)
         return res
 
     res['success'] = True
-    res['msg'] = "Render %s created in %s %s"%(rendername, parent, shotname)
+    res['msg'] = "Render %s created in %s %s"%(rendername, parent, fileparts['shot'])
 
     return res
 
@@ -1982,8 +1992,9 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     # pprint(info)
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
-    (base, shotname, task, tag, ver) = nimUtl.splitName(name)
-    rendername = base + "__" + "v%s"%str(ver).zfill(padding)
+    # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
+    fileparts = nimUtl.splitName(name)
+    rendername = fileparts['base'] + "__" + "v%s"%str(fileparts['ver']).zfill(padding)
     pid = int(fileInfo['parentID'])
     parent = fileInfo['fileClass'].lower()
     if parent.upper() == 'SHOT':

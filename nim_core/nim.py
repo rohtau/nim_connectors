@@ -250,12 +250,12 @@ class NIM( object ) :
 
         rohtau Name convention
         DCC Scene Files:
-        [JOB]/[work|build]/[SHOT|ASSET]/task/[TASK]/[TAG]/[APP]/
+        [JOB]/[work|build]/[SHOT|ASSET]/task/[TASK]/[BASENAME]/[APP]/
         [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
 
         Elements:
-        [JOB]/[work|build]/[SHOT|ASSET]/[ELEMPATH]/[TASK]/[ELEMNAME]__[CAT]/[VER]/
-        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        [JOB]/[work|build]/[SHOT|ASSET]/[ELEMPATH]/[TASK]/[BASENAME]/[VER]/
+        [SHOT|ASSET]__[TASK_ELEMTYPE]__[TAG]__[VER].####.ext
         '''
         
         jobFound, assetFound, showFound, shotFound=False, False, False, False
@@ -516,7 +516,7 @@ class NIM( object ) :
             self.set_fileTypeByExt( F.get_ext( filePath ) )
 
 
-        #  Comp Path :
+        #  Paths :
         pathInfo=""
         if self.tab()=='SHOT' and self.ID('shot') :
             pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(self.ID('shot'))} )

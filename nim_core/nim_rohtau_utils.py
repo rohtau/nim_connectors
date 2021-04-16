@@ -1040,14 +1040,16 @@ def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid
 def splitName(filename):
     '''
     Split a filename according with the name convention:
+        [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]__[VER]
         [SHOT|ASSET]__[TASK]__[TAG]__[VER]
 
-    The return is a tuple with:
-    - Basename: [SHOT|ASSET]__[TASK]__[TAG]
-    - Shot|Asset name
-    - Task
-    - Tag
-    - Ver as an integer number
+    The return is a dict with:
+    - base: Basename [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]
+    - shot: Shot|Asset name
+    - task : Task name
+    - elem: Elem Type (Not Mandatory, not used by scene files)
+    - tag: Tag (Not Mandatory, name is not mandatory, specially for scene files)
+    - ver: Ver as an integer number
 
 
     Parameters
@@ -1057,27 +1059,28 @@ def splitName(filename):
 
     Returns
     -------
-    tuple
-        Tuple with basename, shot|asset, task, tag and version number(int). If name doesn't follow the name convention returns False
+    dict
+        Dict with keys: {'base', 'shot', 'task', 'elem', 'tag', 'ver'}
     '''
+    fileparts = {'base':'', 'shot':'', 'task':'', 'elem':'','tag':'','ver':0}
     filenoext = filename.split('.')[0]
     basenameparts = filenoext.split('__')
     if len(basenameparts) < 3:
-        nimP.error(
-            "Filename not following name convention. Not enough fields: %s" % filename)
+        nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
         return False
-    basename = '__'.join(basenameparts[:-1])  # Exclude ver part
+    fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
     if not ver.isdigit():
-        nimP.error(
-            "Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+        nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
         return False
-    ver = int(ver)
-    shotname = basenameparts[0]
-    tasktype = basenameparts[1]
-    tag = basenameparts[2] if len(basenameparts) > 2 else "" # tag is optional
+    fileparts['ver']  = int(ver)
+    fileparts['shot'] = basenameparts[0]
+    task              = basenameparts[1]
+    fileparts['task'] = task.split('_')[0] if task.count('_') else task
+    fileparts['elem'] = task.split('_')[1] if task.count('_') else "" # elem is not mandatory
+    fileparts['tag']  = basenameparts[2] if len(basenameparts) > 2 else "" # tag is not mandatory
 
-    return (basename, shotname, tasktype, tag, ver)
+    return fileparts
 
 #
 # Users

@@ -2096,8 +2096,8 @@ def extract_basename( nim=None, filepath=None ) :
     The only element from the filename that can't be taken from the nim dictionary if file
     wasn't published previously is the tag, this needs to be extracted from the file name.
     This is the name convention for a filename:
-    [SHOT|ASSET]__[TASK]__[TAG]__[VER].ext
-    The basename is : [SHOT|ASSET]__[TASK]__[TAG]
+    [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]__[VER].ext
+    The basename is : [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]
     As said, if file hasn't been published before then nim.name('base') is empty  and then this
     function will try to complete parts of the dictionary using the file name.
     Finally if SHOT|ASSET or TASK from the filename, doesn't match the ones in the dictionary
@@ -2142,7 +2142,9 @@ def extract_basename( nim=None, filepath=None ) :
             P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
             return False
         shotname = nameparts[0]
-        taskname = nameparts[1]
+        # taskname = nameparts[1]
+        taskname = nameparts[1].split('_')[0] if nameparts[1].count('_') else taskname
+        elemname = nameparts[1].split('_')[1] if nameparts[1].count('_') else "" # elem is not mandatory
         basename = '__'.join(nameparts[:2])
         vername = nameparts[-1]
         ver = int(vername[1:])
@@ -2185,6 +2187,9 @@ def extract_basename( nim=None, filepath=None ) :
                 basename=nim.name('shot')+'_'+short_task
         '''
         short_task=F.task_toAbbrev( task=nim.name('task') )
+        elemType=F.elementType_toAbbrev( nim.name('element') )
+        if elemType:
+            short_task = "%s_%s"%(elemType, short_task)
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
@@ -2231,6 +2236,9 @@ def to_basename( nim=None ) :
         return False
     
     short_task=F.task_toAbbrev( task=nim.name('task') )
+    elemType=F.elementType_toAbbrev( nim.name('element') )
+    if elemType:
+        short_task = "%s_%s"%(short_task, elemType)
     
     #  Derive basename :
     if not nim.name('tag') and nim.name('base') :
