@@ -524,6 +524,10 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
             raise
     outdraft = os.path.join(outdraft, draftname)
     cmd += " outFile=%s "%outdraft
+    if 'THINKBOX_LICENSE_FILE' not in os.environ:
+        nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
+        thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
+        os.environ.update(thinkboclivenv)
     if not runAsyncCommand( cmd ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
     
@@ -941,7 +945,7 @@ def createRenderIcon( elementInfo ):
     try:
         ret = subprocess.check_output(cmd, shell=True)
     except subprocess.CalledProcessError as e:
-        nimP.error( "Draft command for render icon generation: %s "%cmd)
+        nimP.error("Draft command for render icon generation: %s "%cmd)
         nimP.error("Command: %s"%e.cmd)
         nimP.error("Outut: %s"%e.output)
         nimP.error("Error code: %d"%e.returncode)
