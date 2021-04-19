@@ -934,6 +934,10 @@ def createRenderIcon( elementInfo ):
     cmd += " inFile=%s "%middlepath
     # Out render icon path
     cmd += " outFile=%s "%iconpath
+    if 'THINKBOX_LICENSE_FILE' not in os.environ:
+        nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
+        thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
+        os.environ.update(thinkboclivenv)
     try:
         ret = subprocess.check_output(cmd, shell=True)
     except subprocess.CalledProcessError as e:
@@ -1885,16 +1889,15 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     if taskid:
         # Can only publish render if there is an available task
         # Create icon
-        '''
+        # FIXME: icon creation not working in the farm
         if verbose:
             nimP.info("Create render icon ..")
         icon = createRenderIcon( elementInfo )
         if not icon:
-            res['msg'] = "Error creating render icon for %s"%base
+            res['msg'] = "Error creating render icon for %s"%rendername
             res['success'] = False
             return res
-        '''
-        icon=""
+        # icon=""
 
         # Publish render
         if verbose:
