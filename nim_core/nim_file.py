@@ -745,9 +745,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         nim.set_renderPath( renderPath=renDir)
     renDir=os_filePath( path=renDir, nim=nim )
     
-    import nuke
-    nuke.tprint("Path Info")
-    nuke.tprint(pformat(pathInfo))
     #  Comp Path :
     if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
         compPath=os.path.normpath( os.path.join( nim.server(), pathInfo['comps'] ) )
@@ -759,11 +756,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         Win.popup( title='NIM - Version Up Error', msg=msg )
         return False
 
-
-    
     #  Add Plates Path (Optional, Assets don't have plates):
-    # FIXME: There is an error here when dealing with asset
-    # if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
     if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
         platesPath=os.path.normpath( os.path.join( nim.server(), pathInfo['plates'] ) )
         nim.set_platesPath( platesPath=platesPath )

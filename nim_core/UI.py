@@ -130,7 +130,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 #    'usa.la.nim.fileUI' )
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
-                P.debug( '    %s' % traceback.print_exc() )
+                P.error( '    %s' % traceback.print_exc() )
                 return False
         
         #  Hiero :
@@ -1185,6 +1185,7 @@ class GUI(QtGui.QMainWindow) :
 
     
     #  Update :
+    # FIXME: this is causing an error 
     def populate_elem( self, elem='job', _print=False ) :
         'Populates a given GUI element'
         P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
