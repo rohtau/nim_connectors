@@ -2828,9 +2828,9 @@ class GUI(QtGui.QMainWindow) :
         try : 
             # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
-        except :
+        except Exception as e :
+            P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
-            P.error("Failed to Save File")
         
         # Start Maya Undo Queue
         if self.app=='Maya' :    
