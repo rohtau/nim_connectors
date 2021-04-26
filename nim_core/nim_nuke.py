@@ -45,16 +45,16 @@ def _knobInfo( nim=None ) :
     knobNames=( 'nim_server', 'nim_serverID', 'nim_user', 'nim_userID',
         'nim_job', 'nim_jobID', 'nim_tab', 'nim_asset', 'nim_assetID', 'nim_show', 'nim_showID',
         'nim_shot', 'nim_shotID', 'nim_basename', 'nim_version', 'nim_fileID', 'nim_task', 'nim_taskID', 'nim_type', 'nim_typeID', 'nim_taskFolder', 
-        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_APIver' )
+        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_pubTasks', 'nim_APIver' )
     knobLabels=( 'Server Path', 'Server ID', 'User Name', 'User ID',
         'Job Name', 'Job ID', 'Entity', 'Asset Name', 'Asset ID', 'Show Name', 'Show ID',
         'Shot Name', 'Shot ID', 'Basename', 'Version', 'File ID', 'Task Name', 'Task ID', 'Task Type', 'Task Type ID', 'Task Folder', 
-        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'NIM Version' )
+        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'Publishing Tasks', 'NIM Version' )
     knobCmds=(  nim.server(), nim.ID('server'), userInfo['name'], userInfo['ID'],
         nim.name('job'), nim.ID('job'), nim.tab(),nim.name('asset'), nim.ID('asset'), nim.name('show'),
         nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), '', '', nim.name('task'),
         nim.ID('task'), nim.taskFolder(), nim.jobPath(), nim.shotPath(), nim.compPath(), nim.renderPath(), nim.platesPath(),
-        str(nim.get_elementTypes()), version )
+        str(Api.get_elementTypes()), str(Api.get_taskTypes()), version )
     return ( knobNames, knobLabels, knobCmds )
 
 def set_vars( nim=None ) :
@@ -99,17 +99,16 @@ def set_vars( nim=None ) :
         knob = PS.knob( button )
         knob.setEnabled( True )
     
-        
-    
     #  Create Knobs :
     # TODO: missing pub entries: Server Path, Server ID, Basename, Task Name, Task ID, Task Folder/type, Version
     for x in range(len(knobNames)) :
         if not PS.knob( knobNames[x] ) :
+            n = None
             if  knobNames[x].endswith('Path'):
                 PS.addKnob( nuke.File_Knob( knobNames[x], knobLabels[x] ))
             elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version'):
                 PS.addKnob( nuke.Int_Knob( knobNames[x], knobLabels[x] ))
-            elif  knobNames[x] == 'nim_pubElements':
+            elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
                 PS.addKnob( nuke.Multiline_Eval_String_Knob( knobNames[x], knobLabels[x] ))
             else:
                 PS.addKnob( nuke.String_Knob( knobNames[x], knobLabels[x] ) )
@@ -128,7 +127,7 @@ def set_vars( nim=None ) :
                 if knobNames[x].endswith('ID') or knobNames[x].endswith('version'):
                     # nuke.tprint("Knob Name: %s, String val: %s"%(knobNames[x],knobCmds[x]))
                     knob.setValue( int(knobCmds[x]) )
-                elif  knobNames[x] == 'nim_pubElements':
+                elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
                     knob.setValue( pformat( eval(knobCmds[x]), indent=4 ) )
                 else:
                     knob.setValue( knobCmds[x] )

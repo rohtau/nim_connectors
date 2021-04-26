@@ -493,7 +493,7 @@ def getassetPkgName(assetid, assetname="", cat=""):
     Parameters:
         assetid(int): asset ID in case the asset name is not passed.
         assetname(str): name of the asset, if not passed then assetid is used to retrieve from NIM
-        cat(str): asset category. If not passed wil be retrieved from NIM using assetid
+        cat(str): asset category. If not passed will be retrieved from NIM using assetid
 
     Example:
         character/crag -> character_crag

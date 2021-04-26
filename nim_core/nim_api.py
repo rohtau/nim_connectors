@@ -214,8 +214,8 @@ def get_connect_info() :
                     pass
                 # print("Connection info dict:")
                 # pprint(nimAPIConnectInfo)
-        else:
-            P.error("nimAPIConnectInfoFile doesn't exist")
+        # else:
+            # P.error("nimAPIConnectInfoFile doesn't exist")
     if nimAPIConnectInfo:
         return nimAPIConnectInfo
 
