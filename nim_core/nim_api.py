@@ -203,7 +203,6 @@ def get_connect_info() :
     if nimAPIConnectInfoFile :
         # print("NIM API Connect Info file: %s"%nimAPIConnectInfoFile)
         if os.path.exists(nimAPIConnectInfoFile):
-            # print("cat %s:"%nimAPIConnectInfoFile)
             with open( nimAPIConnectInfoFile, 'r') as f:
                 cat = f.readline()
                 # print(cat)
@@ -214,8 +213,6 @@ def get_connect_info() :
                     pass
                 # print("Connection info dict:")
                 # pprint(nimAPIConnectInfo)
-        # else:
-            # P.error("nimAPIConnectInfoFile doesn't exist")
     if nimAPIConnectInfo:
         return nimAPIConnectInfo
 
@@ -2638,9 +2635,10 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
 
         
 
-    # print("Passed NIM:")
-    # print("================================")
-    # pprint( nim.get_nim() )
+    # import nuke
+    # nuke.tprint("Passed NIM:")
+    # nuke.tprint("================================")
+    # nuke.tprint(pformat( nim.get_nim() ))
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2699,9 +2697,9 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         nim.set_name( elem='fileExt', name=F.get_ext( nim.filePath() ) )
         nim.set_fileTypeByExt( F.get_ext( nim.filePath() ) )
 
-    # print("================================")
-    # print("Target NIM settings")
-    # pprint(nim.get_nim())
+    # nuke.tprint("================================")
+    # nuke.tprint("Target NIM settings")
+    # nuke.tprint(pformat(nim.get_nim()))
 
     if not shotCheck and not assetCheck :
         msg='Sorry, unable to retrieve Shot/Asset IDs from the current file.'

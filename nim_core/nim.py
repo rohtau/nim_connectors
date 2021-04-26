@@ -18,6 +18,7 @@ import ntpath, os, traceback
 import sys
 from sys import path
 from pprint import pprint
+from pprint import pformat
 
 if sys.version_info >= (3,0):
     from . import nim_api as Api
@@ -799,17 +800,22 @@ class NIM( object ) :
                 paths = Api.get_paths( item='shot', ID=int(self.ID('shot')))
             elif self.ID('asset') is not None:
                 paths = Api.get_paths( item='asset', ID=int(self.ID('asset')))
-            # pprint(paths)
+
+            # P.info(pformat(paths))
                 
             for elm in self.nim[elem]['Dict']:
                 if elm['name'] == 'plates':
-                    elm['path'] = paths['plates'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                    # Plates is not mandatory, assets don't have plates
+                    elm['path'] = paths['plates'].replace(paths['root'] + '/', '') if len(paths) is not 0 and 'plates' in paths else ""
                 elif elm['name'] == 'renders':
                     elm['path'] = paths['renders'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
                 elif elm['name'] == 'comps':
                     elm['path'] = paths['comps'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
                 else:
-                    elm['path'] = elm['name']
+                    # elm['path'] = elm['name']
+                    # Adding pub for any element that is not plates, renders or
+                    # comp
+                    elm['path'] = "pub/%s"%elm['name']
                         
                     
 

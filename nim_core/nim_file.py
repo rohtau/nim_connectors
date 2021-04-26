@@ -16,6 +16,8 @@
 
 #  General Imports :
 import os, platform, re, shutil, stat, traceback, sys, time
+from pprint import pprint
+from pprint import pformat
 #  NIM Imports :
 if sys.version_info >= (3,0):
     from . import nim_api as Api
@@ -721,6 +723,18 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
     elif nim.tab()=='ASSET' and nim.ID('asset') :
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
+
+    # Add job ans shot/asset path
+    if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+        shotPath=os.path.normpath( os.path.join( nim.server(), pathInfo['root'] ) )
+        nim.set_shotPath( shotPath=shotPath )
+    else:
+        msg="Can't find root path for %s %s  in NIM. Is project structure correctly defined?"%(nim.tab().lower(), nim.name(nim.tab().lower()))
+        P.error(msg)
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
+
+    # Add cg render path
     if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
         renDir=os.path.normpath( os.path.join( nim.server(), pathInfo['renders'] ) )
         # Add render path to nim object
@@ -735,18 +749,19 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
         compPath=os.path.normpath( os.path.join( nim.server(), pathInfo['comps'] ) )
         nim.set_compPath( compPath=compPath )
-    compPath=os_filePath( path=compPath, nim=nim )
-    
-    #  Add Plates Path :
-    if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
+        compPath=os_filePath( path=compPath, nim=nim )
+    else:
+        msg="Can't find path for comps. Is project structure correctly defined?: %s"%pathInfo['root']
+        P.error(msg)
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
+
+    #  Add Plates Path (Optional, Assets don't have plates):
+    if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
         platesPath=os.path.normpath( os.path.join( nim.server(), pathInfo['plates'] ) )
         nim.set_platesPath( platesPath=platesPath )
-    platesPath=os_filePath( path=platesPath, nim=nim )
+        platesPath=os_filePath( path=platesPath, nim=nim )
 
-    # Add job ans shot/asset path
-    if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
-        shotPath=os.path.normpath( os.path.join( nim.server(), pathInfo['root'] ) )
-        nim.set_shotPath( shotPath=shotPath )
 
     # jobpath = os.path.normpath(os.path.join(serverOsPathInfo, nim.Dict(elem='job')['name']))
     nimdict = nim.get_nim()
@@ -761,7 +776,8 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( '  New File Path = %s' % new_filePath )
     P.info( '  Render Directory = %s' % renDir )
     P.info( '  Comp Directory = %s\n' % compPath )
-    P.info( '  Plates Directory = %s\n' % platesPath )
+    if 'plates' in pathInfo:
+        P.info( '  Plates Directory = %s\n' % platesPath )
 
     # TODO: check that file path and projDir are writable
     

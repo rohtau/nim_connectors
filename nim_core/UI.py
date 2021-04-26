@@ -130,7 +130,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 #    'usa.la.nim.fileUI' )
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
-                P.debug( '    %s' % traceback.print_exc() )
+                P.error( '    %s' % traceback.print_exc() )
                 return False
         
         #  Hiero :
@@ -1185,6 +1185,7 @@ class GUI(QtGui.QMainWindow) :
 
     
     #  Update :
+    # FIXME: this is causing an error 
     def populate_elem( self, elem='job', _print=False ) :
         'Populates a given GUI element'
         P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
@@ -2828,9 +2829,9 @@ class GUI(QtGui.QMainWindow) :
         try : 
             # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
-        except :
+        except Exception as e :
+            P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
-            P.error("Failed to Save File")
         
         # Start Maya Undo Queue
         if self.app=='Maya' :    
