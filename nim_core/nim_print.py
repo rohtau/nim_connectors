@@ -20,7 +20,7 @@ from . import nim_prefs as Prefs
 
 # Try to import nuke, if nuke is available, assume we are in Nuke and use
 # nuke.tprint
-inNuke = False
+isNuke = False
 try:
     import nuke
     isNuke = True
