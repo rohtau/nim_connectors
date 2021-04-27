@@ -405,11 +405,10 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         P.warning( 'Didn\'t create 3dsMax project directories.' )
 
     #  Make Houdini Project directory :
-    # TODO: this wil be removed
     if os.path.isdir( projpath ) and nim.app()=='Houdini' :
         import nim_houdini as Houdini
         if Houdini.mk_proj( path=projpath, renPath=renDir ) :
-            P.info( 'Created Houdini project directorires within...\n    %s' % projpath )
+            P.info( 'Created Houdini project directories within...\n    %s' % projpath )
         else :
             P.warning( '    Unable to create Houdini project directories.' )
     elif nim.app()=='Houdini' :
@@ -643,7 +642,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     # if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
     # else : projDir=fileDir
     # This add support to create project folders correctly according with supported scene folder names.
-    # If the base name is recognisedd as a scene name then the project folder will be it's parent, otherwise
+    # If the base name is recognised as a scene name then the project folder will be it's parent, otherwise
     # create projects at the same level as the scenes.
     scenefolder = os.path.basename(fileDir)
     if scenefolder in ('scenes', 'hip'):

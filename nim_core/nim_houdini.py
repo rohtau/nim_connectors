@@ -574,6 +574,9 @@ def mk_proj( path='', renPath='' ) :
     projectName = os.path.basename(os.path.normpath(path))
     P.info('Project Folder: %s' % projectName)
 
+    '''
+    # DEPRECATED: we dont craete projects relatives to $HIP anymore.
+    # Use project publishing structure instead
     #  Create Houdini project directories :
     if os.path.isdir( path ) :
         for projDir in projDirs:
@@ -585,6 +588,7 @@ def mk_proj( path='', renPath='' ) :
                     P.error( 'Failed creating the directory: %s' % _dir )
                     P.error( '    %s' % traceback.print_exc() )
                     return False
+    '''
     
     '''
     #  Check for workspace file :

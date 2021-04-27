@@ -2330,12 +2330,16 @@ def to_fileDir( nim=None ) :
             #  Derive File Directory from NIM :
             # Add app folder name, plus scenes folder.
             if nim.app():
-                print("Detected app: %s"%nim.app())
+                # print("Detected app: %s"%nim.app())
                 scenesfolder = ""
                 if nim.app() in ('Maya', '3dsMax'):
                     scenesfolder = 'scenes'
                 elif nim.app() in ('Houdini'):
-                    scenesfolder = 'hip'
+                    # DEPRECATED: we dont use a project based on $HIP.
+                    # Houdini scenes are saved directly under tr houdini folder
+                    # for the given basename 
+                    # scenesfolder = 'hip'
+                    pass
                 if scenesfolder:
                     fileDir=os.path.join( nimDir, basename, nim.app().lower(), scenesfolder )
                 else:
