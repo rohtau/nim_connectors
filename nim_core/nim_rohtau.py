@@ -333,16 +333,18 @@ def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
     if not os.path.exists( renderscene):
         raise IOError("Can't save render scene on job output. Source render scene doesn't exist: %s"%renderscene)
     compressed_renderscene = getJobOutputRenderScenePath( renderscene, outputpath, docompress )
+    # If scene already exists then just return
+    if os.path.exists(compressed_renderscene):
+        return compressed_renderscene
     if docompress:
-        # Compress render scene
-        with open(renderscene, 'rb') as data:
-            tarbz2contents = bz2.compress(data.read())
-
         if not os.path.exists( os.path.dirname( compressed_renderscene ) ):
             try:
                 os.makedirs( os.path.dirname(compressed_renderscene) ) 
             except:
                 raise
+        # Compress render scene
+        with open(renderscene, 'rb') as data:
+            tarbz2contents = bz2.compress(data.read())
                 
         with open(compressed_renderscene, 'wb') as target:
             target.write( tarbz2contents )
