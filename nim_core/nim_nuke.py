@@ -367,7 +367,6 @@ def reset_vars( confirm=True ):
     return True
 
 
-
 def get_vars( nim=None ) :
     'Populates a NIM dictionary with settings from custom NIM Nuke knobs'
     
@@ -457,6 +456,67 @@ def get_vars( nim=None ) :
 
     return nim
 
+def getTaskNameFromVars(tasktypeid):
+    '''
+    Look into NIM data in script to get available tasks types and return the name
+    that correspond to the given id
+
+    Parameters
+    ----------
+    tasktypeid : int
+        ID for task type
+
+    Returns
+    -------
+    bool
+        False if task info not available in NIM data in script or if task type ID couldnt be found
+    '''
+    PS = nuke.root()
+    tasksKnob = PS.knob('nim_pubTasks')
+    if tasksKnob is None:
+        error("available tasks information missign in NIM script's data. Please reset Publishing information from rohtau menu")
+        return False
+    tasks = eval(tasksKnob.value())
+    for task in tasks:
+        if int(task['ID'].encode('ascii')) == tasktypeid:
+            return task['name'].encode('ascii')
+
+    # Not found
+    warning("Task with ID %d, not found in Publishing Tasks in NIM script's data"%tasktypeid)
+    return False
+
+    pass
+
+def getElementTypeNameFromVars(elmtypeid):
+    '''
+    Look into NIM data in script to get available element types and return the name
+    that correspond to the given id
+
+    Parameters
+    ----------
+    elmtypeid : int
+        ID for element type
+
+    Returns
+    -------
+    bool
+        False if element info not available in NIM data in script or if task type ID couldn't be found
+    '''
+    PS = nuke.root()
+    elmtsKnob = PS.knob('nim_pubElements')
+    if elmtsKnob  is None:
+        error("Available Element information missing in NIM script's data. Please reset Publishing information from rohtau menu")
+        return False
+    elmts = eval(elmtsKnob.value())
+    for elm in elmts:
+        if int(elm['ID'].encode('ascii')) == elmtypeid:
+            return elm['name'].encode('ascii')
+
+    # Not found
+    warning("Element with ID %d, not found in Publishing Elements in NIM script's data"%elmtypeid)
+    return False
+
+    pass
 
 def rndr_mkDir() :
     'Creates the output path for images, if not already existant'
