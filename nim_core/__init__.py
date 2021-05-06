@@ -10,6 +10,7 @@ winTitle    = 'NIM_'+version # Global title for all NIM windows
 padding     = 3 # Global padding used for file versions.
 imgpadding  = 4 # Global padding used for images files.
 nimAPIConnectInfoFile = os.path.join(tempfile.gettempdir(), "nimAPIConnectInfo") # Temp file used to store API connection info for non login sessions. For instance, Deadline
+defaultSceneName = 'main'
 
 
 #  END

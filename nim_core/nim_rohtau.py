@@ -502,6 +502,9 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # In Seq
     path     = infile
     path     = path.replace('%04d', '####') # Fix Nuke's padding format
+    path     = path.replace('$F5', '#####') # Fix Houdini's padding format
+    path     = path.replace('$F4', '####') # Fix Houdini's padding format
+    path     = path.replace('$F', '#') # Fix Houdini's padding format
     path     = os.path.normpath(path)
     if platform.system() == 'Windows':
         path = os.path.join('C:', path)
@@ -589,6 +592,7 @@ def buildBasename( shot, task, name, elemtype='', layer='', isfolder=False):
 
     # element Name
     tag = name
+    tag = tag.replace('/', '_') # Fix potential assets names that includes / to separate asset category from name
     if len(layer) > 0:
         tag += "_%s"%layer
     # cat is  DEPRECATED
@@ -809,7 +813,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     if only_loc:
         return loc
     elif only_name:
-        return name
+        return basename
     else:
         return path
 
@@ -1036,6 +1040,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     posixpath = toPosix( path )
     # Normalize padding format
     posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
+    posixpath = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
+    posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
+    posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
 
     
     nim=Nim.NIM()

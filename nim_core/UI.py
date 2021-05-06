@@ -80,6 +80,7 @@ startTime=''
 from .import version 
 from .import winTitle
 from .import padding
+from .import defaultSceneName
 _os=platform.system().lower()
 _osCap=platform.system()
 
@@ -915,6 +916,11 @@ class GUI(QtGui.QMainWindow) :
         try : self.btn_1.clicked.disconnect()
         except : pass
         self.btn_1.clicked.connect( self.file_saveAs )
+
+        #
+        # Custom initialization
+        # Set default tag name as main
+        self.nim.Input('tag').setText(defaultSceneName)
         
         self.setNimStyle()
 
@@ -2767,6 +2773,17 @@ class GUI(QtGui.QMainWindow) :
         tag=self.nim.Input('tag').text()
         task=self.nim.Input('task').currentText()
 
+        #
+        # Do some checkings before saving
+        # We must have a tag
+        if not tag:
+            msg = "A tag is mandatory in order to save the scene.\nPlease try again and set a tag for the scene.\nDefault tag \"%s\" has been initialise"%defaultSceneName
+            P.error(msg)
+            Win.popup( title='NIM - Save Error', msg=msg )
+            self.nim.Input('tag').setText(defaultSceneName)
+            return False
+
+
         # Check if task exist, if not then offer option to create new task
         # Try to find a valid task for the task type and user in the shot/asset
         userInfo=self.nim.userInfo()
@@ -2776,8 +2793,6 @@ class GUI(QtGui.QMainWindow) :
             msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
             P.warning( msg )
             res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
-            print(res)
-            print("Create new task? %s"%res)
             if res == 'OK':
                 msg = "%s task created by %s on scene creation"%(task, userInfo['name'])
                 now = datetime.now()
@@ -2793,6 +2808,12 @@ class GUI(QtGui.QMainWindow) :
                     P.error(msg)
                     Win.popup( title='NIM - Save Error', msg=msg )
                     return False
+            else:
+                msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, userInfo['name'])
+                P.error(msg)
+                Win.popup( title='NIM - Save Error', msg=msg )
+                return False
+
         
         basename=Api.to_basename( nim=self.nim )
         if self.app=='Maya' : 

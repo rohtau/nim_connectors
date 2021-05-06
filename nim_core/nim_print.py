@@ -15,8 +15,6 @@
 #rohtau v0.2, python3 port
 
 
-#  NIM Imports :
-from . import nim_prefs as Prefs
 
 # Try to import nuke, if nuke is available, assume we are in Nuke and use
 # nuke.tprint
@@ -31,17 +29,6 @@ except ImportError:
 
 def debug( msg='' ) :
     'Custom info printer'
-    #  Get Debug setting :
-    '''
-    prefs=Prefs.read()
-    if prefs and type(prefs)==type(dict()) :
-        if 'NIM_DebugMode' in prefs :
-            debug=prefs['NIM_DebugMode']
-        elif 'DebugMode' in prefs :
-            debug=prefs['DebugMode']
-        else : debug='False'
-    else : debug='False'
-    '''
     debug = False
     #  Print :
     if debug =='True' and msg :

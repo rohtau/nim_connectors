@@ -1078,7 +1078,7 @@ def splitName(filename):
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
     fileparts['elem'] = task.split('_')[1] if task.count('_') else "" # elem is not mandatory
-    fileparts['tag']  = basenameparts[2] if len(basenameparts) > 2 else "" # tag is not mandatory
+    fileparts['tag']  = basenameparts[2] if len(basenameparts) > 3 else "" # tag is not mandatory
 
     return fileparts
 
