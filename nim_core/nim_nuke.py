@@ -606,7 +606,7 @@ def saveRenderScene (renderscene=''):
     return renderscene
 
 
-def setupWriteForRendering( renderscene, writeNode ):
+def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
     '''
     Do all the mandatory settings needed in a Write node for our pipeline
 
@@ -616,6 +616,8 @@ def setupWriteForRendering( renderscene, writeNode ):
         Path to renderscene
     writeNode : str
         Write node for rendering
+    fileid : id
+        File ID for published render
 
     Returns
     -------
@@ -632,11 +634,25 @@ def setupWriteForRendering( renderscene, writeNode ):
     node.setInput(0, metadatanode)
     nuke.autoplaceSnap(metadatanode)
     attrsKnob = metadatanode.knob('metadata')
-    attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
+    PS = nuke.root()
+    attrs = {}
+    try:
+        if PS is not None and PS.knob('nim_compPath') is None:
+            attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), jobid=PS.knob('nim_jobID').value(),
+                                                  showid=PS.knob('nim_showID').value(), shotid=PS.knob('nim_showID').value(),
+                                                 assetid=PS.knob('nim_assetID').value(), fileid=fileid)
+        else:
+            attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
+    except ValueError:
+        attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
     attrsscript = ""
     for attr in attrs:
-        attrsscript += "{set %s %s}\n"%(attr, attrs[attr].replace('\\', '/'))
+        attrsscript += "{set exr/%s %s}\n"%(attr, attrs[attr].replace('\\', '/'))
     attrsKnob.fromScript( attrsscript )
+    
+    # Write metadata output knob
+    outmetadataKnob = writeNode.knob('metadata')
+    outmetadataKnob.setValue('all metadata')
 
     # Sticky Note:
     stickynode = nuke.toNode("__renderStickyNote")

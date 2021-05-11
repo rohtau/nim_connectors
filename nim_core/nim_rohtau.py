@@ -220,8 +220,9 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
        folder =  basepaths[elementname].replace(basepath + '/', '')
     else:
         # Put non special elements under the pub folder
-        # folder = "pub/%s"%elementname
-        folder = elementname
+        # XXX: Mmm why Im not adding the pub part, this is wrong I think
+        folder = "pub/%s"%elementname
+        # folder = elementname
 
     return folder
 
@@ -358,25 +359,51 @@ def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
 
     return compressed_renderscene
 
-def getEXRMetadataAttrsDict(  renderscene, outputpath ):
+def getEXRMetadataAttrsDict(  renderscene, outputpath, jobid=0, showid=0, shotid=0, assetid=0, fileid=0 ):
     '''
     Create a dictionary with attributes for EXR metadata used in our renders
 
-    Arguments:
-        renderscene {str} -- Render scene path
-        outputpath {str} -- render output path
+    Parameters
+    ----------
+        renderscene : str 
+            Render scene path
+        outputpath : str
+            render output path
+        jobid : int
+            Optional jobID for render. Indicates to what job this render was done
+        showid : int
+            Optional showID for render. Indicates to what show this render was done
+        shotid : int
+            Optional shotID for render. Indicates to what shot this render was done
+        assetid : int
+            Optional assetID for render. Indicates to what asset this render was done
+        fileid : int
+            Optional fileID for render. Indicates publish ID for this render
+            
 
-    Returns:
-        dict -- Dictionary with attributes. Key is the attribute name.
+    Returns
+    -------
+        dict
+            Dictionary with attributes. Key is the attribute name.
     '''
     attrs = {}
 
     if platform.system() == 'Windows':
-        attrs['renderscene'] = re.sub('^\w:', '', renderscene).replace('\\', '/')
-        attrs['jobotput_renderscene'] = re.sub('^\w:', '', getJobOutputRenderScenePath( renderscene, outputpath )).replace('\\', '/')
+        attrs['rt_renderscene'] = re.sub('^\w:', '', renderscene).replace('\\', '/')
+        attrs['rt_out_renderscene'] = re.sub('^\w:', '', getJobOutputRenderScenePath( renderscene, outputpath )).replace('\\', '/')
+        attrs['rt_nim_jobID'] = jobid
+        attrs['rt_nim_shoxID'] = shoxid
+        attrs['rt_nim_shotID'] = shotid
+        attrs['rt_nim_assetID'] = assetid
+        attrs['rt_nim_fileID'] = fileid
     else:
-        attrs['renderscene'] = renderscene
-        attrs['jobotput_renderscene'] = getJobOutputRenderScenePath( renderscene, outputpath )
+        attrs['rt_renderscene'] = renderscene
+        attrs['rt_out_renderscene'] = getJobOutputRenderScenePath( renderscene, outputpath )
+        attrs['rt_nim_jobID'] = jobid
+        attrs['rt_nim_shoxID'] = shoxid
+        attrs['rt_nim_shotID'] = shotid
+        attrs['rt_nim_assetID'] = assetid
+        attrs['rt_nim_fileID'] = fileid
         
 
     return attrs
