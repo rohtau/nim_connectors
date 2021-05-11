@@ -637,17 +637,19 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
     PS = nuke.root()
     attrs = {}
     try:
-        if PS is not None and PS.knob('nim_compPath') is None:
-            attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), jobid=PS.knob('nim_jobID').value(),
-                                                  showid=PS.knob('nim_showID').value(), shotid=PS.knob('nim_showID').value(),
-                                                 assetid=PS.knob('nim_assetID').value(), fileid=fileid)
+        if PS is not None and PS.knob('nim_compPath') is not None:
+            nuke.tprint("Calling to getEXRMetadataAttrsDict with all the publish info")
+            attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), job=PS.knob('nim_job').value().split()[0], jobid=int(PS.knob('nim_jobID').value()),
+                                                  show=PS.knob('nim_show').value(), showid=int(PS.knob('nim_showID').value()), shot=PS.knob('nim_shot').value(), 
+                                                  shotid=int(PS.knob('nim_showID').value()), asset=PS.knob('nim_asset').value(),
+                                                  assetid=int(PS.knob('nim_assetID').value()), fileid=int(fileid))
         else:
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
     except ValueError:
         attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
     attrsscript = ""
     for attr in attrs:
-        attrsscript += "{set exr/%s %s}\n"%(attr, attrs[attr].replace('\\', '/'))
+        attrsscript += "{set exr/%s %s}\n"%(attr, str(attrs[attr]).replace('\\', '/'))
     attrsKnob.fromScript( attrsscript )
     
     # Write metadata output knob

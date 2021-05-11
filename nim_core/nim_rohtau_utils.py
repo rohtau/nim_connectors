@@ -1037,7 +1037,7 @@ def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid
     return basenames
 
 
-def splitName(filename):
+def splitName(filename, error=True):
     '''
     Split a filename according with the name convention:
         [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]__[VER]
@@ -1056,6 +1056,8 @@ def splitName(filename):
     ----------
     filename : str
         filename following name convention
+    error :  bool
+        whether or not report error if name convention wrong. If not report warning
 
     Returns
     -------
@@ -1066,12 +1068,18 @@ def splitName(filename):
     filenoext = filename.split('.')[0]
     basenameparts = filenoext.split('__')
     if len(basenameparts) < 3:
-        nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
+        if error:
+            nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
+        else:
+            nimP.warning("Filename not following name convention. Not enough fields: %s" % filename)
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
     if not ver.isdigit():
-        nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+        if error:
+            nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+        else:
+            nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
         return False
     fileparts['ver']  = int(ver)
     fileparts['shot'] = basenameparts[0]

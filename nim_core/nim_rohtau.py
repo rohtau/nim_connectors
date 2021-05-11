@@ -359,7 +359,7 @@ def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
 
     return compressed_renderscene
 
-def getEXRMetadataAttrsDict(  renderscene, outputpath, jobid=0, showid=0, shotid=0, assetid=0, fileid=0 ):
+def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="", showid=0, shot="", shotid=0, asset="", assetid=0, fileid=0 ):
     '''
     Create a dictionary with attributes for EXR metadata used in our renders
 
@@ -370,11 +370,19 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, jobid=0, showid=0, shotid
         outputpath : str
             render output path
         jobid : int
+            Optional job name for render. Indicates to what job this render was done
+        jobid : str
             Optional jobID for render. Indicates to what job this render was done
+        show : str
+            Optional show name for render. Indicates to what show this render was done
         showid : int
             Optional showID for render. Indicates to what show this render was done
+        shot: str
+            Optional shot name for render. Indicates to what shot this render was done
         shotid : int
             Optional shotID for render. Indicates to what shot this render was done
+        asset : str
+            Optional asset name for render. Indicates to what asset this render was done
         assetid : int
             Optional assetID for render. Indicates to what asset this render was done
         fileid : int
@@ -389,21 +397,29 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, jobid=0, showid=0, shotid
     attrs = {}
 
     if platform.system() == 'Windows':
-        attrs['rt_renderscene'] = re.sub('^\w:', '', renderscene).replace('\\', '/')
+        attrs['rt_renderscene']     = re.sub('^\w:', '', renderscene).replace('\\', '/')
         attrs['rt_out_renderscene'] = re.sub('^\w:', '', getJobOutputRenderScenePath( renderscene, outputpath )).replace('\\', '/')
-        attrs['rt_nim_jobID'] = jobid
-        attrs['rt_nim_shoxID'] = shoxid
-        attrs['rt_nim_shotID'] = shotid
+        attrs['rt_nim_job']     = job
+        attrs['rt_nim_jobID']   = jobid
+        attrs['rt_nim_show']    = show
+        attrs['rt_nim_showID']  = showid
+        attrs['rt_nim_shot']    = shot
+        attrs['rt_nim_shotID']  = shotid
+        attrs['rt_nim_asset']   = asset
         attrs['rt_nim_assetID'] = assetid
-        attrs['rt_nim_fileID'] = fileid
+        attrs['rt_nim_fileID']  = fileid
     else:
-        attrs['rt_renderscene'] = renderscene
+        attrs['rt_renderscene']     = renderscene
         attrs['rt_out_renderscene'] = getJobOutputRenderScenePath( renderscene, outputpath )
-        attrs['rt_nim_jobID'] = jobid
-        attrs['rt_nim_shoxID'] = shoxid
-        attrs['rt_nim_shotID'] = shotid
+        attrs['rt_nim_job']     = job
+        attrs['rt_nim_jobID']   = jobid
+        attrs['rt_nim_show']    = show
+        attrs['rt_nim_showID']  = showid
+        attrs['rt_nim_shot']    = shot
+        attrs['rt_nim_shotID']  = shotid
+        attrs['rt_nim_asset']   = asset
         attrs['rt_nim_assetID'] = assetid
-        attrs['rt_nim_fileID'] = fileid
+        attrs['rt_nim_fileID']  = fileid
         
 
     return attrs
