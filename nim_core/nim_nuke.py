@@ -140,24 +140,22 @@ def set_vars( nim=None ) :
     taskfound = False
     for task in tasks:
         if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(knobCmds[3]):
-            # nuke.tprint("Found task %s for this scene"%task['taskName'])
-            # nuke.tprint(task)
             PS.knob('nim_task').setValue(str(task['taskName']))
             PS.knob('nim_taskID').setValue(int(task['taskID']))
-            # nuke.tprint( Api.taskTypes())
-            # for taskstype in Api.taskTypes():
-                # if taskstype['ID'] == task['taskID']:
-                    # PS.knob('nim_taskFolder').setValue(int(task['task']))
             taskfound = True
             break
     if not taskfound :
         # hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
-        nuke.tprint("Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot')))
-        PS.knob('nim_task').setValue('')
-        PS.knob('nim_taskID').setValue(0)
-        msg = "Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot'))
-        nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
-        # PS.knob('nim_taskFolder').setValue('')
+        taskid = createNIMTaskForRender( PS )
+        if taskid:
+            PS.knob('nim_task').setValue(nim.name('task'))
+            PS.knob('nim_taskID').setValue(taskid)
+        else:
+            PS.knob('nim_task').setValue('')
+            PS.knob('nim_taskID').setValue(0)
+            msg = "Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot'))
+            nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+            # PS.knob('nim_taskFolder').setValue('')
 
     
     P.info( 'Done setting Nuke Vars.' )
@@ -271,6 +269,7 @@ def check_vars():
     # nuke.tprint("Search for task:%s, for user %s"%(nimdata.ID('task'), nimdata.ID('user')))
     #  Get Project Settings Node :
     # TODO: refactor this in a function so all apps use the same code to check tasks
+    # TODO: use function in API
     PS=nuke.root()
     taskName = PS.knob('nim_task').value()
     taskID = str(int(PS.knob('nim_taskID').value()))
@@ -562,6 +561,28 @@ def isInsideGroupOrGizmo( node ):
     parent = node.parent()
     return type(parent) == nuke.Gizmo or type(parent) == nuke.Group
 
+def hasNIMData( root ):
+    '''
+    Detect if the current script has NIM information
+
+    Parameters
+    ----------
+    root : node
+        Nuke's root node
+
+    Returns
+    -------
+    bool
+        True if script has NIM data, otherwise False
+    '''
+    if root is None:
+        return False
+    if root is not None and root.knob('nim_compPath') is None:
+        nuke.tprint("Script %s doesn't have NIM information"%root.name())
+        return False
+    return True
+
+
 def saveRenderScene (renderscene=''):
     '''
     Make snapshot of this nuke script for rendering.    
@@ -695,6 +716,82 @@ def restoreRenderingSetup( writeNode ):
     
     return True
 
+def getNIMTaskForRender( root ):
+    '''
+    Looking at the NIM data, check if there is a task of the type specified in the NIM data for the
+    user who published the file in the Asset/Shot this script has been saved to
+
+    Parameters
+    ----------
+    root : node
+        Nuke's root node
+
+    Returns
+    -------
+    int
+        Task ID if a task exists otherwise False
+    '''
+    tab        = root.knob('nim_tab').value()
+    task       = root.knob('nim_type').value()
+    taskTypeID = root.knob('nim_typeID').value()
+    user       = root.knob('nim_user').value()
+    userID     = root.knob('nim_userID').value()
+    entity     = root.knob('nim_shot').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_asset').value()
+    entityID   = root.knob('nim_shotID').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_assetID').value()
+    tasks      = Api.get_taskInfo( itemClass=tab.lower(), itemID=entityID )
+    taskfound  = False
+    for task in tasks:
+        if int(task['typeID']) == taskTypeID and int(task['userID']) == userID:
+            return int(task['taskID'])
+            taskfound = True
+    return False
+
+
+def createNIMTaskForRender( root ):
+    '''
+    Looking at the NIM data, create a task of the type specified in the NIM data for the
+    user who published the file in the Asset/Shot this script has been saved to
+
+    Parameters
+    ----------
+    root : node
+        Nuke's root node
+
+    Returns
+    -------
+    bool
+        True if a task already exists or has been created correctly, otherwise False
+    '''
+    if not hasNIMData(root):
+        return False
+    taskID = getNIMTaskForRender( root )
+    if not taskID:
+        tab      = root.knob('nim_tab').value()
+        task     = root.knob('nim_task').value()
+        taskID   = root.knob('nim_taskID').value()
+        user     = root.knob('nim_user').value()
+        userID   = root.knob('nim_userID').value()
+        entity   = root.knob('nim_shot').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_asset').value()
+        entityID = root.knob('nim_shotID').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_assetID').value()
+        res      = nuke.ask("Couldn't find a task of type %s in %s %s for %s.\nTo publish renders correctly a task must be created. Do you want to proceed?"%(task, root.knob('nim_tab').value().lower(), entity, user))
+        if res:
+            # Create task
+            taskres = Api.add_task( assetID=entityID if tab == 'ASSET' else None, shotID=entityID if tab == 'SHOT' else None,
+                                   taskTypeID=taskID, userID=int(userID), taskStatusID=2) 
+            if taskres['success'] != 'true':
+                nuke.error("Error creating task of type %s in %s %s for %s.\nPlease contact production to get the task created for you or our #support channel"%(task, root.knob('nim_tab').value().lower(), entity, user))
+                return False
+            else:
+                nuke.message("Task successfully created!")
+                # return int(taskres['taskID'])
+                return int(taskres['ID'])
+        else:
+            # Abort
+            return False
+    else:
+        return taskID
+
+    pass
 
 #  Create Custom NIM Node :
 #===-----------------------------------

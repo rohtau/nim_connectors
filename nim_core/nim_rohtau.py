@@ -1114,6 +1114,12 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         return res
     else:
         pid = int(pid)
+
+    if not nim.ID( elem='task' ):
+        res['success'] = False
+        res['msg'] = "Couldn't find a task to publish for given user user. Please ensure there is a task for the user in the shot/asset."
+        nimP.error(res['msg'])
+        return res if not plain and not jsonout else False
     pubtask = nimUtl.getuserTask( userid, tasktype=int(nim.ID( elem='task' )), parent=nim.tab().lower(), parentID=pid) 
     '''
     tasks = nimAPI.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
