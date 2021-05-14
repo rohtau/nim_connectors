@@ -849,6 +849,7 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     path = os.path.join( loc, filename )
     if len(subfolder):
         path = os.path.join( loc, subfolder, filename )
+        loc = os.path.join( loc, subfolder )
     if platform.system() == 'Windows' and force_posix:
         path = toPosix( path )
         loc  = toPosix( loc )
