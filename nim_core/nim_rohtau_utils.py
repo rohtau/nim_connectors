@@ -160,7 +160,8 @@ def getjobIdNumberTuple(job):
     """
     jobnumber = job
     jobid = -1
-    if isinstance(job, int) or (hasattr(job, 'isnumeric') and job.isnumeric()):
+    # if isinstance(job, int) or (hasattr(job, 'isnumeric') and job.isnumeric()):
+    if isinstance(job, int) or (isinstance(job, str) and job.isdigit()):
         jobnumber = getjobNumberFromId(job)
         jobid = int(job)
         if not jobnumber:

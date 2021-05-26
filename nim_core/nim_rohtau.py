@@ -578,6 +578,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         os.environ.update(thinkboclivenv)
     if not runAsyncCommand( cmd ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
+        return False
     
     return outdraft
 
@@ -974,7 +975,7 @@ def createRenderIcon( elementInfo ):
     iconname = rendername + ".jpg"
     iconpath = os.path.join(tempfile.gettempdir(), iconname)
     print("Create icon from: %s"%middlepath)
-    print("Crete icon at: %s"%iconpath)
+    print("Create icon at: %s"%iconpath)
 
     # XXX: careful here these paths to dpython are harcoded. This will be a
     # problem someday ...
@@ -1404,7 +1405,7 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
             # Get shot or asset name from filename
             parentID = fileparts['shot']
 
-        if not isinstance(parentID, int) and not parentID.isnumeric():
+        if not isinstance(parentID, int) and not ( isinstance(parentID, str) and parentID.isdigit() ):
             if not jobid:
                 log("If parent is defined as a name, a job number or ID need to be provided")
                 return False
@@ -1422,7 +1423,7 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
             if parent.upper() == 'SHOT':
                 parentname = nimAPI.get_shotInfo( shotID=id)[0]['shotName']
             else:
-                parentname = nimAPI.get_assetInfo( shotID=id)[0]['assetName']
+                parentname = nimAPI.get_assetInfo( assetID=id)[0]['assetName']
 
 
         # Check naming convention, if shot/asset name in basename doesn't match provided parentname then error
