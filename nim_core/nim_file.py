@@ -575,21 +575,29 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
 
 
 # selected can be removed or deprecated
-def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
+def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
     '''
     Versions up a file - Does NOT add it to the NIM API. 
     Work out new file path and projDir, but not save any file and not create anything in the file system.
     That is for verUpsaveFile()
 
-    Keyword Arguments:
-        nim      {nim Dict}: NIM dictionarywit publishing info (default: {None})
-        padding  {int}     : Version number padding (default: {2})
-        selected {bool}    : Whether or not save only selected (default: {False})
-        pub      {bool}    : Is this a publishing (default: {False})
-        symLink  {bool}    : Whether or not do symlink when publishing (default: {True})
+    Parameters
+    ---------
+        nim :  nim Dict
+            NIM dictionarywit publishing info (default: {None})
+        padding :   int 
+            Version number padding (default: {2})
+        selected :  bool 
+            Whether or not save only selected (default: {False})
+        pub :     bool  
+            Is this a publishing (default: {False})
+        symLink :  bool   
+            Whether or not do symlink when publishing (default: {True})
 
-    Returns:
-        dict : {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
+    Returns
+    -------
+        dict 
+            {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
 
     '''
 
@@ -668,15 +676,27 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         verNum=int(ver_baseInfo)+1
     else :
         verNum=1
+    # Double check if there is a file with a greater version than the published
+    # one
     try :
         for f in [f for f in os.listdir(fileDir) if os.path.isfile(os.path.join(fileDir, f))] :
-            verSrch=re.search( basename+'_v[0-9]+', f )
+            verSrch=re.search( basename+'__v[0-9]+', f )
             if verSrch :
                 numSrch=re.search( '[0-9]+$', verSrch.group() )
                 if numSrch :
                     if int(numSrch.group()) >verNum :
                         verNum=int(numSrch.group())
     except : pass
+
+    if version and version > verNum:
+        verNum = version # Increment to explicit version
+    elif version:
+        msg = "Error updating scene version. An explicit version up was set, %d.\n"%version
+        msg += "But the latest available version if greater or equal: %d"%verNum
+        msg += "Please set a version greater than the latest available"
+        P.error( msg )
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
 
     nim.set_version( version=str(verNum) )
     

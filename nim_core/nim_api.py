@@ -2631,8 +2631,31 @@ def get_verInfo( verID=None, username=None ) :
     result = connect( method='get', params=params )
     return result
 
-def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
-    'NIM Connector Function used to save/publish/version up files'
+def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
+    '''
+    NIM Connector Function used to save/publish/version up files
+    The version parameter can be used to explicitelly force to save under a particular version
+
+    Parameters
+    ----------
+    nim : NIM object
+        NIM object with all the publishing data
+    padding : int
+        Padding length
+    selected : bool
+        Save only selected
+    pub : bool
+        Save file as a published version
+    symLink : bool
+        Create symlinks for published file
+    version : int
+        Force to save under this version. If 0 (default) save using next available version
+
+    Returns
+    -------
+    bool
+        True if everything went fine
+    '''
     user, job, asset, show, shot, basename, task='', '', '', '', '', '', ''
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
@@ -2718,7 +2741,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file
-    verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink )
+    verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink, version=version )
     filePath = verUpResult['filepath']
     projPath = verUpResult['projpath']
     verUpNim = verUpResult['nim']
