@@ -659,7 +659,7 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
     attrs = {}
     try:
         if PS is not None and PS.knob('nim_compPath') is not None:
-            nuke.tprint("Calling to getEXRMetadataAttrsDict with all the publish info")
+            # nuke.tprint("Calling to getEXRMetadataAttrsDict with all the publish info")
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), job=PS.knob('nim_job').value().split()[0], jobid=int(PS.knob('nim_jobID').value()),
                                                   show=PS.knob('nim_show').value(), showid=int(PS.knob('nim_showID').value()), shot=PS.knob('nim_shot').value(), 
                                                   shotid=int(PS.knob('nim_showID').value()), asset=PS.knob('nim_asset').value(),
