@@ -21,6 +21,7 @@ import re
 import time
 # from pathlib import PurePath
 from pprint import pprint
+from pprint import pformat
 from itertools import groupby
 
 if sys.version_info >= (3, 0):
@@ -649,11 +650,37 @@ def getuserTask(userid, tasktype, parent, parentID):
         return False
 
     tasks = nimAPI.get_taskInfo(itemClass=parent.lower(), itemID=parentID)
+    # import nuke
+    # nuke.tprint("Tasks:")
+    # nuke.tprint(pformat(tasks))
+    # nuke.tprint("Look for task type ID: %d for userID: %d"%(tasktypeID, userid))
+    # print("Tasks:")
+    # print(pformat(tasks))
+    # print("Look for task type ID: %d for userID: %d"%(tasktypeID, userid))
     for task in tasks:
         if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
             return task
 
     return False
+
+def createTaskFromFilepath(path, user):
+    '''
+    Search for a task for an user in a shot or asset
+
+    Parameters
+    ----------
+    path : str
+        Path t oscene to get task from
+    user : str
+        User name to create the task for
+
+    Returns
+    -------
+    bool
+        True if task for user already exists or has been created. False if creation failed
+    '''
+    print("Create task from %s for %s"%(path, user))
+
 
 #
 # Elements

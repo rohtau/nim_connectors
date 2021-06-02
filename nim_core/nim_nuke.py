@@ -24,6 +24,7 @@ from . import nim_api as Api
 from . import nim_print as P
 from . import nim as Nim
 from . import nim_rohtau as nimRt
+from . import nim_rohtau_utils as nimUtl
 
 
 from .import version 
@@ -767,23 +768,26 @@ def createNIMTaskForRender( root ):
     taskID = getNIMTaskForRender( root )
     if not taskID:
         tab      = root.knob('nim_tab').value()
-        task     = root.knob('nim_task').value()
-        taskID   = root.knob('nim_taskID').value()
+        task     = root.knob('nim_type').value()
         user     = root.knob('nim_user').value()
         userID   = root.knob('nim_userID').value()
         entity   = root.knob('nim_shot').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_asset').value()
         entityID = root.knob('nim_shotID').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_assetID').value()
-        res      = nuke.ask("Couldn't find a task of type %s in %s %s for %s.\nTo publish renders correctly a task must be created. Do you want to proceed?"%(task, root.knob('nim_tab').value().lower(), entity, user))
+        res      = nuke.ask("Couldn't find a task of type %s in %s %s for %s.\nTo publish renders correctly a task must be created. Do you want to create a %s task for you?"%(task, root.knob('nim_tab').value().lower(), entity, user, task))
         if res:
             # Create task
+            taskTypeId = nimUtl.gettaskTypesIdFromName( task )
+            msg = "%s task created by %s when opening scene"%(task, user)
             taskres = Api.add_task( assetID=entityID if tab == 'ASSET' else None, shotID=entityID if tab == 'SHOT' else None,
-                                   taskTypeID=taskID, userID=int(userID), taskStatusID=2) 
+                                   taskTypeID=taskTypeId, userID=int(userID), taskStatusID=2, description=msg) 
             if taskres['success'] != 'true':
                 nuke.error("Error creating task of type %s in %s %s for %s.\nPlease contact production to get the task created for you or our #support channel"%(task, root.knob('nim_tab').value().lower(), entity, user))
                 return False
             else:
                 nuke.message("Task successfully created!")
+                P.info("Task %s created for %s: %d"%(task, user, int(taskres['ID']) ))
                 # return int(taskres['taskID'])
+                nuke.tprint(pformat(taskres))
                 return int(taskres['ID'])
         else:
             # Abort

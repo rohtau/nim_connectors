@@ -2465,6 +2465,46 @@ class GUI(QtGui.QMainWindow) :
                 'file path doesn\'t exist on disk...\n    %s\n    Shot not set.' % os.path.normpath( filePath ) )
             return False
         
+        # Check if task exist, if not then offer option to create new task
+        # Try to find a valid task for the task type and user in the shot/asset
+        userInfo = self.nim.userInfo()
+        task     = self.nim.name('task').encode('ascii')
+        taskid   = int(self.nim.ID('task').encode('ascii'))
+        # taskid   = nimUtl.gettaskTypesIdFromName( task )
+        pubtask  = nimUtl.getuserTask(int(userInfo['ID']), taskid, self.nim.tab().lower(), self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.ID('asset'))
+        if not pubtask:
+            msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
+            P.warning( msg )
+            res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+            if res == 'OK':
+                msg = "%s task created by %s when opening scene"%(task, userInfo['name'])
+                now = datetime.now()
+                start = now.isoformat()
+                starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+                end = now + timedelta(days=5)
+                endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+                taskres = Api.add_task( assetID=self.nim.ID('asset') if self.nim.tab().upper() == 'ASSET' else None, shotID=self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else None,
+                                       taskTypeID=taskid, userID=int(userInfo['ID']), taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+                # pprint(taskres)
+                if taskres['success'] != 'true':
+                    msg = "Couldn't create task %s for %s in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
+                    P.error(msg)
+                    Win.popup( title='NIM - Save Error', msg=msg )
+                    return False
+                else:
+                    msg = "Task %s for %s created in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
+                    P.info(msg)
+                    Win.popup( title='NIM - Save', msg=msg )
+
+            else:
+                msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, userInfo['name'])
+                P.error(msg)
+                Win.popup( title='NIM - Save Error', msg=msg )
+                return False
+
+        # import nuke
+        # nuke.tprint("NIM Dict before Open")
+        # nuke.tprint(pformat(self.nim.get_nim()))
         
         #  Maya :
         if self.app=='Maya' :
@@ -2794,7 +2834,7 @@ class GUI(QtGui.QMainWindow) :
             P.warning( msg )
             res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
             if res == 'OK':
-                msg = "%s task created by %s on scene creation"%(task, userInfo['name'])
+                msg = "%s task created by %s when saving scene"%(task, userInfo['name'])
                 now = datetime.now()
                 start = now.isoformat()
                 starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
@@ -2802,12 +2842,17 @@ class GUI(QtGui.QMainWindow) :
                 endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
                 taskres = Api.add_task( assetID=self.nim.ID('asset') if self.nim.tab().upper() == 'ASSET' else None, shotID=self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else None,
                                        taskTypeID=taskid, userID=int(userInfo['ID']), taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
-                pprint(taskres)
+                # pprint(taskres)
                 if taskres['success'] != 'true':
                     msg = "Couldn't create task %s for %s in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
                     P.error(msg)
                     Win.popup( title='NIM - Save Error', msg=msg )
                     return False
+                else:
+                    msg = "Task %s for %s created in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
+                    P.info(msg)
+                    Win.popup( title='NIM - Save', msg=msg )
+
             else:
                 msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, userInfo['name'])
                 P.error(msg)
