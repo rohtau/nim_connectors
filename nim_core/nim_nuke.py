@@ -773,7 +773,7 @@ def createNIMTaskForRender( root ):
         userID   = root.knob('nim_userID').value()
         entity   = root.knob('nim_shot').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_asset').value()
         entityID = root.knob('nim_shotID').value() if root.knob('nim_tab').value() == 'SHOT' else root.knob('nim_assetID').value()
-        res      = nuke.ask("Couldn't find a task of type %s in %s %s for %s.\nTo publish renders correctly a task must be created. Do you want to proceed?"%(task, root.knob('nim_tab').value().lower(), entity, user))
+        res      = nuke.ask("Couldn't find a task of type %s in %s %s for %s.\nTo publish renders correctly a task must be created. Do you want to create a %s task for you?"%(task, root.knob('nim_tab').value().lower(), entity, user, task))
         if res:
             # Create task
             taskres = Api.add_task( assetID=entityID if tab == 'ASSET' else None, shotID=entityID if tab == 'SHOT' else None,
@@ -783,6 +783,7 @@ def createNIMTaskForRender( root ):
                 return False
             else:
                 nuke.message("Task successfully created!")
+                info("Task %s created for %s: %d"%(task, user, int(taskres['ID']) ))
                 # return int(taskres['taskID'])
                 return int(taskres['ID'])
         else:
