@@ -52,7 +52,7 @@ def set_vars( nim ) :
     P.info( '\nHoudini - Setting Globals variables...' )
 
     if nim is None:
-        raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publing information into hip file")
+        raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publising information into hip file")
 
     # help(nim)
     # print("================================")
@@ -100,6 +100,19 @@ def set_vars( nim ) :
     h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
     h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
     # Try to find a valid task for the task type and user in the shot/asset
+    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    if not pubtask:
+        h_root.setUserData("nim_task", '')
+        h_root.setUserData("nim_taskID", '0') 
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Error)
+        hou.ui.displayMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), title='Scene publish error', 
+                              help='Please create a task for this scene from the rohtau menu', 
+                              details='If there is no valid task for this scene, any publishing, like reneders or caches will fail', 
+                              severity= hou.severityType.Error)
+    else:
+        h_root.setUserData("nim_task", str(pubtask['taskName']))
+        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    '''
     pubtask = Utl.getuserTask(int(userInfo['ID']), int(nim.ID(elem='task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if pubtask:
         h_root.setUserData("nim_task", str(pubtask['taskName']))
@@ -118,6 +131,7 @@ def set_vars( nim ) :
         hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
         h_root.setUserData("nim_task", '')
         h_root.setUserData("nim_taskID", '0') 
+    '''
 
     
     P.info("Publishing information added to HIP")

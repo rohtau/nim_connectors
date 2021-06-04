@@ -26,6 +26,7 @@ import stat
 from glob import glob
 from subprocess import Popen
 from datetime   import datetime
+from datetime   import timedelta
 from pprint     import pprint
 from pprint     import pformat
 builtin_mod_available = True
@@ -42,11 +43,13 @@ if sys.version_info >= (3,0):
     from . import nim_api            as nimAPI
     from . import nim_rohtau_utils   as nimUtl
     from . import nim_print          as nimP
+    from . import nim_win as Win
 else:
     import nim                as Nim
     import nim_api            as nimAPI
     import nim_rohtau_utils   as nimUtl
     import nim_print          as nimP
+    import nim_win as Win
 
 #  Variables :
 from .import version 
@@ -220,7 +223,6 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
        folder =  basepaths[elementname].replace(basepath + '/', '')
     else:
         # Put non special elements under the pub folder
-        # XXX: Mmm why Im not adding the pub part, this is wrong I think
         folder = "pub/%s"%elementname
         # folder = elementname
 
@@ -1011,6 +1013,102 @@ def createRenderIcon( elementInfo ):
     
     return iconpath
 
+
+def pubTask( nim=None, filepath=None, user=None ):
+    '''
+    Create a task needed for publishing. If a valid task for publishing already exists it will be returned.
+
+    Any item publishing requires a valid task for the user at the entity we are publishing to, SHOT or ASSET.
+    For instance publishing a scene using Save As from the NIM menu requires a valid task, publishing a render or publishing a 
+    geo cache.
+
+    This functions is called at these stages:
+        - During Save As in NIM
+        - In reserve and publish stage on the host application prior to publish
+        an element.
+
+    Parameters
+    ----------
+    nim : NIM object
+        If a NIM object is passed the publishing task will be derived from it
+    filepath : str
+        If no NIM object is passed but a filepath is provided we will use it  to derive a NIM object from it and get the publishing task.
+    user : str
+        User name to be used for publishing. If this is not passed but a NIM object is provided we will get the user from the NIM object.
+        Is mandatory if we pass a filepath.
+
+    Returns
+    -------
+    dict
+        Dictionary with all the publishing task info or False.
+    '''
+    nimFromFile = nim is None
+    if not nim and filepath:
+        nim = Nim.NIM().ingest_filePath( filepath )
+    task    = nim.name('task')
+    taskid  = nim.ID('task')
+    if not task:
+        msg = "Couldn't detect a task from provided %s"%("NIM object", "path: %s"%filepath)[nimFromFile]
+        P.error(msg)
+        Win.popup( title='NIM - Save Error', msg=msg )
+        return False
+
+    tab      = nim.tab()
+    if not user:
+        user = nim.name('user')
+        userID = nim.ID('user')
+    else:
+        userID   = nimUtl.getUserID( user )
+    entity   = nim.name('shot') if tab == 'SHOT' else nim.name('asset')
+    entityID = nim.ID('shot') if tab == 'SHOT' else nim.ID('asset')
+
+    pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
+    msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, tab.lower(), entity, user)
+    nimP.warning( msg )
+    res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+    if res == 'OK':
+        msg = "%s task created by %s from %s"%(task, user, nim.app())
+        now = datetime.now()
+        start = now.isoformat()
+        starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        end = now + timedelta(days=5)
+        endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        taskres = nimAPI.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab.upper() == 'SHOT' else None,
+                                taskTypeID=taskid, userID=userID, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+        # pprint(taskres)
+        if taskres['success'] != 'true':
+            msg = "Couldn't create task %s for %s in %s %s"%(task, user, tab.lower(), entity )
+            nimP.error(msg)
+            Win.popup( title='NIM - Task Error', msg=msg )
+            return False
+        else:
+            msg = "Task %s for %s created in %s %s"%(task, user, tab.lower(), entity )
+            nimP.info(msg)
+            Win.popup( title='NIM - Task', msg=msg )
+            pprint(taskres)
+            # TODO: update pubtask here
+            pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))
+
+    else:
+        msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, user)
+        nimP.error(msg)
+        Win.popup( title='NIM - Task Warning', msg=msg )
+        return False
+
+    # With pub task check if we need to update the NIM object or the passed
+    # scene vars
+    if nimFromFile:
+        # Update scene vars
+        # Nuke
+        # Houdini
+        pass
+    else:
+        # Update  NIM object
+        pass
+    
+    return pubtask
+
+
 def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
@@ -1106,8 +1204,11 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         myuser = nimAPI.get_user()
         userid = int(nimAPI.get_userID(myuser))
 
-    # Get task
+    # Get publish task
+    # TODO: use nimRt.pubTask()
     # Try to find a valid task for the task type and user in the shot/asset
+    # this step will ensure a valid task for the publish item and user exists in
+    # the shot/asset
     if not nim.ID( elem='task' ):
         res['msg'] = "couldn't find a supported task in the path: %s"%path
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
@@ -1116,13 +1217,21 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         return res
     else:
         pid = int(pid)
+    pubtask = nimRt.pubTask( nim )
+    if not pubtask:
+        res['success'] = False
+        res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo['name'], nim.name('task'))
+        nimP.error(res['msg'])
+        return res if not plain and not jsonout else False
 
+    '''
     if not nim.ID( elem='task' ):
         res['success'] = False
         res['msg'] = "Couldn't find a task to publish for given user user. Please ensure there is a task for the user in the shot/asset."
         nimP.error(res['msg'])
         return res if not plain and not jsonout else False
     pubtask = nimUtl.getuserTask( userid, tasktype=int(nim.ID( elem='task' )), parent=nim.tab().lower(), parentID=pid) 
+    '''
     '''
     tasks = nimAPI.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     pubtask = None

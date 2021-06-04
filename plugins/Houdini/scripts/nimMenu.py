@@ -30,6 +30,8 @@ import nim_core.nim_api as nimAPI
 import nim_core.nim_file as nimFile
 import nim_core.nim_win as nimWin
 import nim_core.nim_houdini as nimHoudini
+import nim_core.nim_rohtau as nimRt
+import nim_core.nim_rohtau_utils as nimUtl
 from nim_core import padding
 
 reload(nimUI)
@@ -86,6 +88,19 @@ def resetPublishInfo():
     hou.ui.setStatusMessage( "NIM: Reset HIP Publish Information")
     nimHoudini.reset_vars()
 
+def rtCreateTaskForScript():
+    '''
+    Create an appropriate task in the shot/asset for this user according with the task used by the script filename
+    
+    Returns
+    -------
+    bool
+        True if task was created correctly or if it already exists. False if task creation failed
+    '''
+    return nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+
+
+
 if action == 'open':
 	openFileAction()
 
@@ -118,3 +133,6 @@ if action == 'dump':
 
 if action == 'reset':
 	resetPublishInfo()
+
+if action == 'task':
+	rtCreateTaskForScript()

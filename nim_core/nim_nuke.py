@@ -101,7 +101,6 @@ def set_vars( nim=None ) :
         knob.setEnabled( True )
     
     #  Create Knobs :
-    # TODO: missing pub entries: Server Path, Server ID, Basename, Task Name, Task ID, Task Folder/type, Version
     for x in range(len(knobNames)) :
         if not PS.knob( knobNames[x] ) :
             n = None
@@ -137,6 +136,18 @@ def set_vars( nim=None ) :
         knob.setFlag(nuke.READ_ONLY)
 
     # Try to find a valid task for the task type and user in the shot/asset
+    pubtask  = nimUtl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    if not pubtask:
+        PS.knob('nim_task').setValue('')
+        PS.knob('nim_taskID').setValue(0)
+        msg = "Couldn't find a %s task for %s in %s"%(nim.name('task'), nim.userInfo()['name'], nim.name('shot'))
+        nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+    else:
+        PS.knob('nim_task').setValue(pubtask['taskName'])
+        PS.knob('nim_taskID').setValue(pubtask['taskID'])
+
+
+    '''
     tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     taskfound = False
     for task in tasks:
@@ -157,6 +168,7 @@ def set_vars( nim=None ) :
             msg = "Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot'))
             nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
             # PS.knob('nim_taskFolder').setValue('')
+    '''
 
     
     P.info( 'Done setting Nuke Vars.' )

@@ -680,7 +680,49 @@ def createTaskFromFilepath(path, user):
     bool
         True if task for user already exists or has been created. False if creation failed
     '''
-    print("Create task from %s for %s"%(path, user))
+    nimdata = Nim.NIM().ingest_filePath( filepath )
+    task    = nimdata.name('task')
+    taskid  = nimdata.ID('task')
+    if not task:
+        msg = "Couldn't detect a task from path: %s"%path
+        P.error(msg)
+        Win.popup( title='NIM - Save Error', msg=msg )
+        return False
+
+    tab      = nimdata.tab()
+    userID   = getUserID( user )
+    entity   = nimdata.name('shot') if tab == 'SHOT' else nimdata.name('asset')
+    entityID = nimdata.ID('shot') if tab == 'SHOT' else nimdata.ID('asset')
+
+    pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
+    msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
+    P.warning( msg )
+    res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+    if res == 'OK':
+        msg = "%s task created by %s from %s"%(task, user, nimdata.app())
+        now = datetime.now()
+        start = now.isoformat()
+        starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        end = now + timedelta(days=5)
+        endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        taskres = Api.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab().upper() == 'SHOT' else None,
+                                taskTypeID=taskid, userID=userID, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+        # pprint(taskres)
+        if taskres['success'] != 'true':
+            msg = "Couldn't create task %s for %s in %s %s"%(task, user, tab.lower(), entity )
+            P.error(msg)
+            Win.popup( title='NIM - Save Error', msg=msg )
+            return False
+        else:
+            msg = "Task %s for %s created in %s %s"%(task, user, tab.lower(), entity )
+            P.info(msg)
+            Win.popup( title='NIM - Save', msg=msg )
+
+    else:
+        msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, user)
+        P.error(msg)
+        Win.popup( title='NIM - Save Error', msg=msg )
+        return False
 
 
 #
