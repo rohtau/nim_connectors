@@ -99,6 +99,16 @@ def set_vars( nim ) :
     h_root.setUserData("nim_compPath", str(nim.compPath())) 
     h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
     h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
+    # Try to check a valid task for the task type and user in the shot/asset
+    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    if not pubtask:
+        h_root.setUserData("nim_task", '')
+        h_root.setUserData("nim_taskID", '0') 
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
+    else:
+        h_root.setUserData("nim_task", str(pubtask['taskName']))
+        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    '''
     # Try to find a valid task for the task type and user in the shot/asset
     pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
@@ -112,6 +122,7 @@ def set_vars( nim ) :
     else:
         h_root.setUserData("nim_task", str(pubtask['taskName']))
         h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    '''
     '''
     pubtask = Utl.getuserTask(int(userInfo['ID']), int(nim.ID(elem='task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if pubtask:

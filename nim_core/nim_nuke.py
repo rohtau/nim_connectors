@@ -141,7 +141,8 @@ def set_vars( nim=None ) :
         PS.knob('nim_task').setValue('')
         PS.knob('nim_taskID').setValue(0)
         msg = "Couldn't find a %s task for %s in %s"%(nim.name('task'), nim.userInfo()['name'], nim.name('shot'))
-        nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+        # nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+        P.warning( msg )
     else:
         PS.knob('nim_task').setValue(pubtask['taskName'])
         PS.knob('nim_taskID').setValue(pubtask['taskID'])

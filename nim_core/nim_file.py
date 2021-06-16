@@ -24,11 +24,15 @@ if sys.version_info >= (3,0):
     from . import nim_print as P
     from . import nim_win as Win
     from . import nim as Nim
+    from . import nim_rohtau as Rt
+    from . import nim_rohtau_utils as Utl
 else:
     import nim_api as Api
     import nim_print as P
     import nim_win as Win
     import nim as Nim
+    import nim_rohtau as Rt
+    import nim_rohtau_utils as Utl
     
 from imp import reload
 
@@ -737,6 +741,12 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     temp_filePath=os.path.normpath( os.path.join( fileDir, new_fileName ) )
     new_filePath=os_filePath( path=temp_filePath, nim=nim )
     
+    # Tag. Update tag
+    nameparts = Utl.splitName(new_fileName)
+    nim.set_name('tag', nameparts['tag'])
+
+
+
     #  Construct Render Directory :
     if nim.tab()=='SHOT' and nim.ID('shot') :
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )

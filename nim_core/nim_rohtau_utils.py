@@ -1121,6 +1121,11 @@ def splitName(filename, error=True):
     - tag: Tag (Not Mandatory, name is not mandatory, specially for scene files)
     - ver: Ver as an integer number
 
+    The function also accept pure basename. This is just the basename without version part:
+        [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]
+        [SHOT|ASSET]__[TASK]__[TAG]
+    In this case 'ver' will be 0
+
 
     Parameters
     ----------
@@ -1144,19 +1149,26 @@ def splitName(filename, error=True):
             nimP.warning("Filename not following name convention. Not enough fields: %s" % filename)
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
-    ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
-    if not ver.isdigit():
-        if error:
-            nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
-        else:
-            nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
-        return False
-    fileparts['ver']  = int(ver)
+    ver = 0
+    if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('v'): 
+        # There is version part
+        ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
+        print(ver)
+        if ver is not None and not ver.isdigit():
+            if error:
+                nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+            else:
+                nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+            return False
+        fileparts['ver']  = int(ver)
+        fileparts['tag']  = basenameparts[2] if len(basenameparts) > 3 else "" # tag is not mandatory
+    else:
+        # No version part
+        fileparts['tag']  = basenameparts[-1] if len(basenameparts) > 2 else "" # tag is not mandatory
     fileparts['shot'] = basenameparts[0]
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
     fileparts['elem'] = task.split('_')[1] if task.count('_') else "" # elem is not mandatory
-    fileparts['tag']  = basenameparts[2] if len(basenameparts) > 3 else "" # tag is not mandatory
 
     return fileparts
 
