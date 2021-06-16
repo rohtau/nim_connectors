@@ -2753,6 +2753,14 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  Add file to API :
     # if filePath and os.path.isfile( filePath ) :
     if verUpResult:
+        # Get publishing task
+        with open("C:\\tmp\\nimDic.txt", 'w') as f:
+            f.write(pformat(verUpNim.get_nim()))
+
+        pubtask = Rt.pubTask( nim=verUpNim) 
+        if not pubtask:
+            return False
+
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
         if result_addFile :
             action=''

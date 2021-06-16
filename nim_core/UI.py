@@ -208,6 +208,8 @@ class GUI(QtGui.QMainWindow) :
         self.winTitle=winTitle
         self.complete=False
         self.baseUpdated=False
+        self.appsIcons = {}
+        self.backClrs = {}
         #  Start timer :
         startTime=time.time()
         
@@ -253,6 +255,11 @@ class GUI(QtGui.QMainWindow) :
         #  Make main window widget :
         self.mainWidg=QtGui.QWidget(self)
         self.setCentralWidget( self.mainWidg )
+
+        # Create apps icons and colors
+        if not self.mk_icons_clrs ():
+            return False
+
         
         #  Construct the window :
         self.mk_win()
@@ -355,6 +362,24 @@ class GUI(QtGui.QMainWindow) :
             return True
         else :
             return False
+
+
+    def mk_icons_clrs (self):
+        'Init app icons and several predefined colors'
+        iconsBasePath = os.path.join(os.getenv('NIM_CONNECTOR_ROOT'), 'img')
+        if not os.path.exists(iconsBasePath):
+            P.error("Icons path doesn't exist: %s"%iconsBasePath)
+            return False
+        supportedAppIcons = ('Houdini', 'Nuke', 'Maya', 'Arnold', 'Vray', 'Blender', 'UnrealEngine', 'Fusion')
+        for app in supportedAppIcons:
+            self.appsIcons[app] = QtGui2.QIcon(os.path.join(iconsBasePath, "%s.ico"%app))
+        self.backClrs = {
+            # 'Blue' : QtGui2.QBrush(QtGui2.QColor(62, 62, 140)),
+            # 'Blue' : QtGui2.QBrush(QtGui2.QColor(101, 190, 225)),
+            'Blue' : QtGui2.QBrush(QtGui2.QColor(0, 0, 225)),
+            'Green' : QtGui2.QBrush(QtGui2.QColor(62, 140, 62)),
+        }
+        return True
     
     
     #  GUI Element Creation :
@@ -570,6 +595,7 @@ class GUI(QtGui.QMainWindow) :
         self.verPath=QtGui.QLabel('<path>')
         self.verUser=QtGui.QLabel('<user>')
         self.verDate=QtGui.QLabel('<date>')
+        self.verVer=QtGui.QLabel('<ver>')
         self.verNote=QtGui.QLabel('<comment>')
         self.nim.set_input( elem='comment', widget=QtGui.QLineEdit() )
         #  Add widgets to form :
@@ -577,6 +603,7 @@ class GUI(QtGui.QMainWindow) :
         self.verForm.addRow( 'Path:', self.verPath )
         self.verForm.addRow( 'User:', self.verUser )
         self.verForm.addRow( 'Date:', self.verDate )
+        self.verForm.addRow( 'Version:', self.verVer )
         self.verForm.addRow( 'Comment:', self.verNote )
         self.verForm.addRow( 'Comment:', self.nim.Input('comment') )
         
@@ -752,9 +779,13 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable Basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
@@ -833,9 +864,13 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable Basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
@@ -1106,9 +1141,13 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
@@ -1191,11 +1230,15 @@ class GUI(QtGui.QMainWindow) :
 
     
     #  Update :
-    # FIXME: this is causing an error 
     def populate_elem( self, elem='job', _print=False ) :
         'Populates a given GUI element'
         P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
-        
+        userinfo = self.nim.userInfo()
+
+        # Window modes :
+        # - Open/Import: FILE
+        # - SaveAs: SAVE
+        # print("DEBUG: Window Mode: %s"%self.mode)
         
         #  Clear :
         #===------
@@ -1262,11 +1305,21 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).setEnabled( True )
             self.nim.Input( elem ).clear()
             self.nim.Input( elem ).addItem( 'Select...' )
+            availableTasks = None
             #  Make List of Element Items :
+            if self.mode =='FILE' and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
+                availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  onlyWithFiles=1)
             for option in self.nim.Dict( elem ) :
                 #  Assets, Shots and Tasks :
                 if elem in ['asset', 'shot', 'task'] :
-                    elemList.append( option['name'] )
+                    if elem == 'task' and availableTasks:
+                        nexttask = next((item for item in availableTasks if item["name"] == option['name']), None)
+                        if nexttask:
+                            elemList.append( option['name'] )
+                    else:
+                        elemList.append( option['name'] )
                     #  Store Name, ID and Task Folder :
                     if option['name']==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option['name'] )
@@ -1329,8 +1382,18 @@ class GUI(QtGui.QMainWindow) :
             
             #  Basenames :
             if elem=='base' :
+                initbasefound = False
                 for option in self.nim.Dict( elem ) :
+                    pprint(option)
+                    if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
+                        latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  basename=option['basename'])
+                        if latestver:
+                            latestver = latestver[0]
+                            # pprint(latestver)
                     # Only show Scene files
+                    '''
                     # validbases = []
                     sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script')
                     # for base in bases:
@@ -1342,19 +1405,59 @@ class GUI(QtGui.QMainWindow) :
                         continue
                         # print("Base Info")
                         # pprint(baseinfo)
+                    '''
+                    # FIXME: improve this disabling the entries rather that not
+                    # including them
+                    # if latestver:
+                        # if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
+                            # print("DEBUG: basename %s disabled for this app"%latestver['basename'])
+                            # continue
 
-                    # self.nim[elem]['Dict']=bases
                     #  Populate :
                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                     item.setText( option['basename'] )
-                    if self.nim.name('filter') !='Asset Master' :
-                        item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
-                            | QtCore.Qt.ItemIsEnabled )
-                    #  Select item, if it matches the preferences :
+                    item.setFlags( QtCore.Qt.ItemIsSelectable \
+                                  | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+                    # item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
+                    # item.setFlags( QtCore.Qt.ItemIsEditable )
+                    if latestver:
+                        basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
+                        if basenameapp in self.appsIcons:
+                            item.setIcon( self.appsIcons[basenameapp] )
+                        # TODO: disable entry if basenameapp is not the same as
+                        # self.app
+                        # if self.nim.name('filter') !='Asset Master' :
+                            # item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
+                                # | QtCore.Qt.ItemIsEnabled )
+                        # Only enable basenames for the current host app
+                        if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
+                            print("DEBUG: basename %s disabled for this app"%latestver['basename'])
+                            item.setFlags( QtCore.Qt.NoItemFlags )
+                            # item.setFlags( QtCore.Qt.ItemIsEnabled  )
+                            # item.setFlags( item.flags() & ~QtCore.Qt.ItemIsSelectable )
+                        # Ownership color
+                        if latestver['userID'].encode('ascii') == userinfo['ID']:
+                            item.setBackground(self.backClrs['Green'])
+                        else:
+                            item.setBackground(self.backClrs['Blue'])
+                        tooltip = "Basename: %s\nLatest Version: %s\nComment: %s\nApplication: %s\nOwner: %s"%(latestver['basename'],
+                                                                                                            latestver['version'],
+                                                                                                            latestver['note'],
+                                                                                                            basenameapp,
+                                                                                                            latestver['username'] )
+                        item.setToolTip( tooltip )
+                        item.setStatusTip( tooltip )
+                        item.setWhatsThis( tooltip )
+                        print("DEBUG: Item %s, flags on creation: %s"%(option['basename'], int(item.flags())))
+                    # Init selection
+                    if not initbasefound and  item.flags() & QtCore.Qt.ItemIsSelectable:
+                        self.nim.Input( elem ).setCurrentItem( item )
+                    # Select item, if it matches the preferences :
                     if option['basename']==self.nimPrefs.name( elem ) :
                         self.nim.Input( elem ).setCurrentItem( item )
                         #  Set variables :
                         self.nim.set_name( elem=elem, name=option['basename'] )
+                        initbasefound = True
             
             #  Versions :
             elif elem=='ver' :
@@ -1453,6 +1556,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( fileDir )
                                 self.verUser.setText( '<user>' )
                                 self.verDate.setText( '<date>' )
+                                self.verVer.setText( '<version>' )
                                 self.verNote.setText( '<note>' )
                                 return
                             else :
@@ -1467,6 +1571,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( '<path>' )
                                 self.verUser.setText( '<user>' )
                                 self.verDate.setText( '<date>' )
+                                self.verVer.setText( '<version>' )
                                 self.verNote.setText( '<note>' )
                                 P.warning( 'Sorry, no Asset Master found at the following path:' )
                                 P.warning( '    %s' % filePath )
@@ -1509,6 +1614,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( nimDir )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( '<version>' )
                                     self.verNote.setText( '<note>' )
                                 #self.mk_connections()
                             elif self.nim.mode().lower() in ['open', 'file'] :
@@ -1551,11 +1657,17 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
+                            if option['userID'].encode('ascii') == userinfo['ID']:
+                                item.setBackground(self.backClrs['Green'])
+                            else:
+                                item.setBackground(self.backClrs['Blue'])
+
                             if self.nim.mode().lower() in ['save', 'saveas'] :
                                 item.setFlags( QtCore.Qt.ItemIsEditable )
                             else :
@@ -1582,6 +1694,12 @@ class GUI(QtGui.QMainWindow) :
                                 ext=F.get_ext( filePath=option['filename'] )
                                 if ext !='.hip' :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
+                            tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                        option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                         option['username'] )
+                            item.setToolTip( tooltip )
+                            item.setStatusTip( tooltip )
+                            item.setWhatsThis( tooltip )
                             #  Set from preferences :
                             if option['filename']+' - '+option['note']==self.pref_version and \
                                 self.nim.mode() is not 'publish' :
@@ -1593,6 +1711,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( option['filepath'] )
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
+                                self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
                                 self.verNote.setText( option['note'] )
         
         
@@ -1801,7 +1920,13 @@ class GUI(QtGui.QMainWindow) :
                     if self.nim.Input( elem ).currentItem() :
                         if option['basename']==self.nim.Input( elem ).currentItem().text() :
                             #  Set variables :
+                            nameparts = nimUtl.splitName(self.nim.Input( elem ).currentItem().text())
+                            if nameparts and nameparts['tag']:
+                                self.nim.Input('tag').setText(nameparts['tag'])
                             self.nim.set_name( elem=elem, name=self.nim.Input( elem ).currentItem().text() )
+                            print("Item Flags:")
+                            print(int(self.nim.Input( elem ).currentItem().flags()))
+                '''
                 if self.nim.name('filter') !='Asset Master' :
                     self.nim.Input( elem ).setEnabled( True )
                 else :
@@ -1809,6 +1934,7 @@ class GUI(QtGui.QMainWindow) :
                     for index in range( self.nim.Input('base').count() ) :
                         self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                             | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+                '''
             
             #  Versions :
             elif elem=='ver' :
@@ -1888,6 +2014,7 @@ class GUI(QtGui.QMainWindow) :
                                         self.verPath.setText( option['filepath'] )
                                         self.verUser.setText( option['username'] )
                                         self.verDate.setText( option['date'] )
+                                        self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
                                         self.verNote.setText( option['note'] )
         
         
@@ -2105,8 +2232,8 @@ class GUI(QtGui.QMainWindow) :
     
     def update_tag(self) :
         'Updates the tag string in the main NIM dictionary'
-        #  Update NIM dictionary entry :
-        self.nim.set_name( elem='tag', name=self.nim.Input('tag').text().replace( ' ', '_' ) )
+        # DEPRECATED: no disable basenames, just select if existing tag
+        '''
         #  Disable Basename window if necessary :
         if self.nim.name('tag') :
             self.nim.Input('base').setEnabled( False )
@@ -2120,6 +2247,30 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                     | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
             self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
+        '''
+        tag = self.nim.Input('tag').text().replace( ' ', '_' )
+        if self.nim.name('tag') :
+            # self.nim.Input('base').setEnabled( False )
+            for index in range( self.nim.Input('base').count() ) :
+                nameparts = nimUtl.splitName(self.nim.Input('base').item( index ).text())
+                if nameparts and nameparts['tag']:
+                    if tag  == nameparts['tag']:
+                        if self.nim.Input('base').item( index ).flags() & QtCore.Qt.ItemIsSelectable:
+                            self.nim.Input('base').setCurrentItem(self.nim.Input('base').item( index ))
+                            self.update_elem('base')
+                        else:
+                            # If the tag exists in the basenames list, and that
+                            # basename is not selectable then don't allow to use
+                            # this tag. Reset tag
+                            # FIXME
+                            nimRt.DisplayMessage.get_btn( "Tag %s is not used by a %s basename.\nPlease choose a different tag"%(nameparts['tag'], self.app), 
+                                                         title= 'NIM Save Error')
+                            name=self.nim.Input('tag').clear()
+                            self.nim.set_name( elem='tag', name='' )
+
+        #  Update NIM dictionary entry :
+        self.nim.set_name( elem='tag', tag )
+
         return
     
     
@@ -2173,7 +2324,8 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('filter').activated.connect( lambda: self.update_elem('filter') )
         self.nim.Input('task').activated.connect( lambda: self.update_elem('task') )
         self.nim.Input('base').itemClicked.connect( lambda: self.update_elem('base') )
-        self.nim.Input('tag').textChanged.connect( self.update_tag )
+        # self.nim.Input('tag').textChanged.connect( self.update_tag )
+        self.nim.Input('tag').editingFinished.connect( self.update_tag )
         self.nim.Input('ver').currentItemChanged.connect( lambda: self.update_elem('ver') )
         self.nim.Input('comment').textChanged.connect( self.update_comment )
         self.nim.Input('fileExt').activated.connect( self.update_fileExt )
@@ -2465,50 +2617,6 @@ class GUI(QtGui.QMainWindow) :
                 'file path doesn\'t exist on disk...\n    %s\n    Shot not set.' % os.path.normpath( filePath ) )
             return False
         
-        # DEPRECATED
-        # Only check on save as
-        # Check if task exist, if not then offer option to create new task
-        # Try to find a valid task for the task type and user in the shot/asset
-        '''
-        userInfo = self.nim.userInfo()
-        task     = self.nim.name('task').encode('ascii')
-        taskid   = int(self.nim.ID('task').encode('ascii'))
-        # taskid   = nimUtl.gettaskTypesIdFromName( task )
-        pubtask  = nimUtl.getuserTask(int(userInfo['ID']), taskid, self.nim.tab().lower(), self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.ID('asset'))
-        if not pubtask:
-            msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
-            P.warning( msg )
-            res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
-            if res == 'OK':
-                msg = "%s task created by %s when opening scene"%(task, userInfo['name'])
-                now = datetime.now()
-                start = now.isoformat()
-                starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                end = now + timedelta(days=5)
-                endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                taskres = Api.add_task( assetID=self.nim.ID('asset') if self.nim.tab().upper() == 'ASSET' else None, shotID=self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else None,
-                                       taskTypeID=taskid, userID=int(userInfo['ID']), taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
-                # pprint(taskres)
-                if taskres['success'] != 'true':
-                    msg = "Couldn't create task %s for %s in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
-                    P.error(msg)
-                    Win.popup( title='NIM - Save Error', msg=msg )
-                    return False
-                else:
-                    msg = "Task %s for %s created in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
-                    P.info(msg)
-                    Win.popup( title='NIM - Save', msg=msg )
-
-            else:
-                msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, userInfo['name'])
-                P.error(msg)
-                Win.popup( title='NIM - Save Error', msg=msg )
-                return False
-        '''
-
-        # import nuke
-        # nuke.tprint("NIM Dict before Open")
-        # nuke.tprint(pformat(self.nim.get_nim()))
         
         #  Maya :
         if self.app=='Maya' :
@@ -2840,67 +2948,34 @@ class GUI(QtGui.QMainWindow) :
         elif self.app=='C4D' : ext='.c4d'
         elif self.app=='3dsMax' : ext='.max'
         elif self.app=='Houdini' : ext='.hip'
-        
-        #  Ensure that if tag has been entered, that the Basename doesn't already exist :
-        # FIXME: this is causing problems whe ntrying to save a scene with a
-        # different tag 
-        if self.nim.name('tag') :
-            for item in self.nim.Dict('base') :
-                if item['basename']==basename :
-                    msg='Specified basename, generated by the tag field ("%s"), already exists.\n' % basename
-                    msg+='    Please either select an existing basename, or use a tag that isn\'t already in use.\n'
-                    msg+='    Nothing done.'
-                    P.error( msg )
-                    Win.popup( title='NIM - Tag Error', msg=msg )
-                    return False
-        
+
+        # TODO: ensure that tag is for a basename for the same app type. For
+        # instance dont try to save a Houdini scene on a Nuke basename tag
         
         # Stop Maya Undo Queue
         if self.app=='Maya' :
             mc.undoInfo(openChunk=True)
-        
-        # Check if task exist, if not then offer option to create new task
-        # Try to find a valid task for the task type and user in the shot/asset
-        # DEPRECATED
-        # Use unified function to create or return publishing task form
-        # nim_rohtau
-        pubtask = nimRt.pubTask( nim=self.nim )
-        if not pubtask:
-            return False
-        '''
-        userInfo=self.nim.userInfo()
-        taskid = nimUtl.gettaskTypesIdFromName( task )
-        pubtask = nimUtl.getuserTask(int(userInfo['ID']), taskid, self.nim.tab().lower(), self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.ID('asset'))
-        if not pubtask:
-            msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset'), userInfo['name'])
-            P.warning( msg )
-            res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
-            if res == 'OK':
-                msg = "%s task created by %s when saving scene"%(task, userInfo['name'])
-                now = datetime.now()
-                start = now.isoformat()
-                starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                end = now + timedelta(days=5)
-                endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                taskres = Api.add_task( assetID=self.nim.ID('asset') if self.nim.tab().upper() == 'ASSET' else None, shotID=self.nim.ID('shot') if self.nim.tab().upper() == 'SHOT' else None,
-                                       taskTypeID=taskid, userID=int(userInfo['ID']), taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
-                # pprint(taskres)
-                if taskres['success'] != 'true':
-                    msg = "Couldn't create task %s for %s in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
-                    P.error(msg)
-                    Win.popup( title='NIM - Save Error', msg=msg )
-                    return False
-                else:
-                    msg = "Task %s for %s created in %s %s"%(task, userInfo['name'], self.nim.tab().lower(), self.nim.name('shot') if self.nim.tab().upper() == 'SHOT' else self.nim.name('asset') )
-                    P.info(msg)
-                    Win.popup( title='NIM - Save', msg=msg )
 
-            else:
-                msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, userInfo['name'])
-                P.error(msg)
-                Win.popup( title='NIM - Save Error', msg=msg )
-                return False
-        '''
+        # Save current before Save As:
+        if self.app == "Nuke":
+            # If the Nuke script has been modified, then save it to preserve SG settings.
+            import nuke
+            root = nuke.Root()
+            if root.modified():
+                if root.name() != "Root":
+                    msg = "Script has been modified, do you want to save it before saving it as a different file?"
+                    title='NIM - Save'
+                    buttons = ('Cancel', 'Yes, Save it Please')
+                    ret = nimRt.DisplayMessage.get_btn( msg, title= title, buttons=buttons, default_button=0)
+                    if ret == 1:
+                        nuke.scriptSave( root.name() )
+        elif self.app == 'Houdini':
+            import hou
+            if hou.hipFile.hasUnsavedChanges():
+                if hou.ui.displayMessage( "Scene has been modified, do you want to save it before saving it as a different file?", buttons=( "Yes" , "No" ), title="NIM - Save" ) == 0:
+                    hou.hipFile.save()
+                else:
+                    return False
 
         #  Version up file and add to API :
         # Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
@@ -2926,6 +3001,7 @@ class GUI(QtGui.QMainWindow) :
         return
     
     
+    # DEPRECATED
     def file_verUp(self) :
         'Versions up the file, when the Version Up button is pressed'
         #  Get File Extension :
