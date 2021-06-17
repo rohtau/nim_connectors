@@ -378,6 +378,7 @@ class GUI(QtGui.QMainWindow) :
             # 'Blue' : QtGui2.QBrush(QtGui2.QColor(101, 190, 225)),
             'Blue' : QtGui2.QBrush(QtGui2.QColor(0, 0, 225)),
             'Green' : QtGui2.QBrush(QtGui2.QColor(62, 140, 62)),
+            'Red' : QtGui2.QBrush(QtGui2.QColor(249, 118, 90)),
         }
         return True
     
@@ -571,8 +572,20 @@ class GUI(QtGui.QMainWindow) :
         self.taskForm.addRow( 'Basename:', self.nim.Input('base') )
         
         #  Tag widget :
+        self.tagLabel = QtGui.QLabel("Tag:")
         self.nim.set_input( elem='tag', widget=QtGui.QLineEdit() )
-        self.taskForm.addRow( 'Tag:', self.nim.Input('tag') )
+        self.tagPresets = QtGui.QComboBox()
+        self.tagPresets.addItems(('main', 'slap'))
+        self.tagPresets.setToolTip("Tag names presets")
+        # self.tagPresets.setSizePolicy( QtGui.QSizePolicy.Minimum )
+        #  Create layout :
+        self.tagHLayout=QtGui.QHBoxLayout()
+        #  Add to layout :
+        self.taskForm.addRow(self.tagHLayout)
+        # self.taskForm.addRow( 'Tag:', self.nim.Input('tag') )
+        self.tagHLayout.addWidget(self.tagLabel)
+        self.tagHLayout.addWidget(self.nim.Input('tag'))
+        self.tagHLayout.addWidget(self.tagPresets)
         
         #  Deselect basename button :
         self.btn_deselect=QtGui.QPushButton('Deselect Basenames')
@@ -789,8 +802,11 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
-        self.nim.Input('tag').setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setVisible(True)
+        self.nim.Input('tag').setVisible( True )
+        self.nim.Input('tag').setEnabled( False )
+        self.tagPresets.setVisible(False)
         
         #  Enable Versions :
         self.nim.Input('ver').setEnabled( True )
@@ -874,9 +890,11 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( True )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( True )
+        self.tagLabel.setVisible( True )
         self.nim.Input('tag').clear()
         self.nim.Input('tag').setVisible( True )
+        self.tagPresets.setVisible( True )
         
         #  Disable Versions :
         self.nim.Input('ver').setEnabled( False )
@@ -998,8 +1016,10 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setvisible( False )
         self.nim.Input('tag').setVisible( False )
+        self.tagPresets.setvisible( False )
         
         #  Enable Versions :
         self.nim.Input('ver').setEnabled( True )
@@ -1151,8 +1171,10 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setVisible( False )
         self.nim.Input('tag').setVisible( False )
+        self.tagPresets.setVisible( False )
         
         #  Disable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
@@ -1384,7 +1406,6 @@ class GUI(QtGui.QMainWindow) :
             if elem=='base' :
                 initbasefound = False
                 for option in self.nim.Dict( elem ) :
-                    pprint(option)
                     if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
                         latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
                                                   shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
@@ -1393,25 +1414,10 @@ class GUI(QtGui.QMainWindow) :
                             latestver = latestver[0]
                             # pprint(latestver)
                     # Only show Scene files
-                    '''
-                    # validbases = []
-                    sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script')
-                    # for base in bases:
-                    if self.nim.tab() == 'SHOT':
-                        baseinfo = Api.get_vers(shotID=int(self.nim.ID('shot')), basename=option['basename'])[0]
-                    else:
-                        baseinfo = Api.get_vers(assetID=int(self.nim.ID('asset')), basename=option['basename'])[0]
-                    if baseinfo['customKeys']['File Type'] not in sceneTypes:
-                        continue
-                        # print("Base Info")
-                        # pprint(baseinfo)
-                    '''
-                    # FIXME: improve this disabling the entries rather that not
-                    # including them
-                    # if latestver:
-                        # if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
-                            # print("DEBUG: basename %s disabled for this app"%latestver['basename'])
-                            # continue
+                    if latestver:
+                        sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script', 'Maya Scene')
+                        if latestver['customKeys']['File Type'] not in sceneTypes:
+                            continue
 
                     #  Populate :
                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1431,7 +1437,6 @@ class GUI(QtGui.QMainWindow) :
                                 # | QtCore.Qt.ItemIsEnabled )
                         # Only enable basenames for the current host app
                         if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
-                            print("DEBUG: basename %s disabled for this app"%latestver['basename'])
                             item.setFlags( QtCore.Qt.NoItemFlags )
                             # item.setFlags( QtCore.Qt.ItemIsEnabled  )
                             # item.setFlags( item.flags() & ~QtCore.Qt.ItemIsSelectable )
@@ -1439,7 +1444,7 @@ class GUI(QtGui.QMainWindow) :
                         if latestver['userID'].encode('ascii') == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
                         else:
-                            item.setBackground(self.backClrs['Blue'])
+                            item.setBackground(self.backClrs['Red'])
                         tooltip = "Basename: %s\nLatest Version: %s\nComment: %s\nApplication: %s\nOwner: %s"%(latestver['basename'],
                                                                                                             latestver['version'],
                                                                                                             latestver['note'],
@@ -1448,7 +1453,6 @@ class GUI(QtGui.QMainWindow) :
                         item.setToolTip( tooltip )
                         item.setStatusTip( tooltip )
                         item.setWhatsThis( tooltip )
-                        print("DEBUG: Item %s, flags on creation: %s"%(option['basename'], int(item.flags())))
                     # Init selection
                     if not initbasefound and  item.flags() & QtCore.Qt.ItemIsSelectable:
                         self.nim.Input( elem ).setCurrentItem( item )
@@ -1666,7 +1670,7 @@ class GUI(QtGui.QMainWindow) :
                             if option['userID'].encode('ascii') == userinfo['ID']:
                                 item.setBackground(self.backClrs['Green'])
                             else:
-                                item.setBackground(self.backClrs['Blue'])
+                                item.setBackground(self.backClrs['Red'])
 
                             if self.nim.mode().lower() in ['save', 'saveas'] :
                                 item.setFlags( QtCore.Qt.ItemIsEditable )
@@ -1924,8 +1928,6 @@ class GUI(QtGui.QMainWindow) :
                             if nameparts and nameparts['tag']:
                                 self.nim.Input('tag').setText(nameparts['tag'])
                             self.nim.set_name( elem=elem, name=self.nim.Input( elem ).currentItem().text() )
-                            print("Item Flags:")
-                            print(int(self.nim.Input( elem ).currentItem().flags()))
                 '''
                 if self.nim.name('filter') !='Asset Master' :
                     self.nim.Input( elem ).setEnabled( True )
@@ -2229,6 +2231,12 @@ class GUI(QtGui.QMainWindow) :
 
         return
 
+    def update_tag_from_preset(self):
+        'Update tag field from preset from combo box'
+        presetstr = self.tagPresets.currentText()
+        self.nim.Input('tag').setText(presetstr)
+
+        pass
     
     def update_tag(self) :
         'Updates the tag string in the main NIM dictionary'
@@ -2269,7 +2277,7 @@ class GUI(QtGui.QMainWindow) :
                             self.nim.set_name( elem='tag', name='' )
 
         #  Update NIM dictionary entry :
-        self.nim.set_name( elem='tag', tag )
+        self.nim.set_name( elem='tag', name=tag )
 
         return
     
@@ -2326,6 +2334,7 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').itemClicked.connect( lambda: self.update_elem('base') )
         # self.nim.Input('tag').textChanged.connect( self.update_tag )
         self.nim.Input('tag').editingFinished.connect( self.update_tag )
+        self.tagPresets.activated.connect( self.update_tag_from_preset )
         self.nim.Input('ver').currentItemChanged.connect( lambda: self.update_elem('ver') )
         self.nim.Input('comment').textChanged.connect( self.update_comment )
         self.nim.Input('fileExt').activated.connect( self.update_fileExt )
@@ -2934,7 +2943,10 @@ class GUI(QtGui.QMainWindow) :
             Win.popup( title='NIM - Save Error', msg=msg )
             self.nim.Input('tag').setText(defaultSceneName)
             return False
-        
+        else:
+            #  Update NIM dictionary entry (Just in case) :
+            self.nim.set_name( elem='tag', name=tag )
+
         basename=Api.to_basename( nim=self.nim )
         if self.app=='Maya' : 
             import maya.cmds as mc
@@ -2971,11 +2983,9 @@ class GUI(QtGui.QMainWindow) :
                         nuke.scriptSave( root.name() )
         elif self.app == 'Houdini':
             import hou
-            if hou.hipFile.hasUnsavedChanges():
+            if hou.hipFile.hasUnsavedChanges() and hou.hipFile.basename() != 'untitled.hip':
                 if hou.ui.displayMessage( "Scene has been modified, do you want to save it before saving it as a different file?", buttons=( "Yes" , "No" ), title="NIM - Save" ) == 0:
                     hou.hipFile.save()
-                else:
-                    return False
 
         #  Version up file and add to API :
         # Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )

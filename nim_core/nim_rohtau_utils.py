@@ -641,6 +641,7 @@ def getuserTask(userid, tasktype, parent, parentID):
     dict
         task dictionary or False if error or task not found
     '''
+    # print("User ID: %d, taskID: %d, parent: %s, parentID: %d"%(userid, tasktype, parent, parentID))
     tasktypeID = tasktype
     if isinstance(tasktype, str) and tasktype.isdigit():
         tasktypeID = int(tasktype)

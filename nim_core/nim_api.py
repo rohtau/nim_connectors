@@ -2727,6 +2727,8 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     # nuke.tprint("================================")
     # nuke.tprint("Target NIM settings")
     # nuke.tprint(pformat(nim.get_nim()))
+    # print("Target NIM settings")
+    # print(pformat(nim.get_nim()))
 
     if not shotCheck and not assetCheck :
         msg='Sorry, unable to retrieve Shot/Asset IDs from the current file.'
@@ -2737,6 +2739,34 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         nim.Print()
         Win.popup( title=winTitle+' - Filename Error', msg=msg )
         return False
+
+    # Check tag name is correct according with pub task
+    comptasks = ('comp', 'roto', 'prep', 'conform')
+    comptools = ('Nuke', 'Flame')
+    pubtask   = nim.name('task')
+    pubtag    = nim.name('tag')
+    if nim.app() in comptools:
+        if pubtask not in comptasks and pubtag == 'main':
+            msg=("Using tag '%s' for non comp tasks (%s) from a comp tool (%s) is not recommended.\nPlease use something like 'slap' for your comp scene for 3D tasks"%( pubtag, pubtask, nim.app() ))
+            nimRt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+            P.error(msg)
+            P.error("Abort file save")
+            return False
+    else:
+        if pubtask in comptasks:
+            msg=("You are about to save a scene from a 3D app (%s) into a comp task: %s. Are you sure this is what you want to do?"%( nim.app(), pubtask))
+            btns = ("No, Im crazy!", "Yes, I know what I'm doing")
+            btn = Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error', buttons=btns)
+            if not btn:
+                P.error("Abort file save")
+                return False
+        if pubtask in comptasks and pubtag == 'main':
+            msg=("Using tag '%s' for a comp tasks (%s) from a non comp tool (%s) is not recommended.\nPlease use a different tag"%( pubtag, pubtask, nim.app() ))
+            Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+            P.error(msg)
+            P.error("Abort file save")
+            return False
+
 
     
     #  Version Up File :
@@ -2759,6 +2789,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
 
         pubtask = Rt.pubTask( nim=verUpNim) 
         if not pubtask:
+            P.error("Can't get a valid publishing task on file save. Aborting")
             return False
 
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )

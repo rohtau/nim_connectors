@@ -293,10 +293,18 @@ class NIM( object ) :
         P.debug( '    %s' % filePath )
         
         #  Tokenize file path :
+        toks = None
         if len(filePath.split( '/' )) > len(filePath.split( '\\' )) :
             toks=filePath.split( '/' )
         elif len(filePath.split( '/' )) < len(filePath.split( '\\' )) :
             toks=filePath.split( '\\' )
+
+        if not toks:
+            msg =  'Sorry, the given file path doesn\'t appear to exist or is wrong: %s'%filePath 
+            P.error(msg)
+            nimRt.DisplayMessage.get_btn( msg, title= 'Publish Data from File Path Error')
+            return None
+
             
         #  Initialize tab :
         self.set_tab( _type=None )

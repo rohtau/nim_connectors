@@ -1013,7 +1013,6 @@ def createRenderIcon( elementInfo ):
     
     return iconpath
 
-
 def pubTask( nim=None, filepath=None, user=None ):
     '''
     Create a task needed for publishing. If a valid task for publishing already exists it will be returned.
@@ -1046,7 +1045,7 @@ def pubTask( nim=None, filepath=None, user=None ):
     if not nim and filepath:
         nim = Nim.NIM().ingest_filePath( filepath )
     task    = nim.name('task')
-    taskid  = nim.ID('task')
+    taskid  = int(nim.ID('task'))
     if not task:
         msg = "Couldn't detect a task from provided %s"%("NIM object", "path: %s"%filepath)[nimFromFile]
         P.error(msg)
@@ -1056,44 +1055,45 @@ def pubTask( nim=None, filepath=None, user=None ):
     tab      = nim.tab()
     if not user:
         user = nim.name('user')
-        userID = nim.ID('user')
+        userID = int(nim.ID('user'))
     else:
-        userID   = nimUtl.getUserID( user )
+        userID   = nimUtl.getuserID( user )
     entity   = nim.name('shot') if tab == 'SHOT' else nim.name('asset')
-    entityID = nim.ID('shot') if tab == 'SHOT' else nim.ID('asset')
+    entityID = int(nim.ID('shot')) if tab == 'SHOT' else int(nim.ID('asset'))
 
     pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
-    msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, tab.lower(), entity, user)
-    nimP.warning( msg )
-    res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
-    if res == 'OK':
-        msg = "%s task created by %s from %s"%(task, user, nim.app())
-        now = datetime.now()
-        start = now.isoformat()
-        starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-        end = now + timedelta(days=5)
-        endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-        taskres = nimAPI.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab.upper() == 'SHOT' else None,
-                                taskTypeID=taskid, userID=userID, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
-        # pprint(taskres)
-        if taskres['success'] != 'true':
-            msg = "Couldn't create task %s for %s in %s %s"%(task, user, tab.lower(), entity )
-            nimP.error(msg)
-            Win.popup( title='NIM - Task Error', msg=msg )
-            return False
-        else:
-            msg = "Task %s for %s created in %s %s"%(task, user, tab.lower(), entity )
-            nimP.info(msg)
-            Win.popup( title='NIM - Task', msg=msg )
-            pprint(taskres)
-            # TODO: update pubtask here
-            pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))
+    if not pubtask:
+        msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, tab.lower(), entity, user)
+        nimP.warning( msg )
+        res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+        if res == 'OK':
+            msg = "%s task created by %s from %s"%(task, user, nim.app())
+            now = datetime.now()
+            start = now.isoformat()
+            starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+            end = now + timedelta(days=5)
+            endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+            taskres = nimAPI.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab.upper() == 'SHOT' else None,
+                                    taskTypeID=taskid, userID=userID, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+            # pprint(taskres)
+            if taskres['success'] != 'true':
+                msg = "Couldn't create task %s for %s in %s %s"%(task, user, tab.lower(), entity )
+                nimP.error(msg)
+                Win.popup( title='NIM - Task Error', msg=msg )
+                return False
+            else:
+                msg = "Task %s for %s created in %s %s"%(task, user, tab.lower(), entity )
+                nimP.info(msg)
+                Win.popup( title='NIM - Task', msg=msg )
+                pprint(taskres)
+                # TODO: update pubtask here
+                pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))
 
-    else:
-        msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, user)
-        nimP.error(msg)
-        Win.popup( title='NIM - Task Warning', msg=msg )
-        return False
+        else:
+            msg = "An appropriate task is needed in order to save files correctly. Please create a task %s for %s or choose another existing task in the shot/asset"%(task, user)
+            nimP.error(msg)
+            Win.popup( title='NIM - Task Warning', msg=msg )
+            return False
 
     # With pub task check if we need to update the NIM object or the passed
     # scene vars
@@ -2459,15 +2459,15 @@ if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtG
             
             #  Text :
             self.textLayout = QtGui.QHBoxLayout()
-            self.icon = QtGui.QLabel() 
+            # self.icon = QtGui.QLabel() 
             # TODO: add severity parameter and change icon accordantly 
             # https://joekuan.files.wordpress.com/2015/09/screen3.png
-            self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
             # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
             # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
             # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
             self.text=QtGui.QLabel(self.msg)
-            self.textLayout.addWidget(self.icon)
+            # self.textLayout.addWidget(self.icon)
             self.textLayout.addWidget(self.text)
             self.layout.addLayout( self.textLayout )
             # Details
