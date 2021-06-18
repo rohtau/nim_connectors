@@ -22,3 +22,6 @@
 *.ico binary
 *.ico linguist-generated
 *.ico -diff
+*.png binary
+*.png linguist-generated
+*.png -diff

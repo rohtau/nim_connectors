@@ -1378,3 +1378,111 @@ def getEntitiesList(type='show', pattern="all"):
 
     # return ( elements, elementsdict)
     pass
+
+#
+# Rez
+def hasRezCtxJob( jobs ):
+    '''
+    Check if there is a resolved rez context that matches a list of available jobs
+
+    Parameters
+    ----------
+    jobs : list(str)
+        List of available jobs to search
+
+    Returns
+    -------
+    str
+        Job name found in Rez context, If not found then False
+    '''
+    if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE'):
+        ctxs = [ctx.split('-')[0] for ctx in os.getenv('REZ_USED_RESOLVE').split()]
+        for ctx in ctxs:
+            try:
+                jobs.index(ctx)
+            except ValueError:
+                pass
+            else:
+                return ctx
+
+    return False
+
+def hasRezCtxShot( elmts, testshow=False ):
+    '''
+    Check if there is a resolved rez context that matches a list of available shots or shows
+
+    Parameters
+    ----------
+    elmts : list(str)
+        List of available elmts to search
+    testshow : bool
+        Test against shows rather than shots
+
+    Returns
+    -------
+    str
+        Shot/show name found in Rez context, If not found then False
+    '''
+    if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE'):
+        ctxs = [ctx.split('-')[0] for ctx in os.getenv('REZ_USED_RESOLVE').split()]
+        for ctx in ctxs:
+            if testshow:
+                ctx = ctx.split('_')[0]
+            try:
+                elmts.index( ctx )
+            except ValueError:
+                pass
+            else:
+                return ctx
+
+    return False
+
+
+def hasRezCtxAsset( assets ):
+    '''
+    Check if there is a resolved rez context that matches a list of available assets
+
+    Parameters
+    ----------
+    elmts : list(str)
+        List of available assets to search
+
+    Returns
+    -------
+    str
+        Asset name found in Rez context, If not found then False
+    '''
+    if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE') and os.getenv('ASSET'):
+        # Apparently the path for the asset is not included in the menu
+        assetname = os.getenv('ASSET').split('/')[-1]
+        try:
+            assets.index( assetname )
+        except ValueError:
+            pass
+        else:
+            return assetname
+
+    return False
+
+
+def getRezCtxTab(  ):
+    '''
+    Check whether or not current Rez context is for a shot or an asset.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    str
+        SHOT for if context is for a Shot, ASSET for an asset, False if context is neither of the two.
+    '''
+    if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE'):
+        ctx = os.getenv('REZ_USED_REQUEST')
+        if os.getenv('SHOT') and os.getenv('SHOTPATH') and (os.getenv('SHOT') == ctx):
+            return ('SHOT', 'ASSET')['ASSET' in os.environ]
+
+    return False
+
+
+

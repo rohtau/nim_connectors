@@ -2420,6 +2420,11 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
 
     res['success'] = True
     return res
+
+def showPubComments():
+    #TODO
+
+
 #
 # UI
 #

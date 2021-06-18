@@ -307,6 +307,9 @@ def reset_vars( confirm=True ):
         hou.ui.displayMessage('Error gathering publish info from File Name', title='Publishing error', severity=hou.severityType.Error)
         return False
 
+    # Try to create a valid task
+    pubtask = nimRt.pubTask(nimpubdata)
+
     set_vars( nimpubdata )
 
     if hou.isUIAvailable():

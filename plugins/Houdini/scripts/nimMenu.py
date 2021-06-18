@@ -99,6 +99,15 @@ def rtCreateTaskForScript():
     '''
     return nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
 
+def rtShowSceneComments():
+    '''
+    Show scene publishing comments
+    
+    Returns
+    -------
+    None
+    '''
+    return nimRt.showPubComments()
 
 
 if action == 'open':
@@ -136,3 +145,6 @@ if action == 'reset':
 
 if action == 'task':
 	rtCreateTaskForScript()
+
+if action == 'comments':
+	rtShowSceneComments()

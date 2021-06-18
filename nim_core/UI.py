@@ -83,6 +83,7 @@ from .import padding
 from .import defaultSceneName
 _os=platform.system().lower()
 _osCap=platform.system()
+standardTags = ["main", "slap"]
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
@@ -318,7 +319,9 @@ class GUI(QtGui.QMainWindow) :
             self.pref_task=self.prefs[self.app+'_Task']
             self.pref_basename=self.prefs[self.app+'_Basename']
             self.pref_version=self.prefs[self.app+'_Version']
-            self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
+            # self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
+            self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo_fixed.png'
+            print("Path to default NIM image: %s"%self.pref_imgDefault)
         except : return False
         P.debug( '%.3f =>     Preferences stored' % (time.time()-startTime) )
         
@@ -411,7 +414,7 @@ class GUI(QtGui.QMainWindow) :
         self.mainLayout.addWidget( self.horiz_splitter )
         #  Set Main Layout :
         self.setLayout( self.mainLayout )
-        
+
         #  Print success :
         P.debug( '%.3f => Layouts created' % (time.time()-startTime) )
     
@@ -456,12 +459,29 @@ class GUI(QtGui.QMainWindow) :
     def mk_jobWidgets(self) :
         'Constructs all elements of the Job group box'
         self.img_size=self.width()/2.25
+
+        # Rez Context:
+        if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE'):
+            ctx = os.getenv('REZ_USED_REQUEST')
+            self.ctxLabel = QtGui.QLabel(ctx)
+            self.jobForm.addRow( 'Working Context:', self.ctxLabel )
+
         
         #  Job :
+        self.jobLabel = QtGui.QLabel("Job:")
         self.nim.set_input( elem='job', widget=QtGui.QComboBox() )
-        self.nim.Input('job').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('job').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('job').setMinimumSize(240,20)
-        self.jobForm.addRow( 'Job:', self.nim.Input('job') )
+        self.jobOverride = QtGui.QPushButton("Override Job")
+        self.jobOverride.setCheckable(True)
+        # self.jobOverride = QtGui.QCheckBox("Override Job")
+        # self.jobOverride.setCheckState(QtCore.Qt.CheckState.Unchecked)
+        # self.jobForm.addRow( 'Job:', self.nim.Input('job') )
+        self.jobHLayout=QtGui.QHBoxLayout()
+        self.jobHLayout.addWidget(self.jobLabel)
+        self.jobHLayout.addWidget(self.nim.Input('job'))
+        self.jobHLayout.addWidget(self.jobOverride)
+        self.jobForm.addRow(self.jobHLayout)
         
         #  Server :
         self.nim.set_input( elem='server', widget=QtGui.QComboBox() )
@@ -470,9 +490,13 @@ class GUI(QtGui.QMainWindow) :
         self.jobForm.addRow( 'Server:', self.nim.Input('server') )
         
         #  Asset :
+        self.assetLabel = QtGui.QLabel("Asset:")
         self.nim.set_input( elem='asset', widget=QtGui.QComboBox() )
-        self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        # self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('asset').setMinimumSize(240,20)
+        self.assetOverride = QtGui.QPushButton("Override Asset")
+        self.assetOverride.setCheckable(True)
         #  Asset thumbnail :
         try :
             self.nim.set_pic( elem='asset', widget=QtGui2.QPixmap().fromImage( QtGui2.QImage( self.pref_imgDefault ) ) )
@@ -483,6 +507,10 @@ class GUI(QtGui.QMainWindow) :
         self.nim.set_label( elem='asset', widget=QtGui.QLabel() )
         self.nim.label('asset').setPixmap( self.nim.pix('asset') )
         self.nim.label('asset').setScaledContents( True )
+        self.assetHLayout=QtGui.QHBoxLayout()
+        self.assetHLayout.addWidget(self.assetLabel)
+        self.assetHLayout.addWidget(self.nim.Input('asset'))
+        self.assetHLayout.addWidget(self.assetOverride)
         #  Asset Tab :
         self.assetTab=QtGui.QWidget()
         #  Asset Tab Layouts :
@@ -491,12 +519,21 @@ class GUI(QtGui.QMainWindow) :
         self.assetLayout.addLayout( self.assetForm )
         self.assetLayout.addWidget( self.nim.label('asset'), QtCore.Qt.AlignTop )
         #  Populate Asset Tab :
-        self.assetForm.addRow( 'Asset:', self.nim.Input('asset') )
+        # self.assetForm.addRow( 'Asset:', self.nim.Input('asset') )
+        self.assetForm.addRow(self.assetHLayout)
         
         #  Show :
+        self.showLabel = QtGui.QLabel("Show:")
         self.nim.set_input( elem='show', widget=QtGui.QComboBox() )
-        self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        # self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('show').setMinimumSize(240,20)
+        self.showOverride = QtGui.QPushButton("Override Show/Shot")
+        self.showOverride.setCheckable(True)
+        self.showHLayout=QtGui.QHBoxLayout()
+        self.showHLayout.addWidget(self.showLabel)
+        self.showHLayout.addWidget(self.nim.Input('show'))
+        self.showHLayout.addWidget(self.showOverride)
         
         #  Shot :
         self.nim.set_input( elem='shot', widget=QtGui.QComboBox() )
@@ -524,7 +561,8 @@ class GUI(QtGui.QMainWindow) :
         self.showLayout.addLayout( self.showForm )
         self.showLayout.addWidget( self.nim.label('shot'), QtCore.Qt.AlignTop )
         #  Populate Show/Shot Tab :
-        self.showForm.addRow( 'Show:', self.nim.Input('show') )
+        # self.showForm.addRow( 'Show:', self.nim.Input('show') )
+        self.showForm.addRow( self.showHLayout )
         self.showForm.addRow( 'Shot:', self.nim.Input('shot') )
         
         #  Tab :
@@ -575,8 +613,8 @@ class GUI(QtGui.QMainWindow) :
         self.tagLabel = QtGui.QLabel("Tag:")
         self.nim.set_input( elem='tag', widget=QtGui.QLineEdit() )
         self.tagPresets = QtGui.QComboBox()
-        self.tagPresets.addItems(('main', 'slap'))
-        self.tagPresets.setToolTip("Tag names presets")
+        self.tagPresets.addItems(standardTags)
+        self.tagPresets.setToolTip("Presets and avaliable tags")
         # self.tagPresets.setSizePolicy( QtGui.QSizePolicy.Minimum )
         #  Create layout :
         self.tagHLayout=QtGui.QHBoxLayout()
@@ -835,6 +873,24 @@ class GUI(QtGui.QMainWindow) :
         #  Enable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
             self.nim.Input( elem ).setEnabled( True )
+            if elem in ('job', 'show', 'shot', 'asset'):
+                if elem=='job' and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOWPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOTPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and not os.getenv('SHOTPATH'):
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+                elif elem=='asset' and os.getenv('REZ_USED_REQUEST') and os.getenv('ASSET') and os.getenv('SHOTPATH'):
+                    self.assetOverride.setEnabled(True)
+                    self.nim.Input( elem ).setEnabled( False )
+                if not os.getenv('REZ_USED_REQUEST'):
+                    self.jobOverride.setEnabled(False)
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+
         self.jobTab.setEnabled( True )
         
         #  Enable version picker :
@@ -844,6 +900,8 @@ class GUI(QtGui.QMainWindow) :
         try : self.btn_1.clicked.disconnect()
         except : pass
         self.btn_1.clicked.connect( self.file_open )
+        # Flags to force in top
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -960,6 +1018,23 @@ class GUI(QtGui.QMainWindow) :
         #  Enable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
             self.nim.Input( elem ).setEnabled( True )
+            if elem in ('job', 'show', 'shot', 'asset'):
+                if elem=='job' and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOWPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOTPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and not os.getenv('SHOTPATH'):
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+                elif elem=='asset' and os.getenv('REZ_USED_REQUEST') and os.getenv('ASSET') and os.getenv('SHOTPATH'):
+                    self.assetOverride.setEnabled(True)
+                    self.nim.Input( elem ).setEnabled( False )
+                if not os.getenv('REZ_USED_REQUEST'):
+                    self.jobOverride.setEnabled(False)
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
         self.jobTab.setEnabled( True )
         
         #  Enable version picker :
@@ -974,6 +1049,8 @@ class GUI(QtGui.QMainWindow) :
         # Custom initialization
         # Set default tag name as main
         self.nim.Input('tag').setText(defaultSceneName)
+        # Flags to force in top
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -1293,7 +1370,7 @@ class GUI(QtGui.QMainWindow) :
                     self.verNote.setText('<comment>')
             #  Print Time :
             try :
-                P.debug( '  Text = "%s"' % self.nim.Input( elem ).currentText() )
+                P.debug( 'Text = "%s"' % self.nim.Input( elem ).currentText() )
                 P.debug( '%.3f => %s finished' % ((time.time()-startTime), elem.upper() ) )
             except : pass
             return
@@ -1311,11 +1388,9 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input( elem ).setEnabled( False )
                 return
         
-        
         #  Print Population Start :
         if _print : P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
         else : P.debug( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
-        
         
         #  Combo Boxes :
         #===-------------------
@@ -1328,6 +1403,9 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).clear()
             self.nim.Input( elem ).addItem( 'Select...' )
             availableTasks = None
+            userJobs = None
+            if elem == 'job':
+                userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
             #  Make List of Element Items :
             if self.mode =='FILE' and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
                 availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
@@ -1346,8 +1424,8 @@ class GUI(QtGui.QMainWindow) :
                     if option['name']==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option['name'] )
                         self.nim.set_ID( elem=elem, ID=option['ID'] )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
-                        P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
                         self.update_img()
                         if elem=='task' :
                             self.nim.set_taskFolder( folder=option['folder'] )
@@ -1358,18 +1436,23 @@ class GUI(QtGui.QMainWindow) :
                     if option['showname']==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option['showname'] )
                         self.nim.set_ID( elem=elem, ID=option['ID'] )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
-                        P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID(elem)) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID(elem)) )
                 #  Jobs, Tasks and Filters :
                 else :
+                    if elem == 'job' and userJobs:
+                        # Don't include those jobs were our user is not assigned
+                        # to
+                        if option not in userJobs:
+                            continue
                     elemList.append( option )
                     #  Store Name and ID :
                     if option==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
                         if elem not in ['task', 'filter'] :
                             self.nim.set_ID( elem=elem, ID=self.nim.Dict( elem )[option] )
-                            P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
+                            # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
                 num +=1
             
             #  Sort Combo Box Item Names :
@@ -1390,9 +1473,87 @@ class GUI(QtGui.QMainWindow) :
             #  Set Filter - ("Work") :
             if elem=='filter' and self.nim.mode().lower() not in ['file', 'open', 'load'] :
                 self.nim.Input( elem ).setCurrentIndex(1)
-            #  Populate Server :
-            if elem=='job' :
+
+            # Customise some presets using Rez
+            #
+            #  Populate Server and set job based on Rez context:
+            if elem=='job' and not self.jobOverride.isChecked():
+                widget = self.nim.Input( elem )
+                # Get jobs in combo box
+                jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezjob = nimUtl.hasRezCtxJob( jobs )
+                if rezjob:
+                    # Set job according to Rez context
+                    idx =  jobs.index(rezjob) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='job', name=rezjob )
+                    self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                    P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
+                else:
+                    P.warning("Couldn't find a valid Rez context for any available job")
                 self.populate_server()
+                #  Set tab from Rez :
+                rezTab = nimUtl.getRezCtxTab()
+                print("Getting tab from Rez")
+                if rezTab:
+                    print("Tab from Rez: %s"%rezTab)
+                    if rezTab=='ASSET' :
+                        self.jobTab.setCurrentIndex(0)
+                        self.nim.set_tab('ASSET')
+                    elif rezTab=='SHOT' :
+                        self.jobTab.setCurrentIndex(1)
+                        self.nim.set_tab('SHOT')
+            if elem=='asset' and not self.assetOverride.isChecked()  :
+                widget = self.nim.Input( elem )
+                # Get shots
+                assets = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezasset = nimUtl.hasRezCtxAsset( assets )
+                if rezasset:
+                    # Set asset according to Rez context
+                    idx = assets.index(rezasset) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='asset', name=rezasset )
+                    self.nim.set_ID( elem='asset', ID=self.nim.Dict( 'asset' )[idx-1]['ID'] )
+                    P.info("Valid Rez context detected: %s. Setting it as asset for NIM dialogues."%rezasset)
+                else:
+                    P.warning("Couldn't find a valid Rez context for any available asset")
+            # Select Show and Shot if available in Rez context
+            if elem=='show' and not self.showOverride.isChecked() :
+                widget = self.nim.Input( elem )
+                # Get shows
+                shows = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
+                if rezshow:
+                    # Set show according to Rez context
+                    idx = shows.index(rezshow) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='show', name=rezshow )
+                    self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
+                    P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
+                    self.update_elem(elem='show') # Populate shots
+                else:
+                    P.warning("Couldn't find a valid Rez context for any available show")
+            if elem=='shot' and not self.showOverride.isChecked()  :
+                widget = self.nim.Input( elem )
+                # Get shots
+                shots = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezshot = nimUtl.hasRezCtxShot( shots )
+                if rezshot:
+                    # Set shot according to Rez context
+                    idx = shots.index(rezshot) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='shot', name=rezshot )
+                    self.nim.set_ID( elem='shot', ID=self.nim.Dict( 'shot' )[idx-1]['ID'] )
+                    P.info("Valid Rez context detected: %s. Setting it as shot for NIM dialogues."%rezshot)
+                else:
+                    P.warning("Couldn't find a valid Rez context for any available shot")
+
+
+
         
         
         #  List Views :
@@ -1405,6 +1566,7 @@ class GUI(QtGui.QMainWindow) :
             #  Basenames :
             if elem=='base' :
                 initbasefound = False
+                tags = standardTags
                 for option in self.nim.Dict( elem ) :
                     if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
                         latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
@@ -1424,22 +1586,13 @@ class GUI(QtGui.QMainWindow) :
                     item.setText( option['basename'] )
                     item.setFlags( QtCore.Qt.ItemIsSelectable \
                                   | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
-                    # item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
-                    # item.setFlags( QtCore.Qt.ItemIsEditable )
                     if latestver:
                         basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
                         if basenameapp in self.appsIcons:
                             item.setIcon( self.appsIcons[basenameapp] )
-                        # TODO: disable entry if basenameapp is not the same as
-                        # self.app
-                        # if self.nim.name('filter') !='Asset Master' :
-                            # item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
-                                # | QtCore.Qt.ItemIsEnabled )
                         # Only enable basenames for the current host app
                         if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
                             item.setFlags( QtCore.Qt.NoItemFlags )
-                            # item.setFlags( QtCore.Qt.ItemIsEnabled  )
-                            # item.setFlags( item.flags() & ~QtCore.Qt.ItemIsSelectable )
                         # Ownership color
                         if latestver['userID'].encode('ascii') == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
@@ -1453,6 +1606,13 @@ class GUI(QtGui.QMainWindow) :
                         item.setToolTip( tooltip )
                         item.setStatusTip( tooltip )
                         item.setWhatsThis( tooltip )
+                    # Add tag to list of available tags
+                    nameparts = nimUtl.splitName(option['basename'])
+                    if nameparts and nameparts['tag']:
+                        try:
+                            tags.index(nameparts['tag'])
+                        except ValueError:
+                            tags.append(nameparts['tag'])
                     # Init selection
                     if not initbasefound and  item.flags() & QtCore.Qt.ItemIsSelectable:
                         self.nim.Input( elem ).setCurrentItem( item )
@@ -1462,6 +1622,9 @@ class GUI(QtGui.QMainWindow) :
                         #  Set variables :
                         self.nim.set_name( elem=elem, name=option['basename'] )
                         initbasefound = True
+
+                self.tagPresets.clear()
+                self.tagPresets.addItems(tags)
             
             #  Versions :
             elif elem=='ver' :
@@ -2271,7 +2434,7 @@ class GUI(QtGui.QMainWindow) :
                             # basename is not selectable then don't allow to use
                             # this tag. Reset tag
                             # FIXME
-                            nimRt.DisplayMessage.get_btn( "Tag %s is not used by a %s basename.\nPlease choose a different tag"%(nameparts['tag'], self.app), 
+                            nimRt.DisplayMessage.get_btn( "Tag %s is not used by a %s basename.\nPlease choose a different tag or task"%(nameparts['tag'], self.app), 
                                                          title= 'NIM Save Error')
                             name=self.nim.Input('tag').clear()
                             self.nim.set_name( elem='tag', name='' )
@@ -2317,16 +2480,101 @@ class GUI(QtGui.QMainWindow) :
                 pass
         return
 
-    
+    def toggleOverrideJobs(self):
+        self.nim.Input('job').setEnabled(self.jobOverride.isChecked())
+        if self.jobOverride.isChecked():
+            self.jobOverride.setText("Use Context Job")
+        else:
+            self.jobOverride.setText("Override Job")
+            widget = self.nim.Input( 'job' )
+            # Get jobs in combo box
+            jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshow = nimUtl.hasRezCtxJob( jobs )
+            if rezshow:
+                # Set job according to Rez context
+                idx =  jobs.index(rezshow) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='job', name=rezshow )
+                self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezshow)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available job")
+
+    def toggleOverrideShowShots(self):
+        self.nim.Input('show').setEnabled(self.showOverride.isChecked())
+        self.nim.Input('shot').setEnabled(self.showOverride.isChecked())
+        if self.showOverride.isChecked():
+            self.showOverride.setText("Use Context Show/Shot")
+        else:
+            self.showOverride.setText("Override Show/Shot")
+            # Show
+            widget = self.nim.Input( 'show' )
+            # Get jobs in combo box
+            shows = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
+            if rezshow:
+                # Set show according to Rez context
+                idx =  shows.index(rezshow) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='show', name=rezshow )
+                self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
+                P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
+                self.update_elem(elem='show') # Populate shots
+            else:
+                P.warning("Couldn't find a valid Rez context for any available show")
+
+            # Shot
+            widget = self.nim.Input( 'shot' )
+            # Get jobs in combo box
+            shots = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshot = nimUtl.hasRezCtxShot( shots)
+            if rezshot:
+                # Set shot according to Rez context
+                idx =  shots.index(rezshot) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='shot', name=rezshot )
+                self.nim.set_ID( elem='shot', ID=self.nim.Dict( 'shot' )[idx-1]['ID'] )
+                P.info("Valid Rez context detected: %s. Setting it as shot for NIM dialogues."%rezshot)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available shot")
+
+    def toggleOverrideAssets(self):
+        self.nim.Input('asset').setEnabled(self.assetOverride.isChecked())
+        if self.assetOverride.isChecked():
+            self.assetOverride.setText("Use Context Asset")
+        else:
+            self.assetOverride.setText("Override Asset")
+            widget = self.nim.Input( 'asset' )
+            # Get assets in combo box
+            assets = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezasset = nimUtl.hasRezCtxAsset( assets )
+            if rezasset:
+                # Set asset according to Rez context
+                idx =  assets.index(rezasset) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='asset', name=rezasset )
+                self.nim.set_ID( elem='asset', ID=self.nim.Dict( 'asset' )[idx-1]['ID'] )
+                P.info("Valid Rez context detected: %s. Setting it as asset for NIM dialogs."%rezasset)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available asset")
+
     #  Connections :
     def mk_connections(self) :
         'Connects dynamic elements of the GUI'
         self.nim.Input('job').activated.connect( lambda: self.update_elem('job') )
+        # self.jobOverride.stateChanged.connect( self.toggleOverrideJobs )
+        self.jobOverride.clicked.connect( self.toggleOverrideJobs )
         self.jobTab.currentChanged.connect( self.update_tab )
         self.nim.Input('asset').activated.connect( lambda: self.update_elem('asset') )
         self.nim.Input('asset').activated.connect( self.update_img )
+        self.assetOverride.clicked.connect( self.toggleOverrideAssets )
         self.nim.Input('show').activated.connect( lambda: self.update_elem('show') )
         self.nim.Input('show').activated.connect( self.update_img )
+        self.showOverride.clicked.connect( self.toggleOverrideShowShots )
         self.nim.Input('shot').activated.connect( lambda: self.update_elem('shot') )
         self.nim.Input('shot').activated.connect( self.update_img )
         self.nim.Input('filter').activated.connect( lambda: self.update_elem('filter') )
@@ -2364,7 +2612,11 @@ class GUI(QtGui.QMainWindow) :
         except : pass
         try : self.nim.Input('base').currentItemChanged.disconnect()
         except : pass
-        try : self.nim.Input( 'tag' ).textChanged.disconnect()
+        # try : self.nim.Input( 'tag' ).textChanged.disconnect()
+        # except : pass
+        try : self.nim.Input( 'tag' ).editingFinished.disconnect()
+        except : pass
+        try : self.tagPresets.activated.disconnect()
         except : pass
         try : self.nim.Input('ver').currentItemChanged.disconnect()
         except : pass

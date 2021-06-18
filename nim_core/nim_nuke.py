@@ -372,6 +372,9 @@ def reset_vars( confirm=True ):
         nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
         return False
 
+    # Try to create a valid task
+    pubtask = nimRt.pubTask(nimpubdata)
+
     set_vars( nimpubdata )
 
     if nuke.GUI:
