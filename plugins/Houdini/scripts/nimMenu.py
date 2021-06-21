@@ -29,6 +29,7 @@ import nim_core.UI as nimUI
 import nim_core.nim_api as nimAPI
 import nim_core.nim_file as nimFile
 import nim_core.nim_win as nimWin
+import nim_core.nim_print as nimP
 import nim_core.nim_houdini as nimHoudini
 import nim_core.nim_rohtau as nimRt
 import nim_core.nim_rohtau_utils as nimUtl
@@ -38,6 +39,7 @@ reload(nimUI)
 reload(nimAPI)
 reload(nimFile)
 reload(nimWin)
+reload(nimP)
 
 def openFileAction():
     nimUI.mk('FILE')
@@ -99,15 +101,23 @@ def rtCreateTaskForScript():
     '''
     return nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
 
-def rtShowSceneComments():
+def rtShowPubInfo():
     '''
     Show scene publishing comments
-    
-    Returns
-    -------
-    None
     '''
-    return nimRt.showPubComments()
+    h_root = hou.node("/")
+
+    nim_fileID = h_root.userData("nim_fileID")
+    if nim_fileID is not None and nim_fileID.isdigit():
+        return nimRt.showPubInfo(int(nim_fileID), hou.isUIAvailable())
+    else:
+        hou.ui.displayMessage('Looks like this HIP file hasn\'t been published. Can\'t retrieve publishing ID',
+                              title="Publish Error", severity=hou.severityType.Error, 
+                              help='Check whether or not the file has been published correctly: rohtau->NIM->Dump Publish Info.\bPublish scene using rohtau->Save As')
+        nimP.error('Looks like this HIP file hasn\'t been published. Check whether or not the file has been published correctly: rohtau->NIM->Dump Publish Info')
+
+        return
+
 
 
 if action == 'open':
@@ -146,5 +156,5 @@ if action == 'reset':
 if action == 'task':
 	rtCreateTaskForScript()
 
-if action == 'comments':
-	rtShowSceneComments()
+if action == 'info':
+	rtShowPubInfo()

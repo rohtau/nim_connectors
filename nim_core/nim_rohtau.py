@@ -1013,6 +1013,33 @@ def createRenderIcon( elementInfo ):
     
     return iconpath
 
+def showPubInfo( fileid, hasgui=True ):
+    '''
+    Show scene publish comments, both to stdout and as a new window.
+
+    Parameters
+    ----------
+    hasgui : bool
+        Whether or not we are in a GUI session and can open a new window
+
+    '''
+    info = nimAPI.get_verInfo( fileid )
+    if not info:
+        nimP.error("Can't get publishing info from File ID: %d"%fileid)
+        ret = DisplayMessage.get_btn("Can't get publishing info from File ID: %d"%fileid, title= 'Publishing Error')
+        return
+    info = info[0]
+    msg = "Basename: %s\n"%info['basename']
+    msg += "Version: %s\n"%info['version']
+    msg += "Owner: %s\n"%info['username']
+    msg += "ID: %s\n"%info['fileID']
+    msg += "Comment: %s\n"%info['note']
+    nimP.info(msg)
+    if hasgui:
+        ret = DisplayMessage.get_btn( msg, title= 'Publishing Info')
+
+    return
+
 def pubTask( nim=None, filepath=None, user=None ):
     '''
     Create a task needed for publishing. If a valid task for publishing already exists it will be returned.
@@ -1107,7 +1134,6 @@ def pubTask( nim=None, filepath=None, user=None ):
         pass
     
     return pubtask
-
 
 def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
@@ -2421,8 +2447,7 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
     res['success'] = True
     return res
 
-def showPubComments():
-    #TODO
+
 
 
 #
