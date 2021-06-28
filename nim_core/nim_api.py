@@ -2740,6 +2740,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         Win.popup( title=winTitle+' - Filename Error', msg=msg )
         return False
 
+
     # Check tag name is correct according with pub task
     comptasks = ('comp', 'roto', 'prep', 'conform')
     comptools = ('Nuke', 'Flame')
@@ -2767,26 +2768,25 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             P.error("Abort file save")
             return False
 
-    # Check basename is using the same app as out host.
+
+    # Check basename is using the same app as our host.
     # In other words ensure a Houdini scene is not saved using a tag (basename)
-    # that has Nuke scripts
-    if nim.name('baename') and ( nim.ID('asset') is not None or  nim.ID('shot') is not None ):
-        latestver = Api.get_vers(assetID = int(nim.ID('asset')) if nim.tab() == 'ASSET' else None,
+    # that has Nuke scripts, for instance
+    if nim.name('base') and ( nim.ID('asset') is not None or  nim.ID('shot') is not None ):
+        latestver = get_vers(assetID = int(nim.ID('asset')) if nim.tab() == 'ASSET' else None,
                                 shotID = int(nim.ID('shot')) if nim.tab() == 'SHOT' else None,
-                                basename=nim.name('basename'))
+                                basename=nim.name('base'))
         if latestver:
             latestver = latestver[0]
             # pprint(latestver)
             basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
-            if basename != nim.app():
+            if basenameapp != nim.app():
                 msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
                 Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
                 P.error(msg)
                 P.error("Abort file save")
                 return False
 
-
-    
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file
     verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink, version=version )

@@ -637,6 +637,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         cur_fileName=nim.fileName()
     
     #  Basename :
+    print("New basename: %s"%Api.to_basename( nim=nim ))
     nim.set_name( elem='base', name=Api.to_basename( nim=nim ) )
     basename=nim.name('base')
     

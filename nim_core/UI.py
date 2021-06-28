@@ -2422,6 +2422,7 @@ class GUI(QtGui.QMainWindow) :
         tag = self.nim.Input('tag').text().replace( ' ', '_' )
         if self.nim.name('tag') :
             # self.nim.Input('base').setEnabled( False )
+            basenamefound = False
             for index in range( self.nim.Input('base').count() ) :
                 nameparts = nimUtl.splitName(self.nim.Input('base').item( index ).text())
                 if nameparts and nameparts['tag']:
@@ -2433,11 +2434,14 @@ class GUI(QtGui.QMainWindow) :
                             # If the tag exists in the basenames list, and that
                             # basename is not selectable then don't allow to use
                             # this tag. Reset tag
-                            # FIXME
                             nimRt.DisplayMessage.get_btn( "Tag %s is not used by a %s basename.\nPlease choose a different tag or task"%(nameparts['tag'], self.app), 
                                                          title= 'NIM Save Error')
                             name=self.nim.Input('tag').clear()
                             self.nim.set_name( elem='tag', name='' )
+                        basenamefound=True
+            if not basenamefound:
+                self.base_deselect()
+
 
         #  Update NIM dictionary entry :
         self.nim.set_name( elem='tag', name=tag )

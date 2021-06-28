@@ -1154,7 +1154,6 @@ def splitName(filename, error=True):
     if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('v'): 
         # There is version part
         ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
-        print(ver)
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)

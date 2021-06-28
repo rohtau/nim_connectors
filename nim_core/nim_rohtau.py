@@ -971,6 +971,7 @@ def createRenderIcon( elementInfo ):
         middlepath = os.path.join('C:', middlepath)
     if not os.path.exists(middlepath):
         nimP.error("Frame for render icon doesn't exists: %s"%middlepath)
+        nimP.error("Element for this render was published with the frame range: %d - %d. Using frame %d for icon"%(int(elementInfo['startFrame']), int(elementInfo['endFrame']), middleframe))
         return False
     filename = os.path.basename(middlepath)
     rendername = filename.split('.')[0]
@@ -1155,6 +1156,21 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     --------------
     Publish file as a render element. Render ID is returned in the output dir for further adding icons and review elements.
 
+    Error Code
+    ----------
+    Since this is a very critical function a new key has been added to the output dict called "errorcode".
+    It will return a hint of what type of error happened during the publishing.
+    These are the codes:
+        - 0: no error, success publishing
+        - 1: generic error
+        - 2: Missing publishing task
+        - 3: A file with a different type is already using this basename
+        - 4: File version already published by same user. No overwrite allowed
+        - 5: File version already published by another user. No overwrite allowed
+        - 6: Error logging paths as file in NIM
+        - 7: Error logging path as element in NIM
+        - 8: Error updating Element or File metadata
+
     Parameters
     ----------
     path      : str
@@ -1186,11 +1202,19 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     Returns
     -------
-    bool
-        Dictionary with operation result and published elements IDs. If error then res['success'] is False
+    dict
+        Dictionary with operation result and published elements IDs. If error then res['success'] is False.
+        Example: 
+            {'extraElementsID': [], 'version': 3, 
+            'success': True, 
+            'filepath': '/jobs/test_21019/work/RND/RND_010/out/cg/rnd/RND_010__rnd_cg__arnold_rt/v003/RND_010__rnd_cg__arnold_rt__v003.####.exr', 
+            'msg': None, 'renderID': None, 'fileID': 3565, 'elementID': 5740, 
+            'filename': 'RND_010__rnd_cg__arnold_rt__v003.####.exr', 'errorcode': 0}
+        
     '''
     res = {
         'success'        : False,
+        'errorcode'      : 1,
         'msg'            : None,
         'filename'       : None,
         'filepath'       : None,
@@ -1231,10 +1255,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         userid = int(nimAPI.get_userID(myuser))
 
     # Get publish task
-    # TODO: use nimRt.pubTask()
-    # Try to find a valid task for the task type and user in the shot/asset
-    # this step will ensure a valid task for the publish item and user exists in
-    # the shot/asset
     if not nim.ID( elem='task' ):
         res['msg'] = "couldn't find a supported task in the path: %s"%path
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
@@ -1243,38 +1263,20 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         return res
     else:
         pid = int(pid)
-    pubtask = nimRt.pubTask( nim )
+    pubtask = pubTask( nim )
     if not pubtask:
         res['success'] = False
+        res['errorcode'] = 2
         res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo['name'], nim.name('task'))
         nimP.error(res['msg'])
         return res if not plain and not jsonout else False
 
-    '''
-    if not nim.ID( elem='task' ):
-        res['success'] = False
-        res['msg'] = "Couldn't find a task to publish for given user user. Please ensure there is a task for the user in the shot/asset."
-        nimP.error(res['msg'])
-        return res if not plain and not jsonout else False
-    pubtask = nimUtl.getuserTask( userid, tasktype=int(nim.ID( elem='task' )), parent=nim.tab().lower(), parentID=pid) 
-    '''
-    '''
-    tasks = nimAPI.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    pubtask = None
-    for task in tasks:
-        if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == nim.ID('user'):
-            pubtask = task
-            break
-    # if pubtask:
-        # print("Publish task")
-        # pprint(pubtask)
-    '''
-
     # Check if there is already a file published with different file type
     check_res = checkFileAlreadyPublished( nim )
     if not check_res or not check_res['success']:
-        res['success'] = False
-        res['msg'] = "A file with name %s and file type %s is already published. Trying to save with file type %s. Please change the name of your file."%(nim.name('base'), check_res['type'], nim.nim['fileExt']['fileType'])
+        res['success']   = False
+        res['errorcode'] = 3
+        res['msg']       = "A file with name %s and file type %s is already published. Trying to save with file type %s. Please change the name of your file."%(nim.name('base'), check_res['type'], nim.nim['fileExt']['fileType'])
         nimP.error(res['msg'])
         return res if not plain and not jsonout else False
 
@@ -1283,26 +1285,31 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     if file:
         res['fileID'] = file['fileID']
     if element:
-        res['elementID'] = element['ID']
+        # Force delete of existing element, otherwise changes in frame ranges
+        # won't be updated if we keep using a previous element publish
+        # res['elementID'] = element['ID']
+        delElm_res = nimAPI.delete_element(ID=element['ID'])
+        element = None
     if file:
         if overwrite == pubOverwritePolicy.NOT_ALLOW:
-            res['success'] = False
-            res['msg'] = "File is already published. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(nim.name('base'), nim.version())
+            res['success']   = False
+            res['errorcode'] = (4, 5)[int(file['userID']) != userid]
+            res['msg']       = "File version is already published by %s. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version())
             if verbose:
-                nimP.error("File is already published. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(nim.name('base'), nim.version()))
+                nimP.error("File version is already published by %s. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
                 # pprint(res)
             return res if not plain and not jsonout else False
         elif overwrite == pubOverwritePolicy.ALLOW_USER:
             if int(file['userID']) != userid:
-                res['success'] = False
-                res['msg'] = "File is already published. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(nim.name('base'), nim.version())
+                res['success']   = False
+                res['errorcode'] = 5
+                res['msg']       = "File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version())
                 if verbose:
-                    nimP.error("File is already published. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(nim.name('base'), nim.version()))
+                    nimP.error("File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
                     # pprint(res)
                 return res if not plain and not jsonout else False
         else:
-            nimP.warning("File is already published. Rendering over previous published item. Consider increment the version: %s v%s"%(nim.name('base'), nim.version()))
-                    
+            nimP.warning("File is already published by %s. Rendering over previous published item is allowed. Consider increment the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
     
     # Publish file
     if not file:
@@ -1315,21 +1322,24 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         else:
             if verbose:
                 nimP.error("Error creating new file publishing %s v%s"%(nim.name('base'), nim.version()))
-            res['success'] = False
-            res['msg']     = "Error creating new file publishing %s v%s"%(nim.name('base'), nim.version())
+            res['success']   = False
+            res['errorcode'] = 6
+            res['msg']       = "Error creating new file publishing %s v%s"%(nim.name('base'), nim.version())
             return res if not plain and not jsonout else False
 
     # Publish element
-    # Elements are parent to the same shot/asset of teh file and also "linked" to a task and/or a render preview 
+    # Elements are parent to the same shot/asset of the file and also "linked" to a task and/or a render preview 
     if not element:
         addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
             startFrame=start, endFrame=end, handles=handles, metadata='' )
         if not addelmt_result['result']:
             if verbose:
                 nimP.error("Error creating new element publishing %s v%s"%(nim.name('base'), nim.version()))
-            res['success'] = False
-            res['msg']     = "Error creating new element publishing %s v%s"%(nim.name('base'), nim.version())
+            res['success']   = False
+            res['errorcode'] = 7
+            res['msg']       = "Error creating new element publishing %s v%s"%(nim.name('base'), nim.version())
             # TODO: remove file if it was published correctly
+            # Waiting for NIM to add function to API
             return res if not plain and not jsonout else False
         else:
             res['elementID'] = addelmt_result['ID']
@@ -1340,8 +1350,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
                 nimAPI.delete_element( res['elementID'] )
                 if verbose:
                     nimP.error("Error linking element to task")
-                res['success'] = False
-                res['msg']     = "Error linking element to task"
+                res['success']   = False
+                res['errorcode'] = 8
+                res['msg']       = "Error linking element to task"
                 return res if not plain and not jsonout else False
 
     # Update file
@@ -1358,8 +1369,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     if updatefile_res['success'] != 'true':
         if verbose:
             nimP.error("Error updating published file metadata")
-        res['success'] = False
-        res['msg']     = "Error updating published file metadata"
+        res['success']   = False
+        res['errorcode'] = 8
+        res['msg']       = "Error updating published file metadata"
         return res if not plain and not jsonout else False
 
     # Update element
@@ -1368,21 +1380,23 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         'fileID'      : res['fileID'],
         'extraElementsID': res['extraElementsID']
     }
-    metampdata = json.dumps(metadata)
+    metadata = json.dumps(metadata)
     updateelmt_result = nimAPI.update_element( ID=int(res['elementID']), metadata=metadata)
     if updateelmt_result['success'] != 'true':
         nimAPI.delete_element( res['elementID'] )
         if verbose:
             nimP.error("Error updating element metadata")
-        res['success'] = False
-        res['msg']     = "Error updating element metadata"
+        res['success']   = False
+        res['errorcode'] = 8
+        res['msg']       = "Error updating element metadata"
         return res if not plain and not jsonout else False
 
     # Publish successful, finish res dictionary
-    res['success']  = True
-    res['filename'] = nim.name('file')
-    res['filepath'] = nim.filePath()
-    res['version']  = nim.version()
+    res['success']   = True
+    res['errorcode'] = 0
+    res['filename']  = nim.name('file')
+    res['filepath']  = nim.filePath()
+    res['version']   = nim.version()
 
     # Grab just published info
     info = nimAPI.get_verInfo( res['fileID'] )
@@ -2088,15 +2102,17 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     if taskid:
         # Can only publish render if there is an available task
         # Create icon
-        # FIXME: icon creation not working in the farm
         if verbose:
             nimP.info("Create render icon ..")
         icon = createRenderIcon( elementInfo )
         if not icon:
-            res['msg'] = "Error creating render icon for %s"%rendername
-            res['success'] = False
-            return res
-        # icon=""
+            # Don't fail publishing if render icon creation failed, put a
+            # warning and try to keep going with the render publish
+            nimP.warning("Error creating render icon for %s"%rendername)
+            icon=""
+            # res['msg'] = "Error creating render icon for %s"%rendername
+            # res['success'] = False
+            # return res
 
         # Publish render
         if verbose:
@@ -2534,7 +2550,7 @@ if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtG
             # Title
             self.setWindowTitle(title)
 
-            # window.setWindowFlags(window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
+            self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
             self.setModal( True )
             self.show()
             
