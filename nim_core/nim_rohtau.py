@@ -1243,8 +1243,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     if not nim.mode() :
         nim.set_mode('ver')
 
-    # print("NIM Dict:")
-    # pprint(nim.get_nim())
+    print("NIM Dict:")
+    pprint(nim.get_nim())
     # import nuke
     # nuke.tprint("NIM Dict:")
     # nuke.tprint(pformat(nim.get_nim()))

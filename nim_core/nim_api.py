@@ -804,13 +804,13 @@ else:
                             Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
                                                                 Please contact your NIM Administrator to update your NIM API KEY expiration.' )
                         else :
-                            print 'NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
-                                    Please contact your NIM Administrator to update your NIM API KEY expiration.'
+                            print ('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                   Please contact your NIM Administrator to update your NIM API KEY expiration.')
                         #return False <-- returning false loads reset prefs msgbox
                 except :
                     pass
 
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             if e.code == 500:
                 P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
                 return False
