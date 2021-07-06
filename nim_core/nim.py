@@ -342,18 +342,20 @@ class NIM( object ) :
                 # Asset or Show+Shot
                 # print("DEBUG: Processing tok: %s"%tok)
                 #  Prevent Assets that might have the same name as a Shot :
-                if tok in ['_DEV', 'ASSETS'] :
+                if tok in ['_DEV', 'ASSETS', 'build'] :
                     self.set_tab( _type='ASSET' )
                     continue
                 #  Find Asset/Show, once Job is found :
                 if not assetFound and not showFound :
                     if not assetFound and self.tab()=='ASSET' :
                         for asset in self.Dict('asset') :
+                            # print("Check tok: %s with asset name: %s"%(tok, asset['name']))
                             if tok==asset['name'] :
                                 self.set_name( elem='asset', name=asset['name'] )
                                 self.set_ID( elem='asset', ID=asset['ID'] )
                                 self.set_tab( _type='ASSET' )
                                 assetFound=True
+                                # print("ASSET FOUND !!!!!")
                                 self.set_dict('filter')
                                 if pub :
                                     self.set_name( elem='filter', name='Published' )
