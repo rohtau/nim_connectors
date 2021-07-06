@@ -839,7 +839,7 @@ def getcustomFindElements(name=None, path=None, jobID=None, showID=None, shotID=
     return result
 
 
-def findElements(jobid, name="", shotid=0, assetid=0, taskid=0, elementid=0, userid=0, plain=False, profile=False):
+def findElements(jobid=0, name="", shotid=0, assetid=0, taskid=0, elementid=0, userid=0, plain=False, profile=False):
     '''
     Get a list of published elements for job, shot or asset.
     Filtered by task, type, user and name.

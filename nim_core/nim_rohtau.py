@@ -480,7 +480,7 @@ def runAsyncCommand( cmd ):
 
 def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', verbose=False):
     '''
-    Create a movie for review from a image sequence using Deadline's Draft
+    Create a movie or image for review from a image sequence using Deadline's Draft
     
     If outfile is not provided it will create the movie in a subfolder in the location of the image sequence called Draft.
     The name of the movie will be the same as the image sequence.
@@ -492,6 +492,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         /studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py
     It can be override using the envar RT_DRAFT_TEMPLATE
     Or with the drafttemplate argument
+    For still frames reviews this is the template:
+        /studio/pipeline/deadline/draft/standaloneDraftCreateStill.py
 
     Parameters
     ----------
@@ -513,7 +515,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     Returns
     -------
     str
-        Path to draft movie or False if error.
+        Path to draft movie/image or False if error.
     '''
     # set PYTHONPATH=c:\dev\deadlinerepository10\draft\Windows\64bit
     # set MAGICK_CONFIGURE_PATH=c:\dev\deadlinerepository10\draft\Windows\64bit 
@@ -525,8 +527,15 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
     if platform.system() == 'Windows':
         cmd = "C:\\opt\\deadline10\\bin\\dpython"
+    isstillframe = False
+    frameslist = frames.split('-')
+    if frameslist[0] == frameslist[1]:
+        isstillframe = True
     # Default studio Draft template, or use override from envvar or override from argument.
     draftTemplate="/studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py"
+    if isstillframe:
+        draftTemplate="/studio/pipeline/deadline/draft/standaloneDraftCreateStill.py"
+
     if 'RT_DRAFT_TEMPLATE' in os.environ:
         draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
     if drafttemplate:
@@ -557,7 +566,10 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # Out draft movie path
     outdraft = os.path.join( os.path.dirname(path), 'Draft' ) # Draft location
     (basename, tagname, ver) = nimAPI.extract_basename( filepath=os.path.basename(path) )
-    draftname = "%s_v%s.mov"%(basename, str(ver).zfill(2))
+    draftname = "%s_v%s.mov"%(basename, str(ver).zfill(3))
+    if isstillframe:
+        draftname = "%s_v%s.jpg"%(basename, str(ver).zfill(3))
+
     # draftname = os.path.basename(path).split('.')[0] + ".mov" # Draft name
     if outfile:
         if len(os.path.splitext(outfile)) >= 2:
@@ -826,7 +838,11 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     pathver = "v%s"%str(ver).zfill(padding)
 
     # Files location
-    basename = buildBasename( shot, task, name, elemtype=elem, layer=layer)
+    # Fix shot name so assets full names (category + asset) is correct. This
+    # will convert and asset name like vehicles/mercedes -> vehicles_mercedes
+    # Shot names never have a / so they won't be modified by this
+    assetshot = shot.replace('/', '_') 
+    basename = buildBasename( assetshot, task, name, elemtype=elem, layer=layer)
     loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
@@ -935,6 +951,21 @@ def checkFileAndElementPublished( nim ):
         for verfile in vers:
             if int(ver) == int(verfile['version']):
                 file = verfile
+                metadata = json.loads(file['metadata'])
+                #TODO: try to use the element linked to this files rather than start  a new element search later.
+                if 'elementID' in metadata:
+                    # Try to use the element linked to our file
+                    elementInfo = nimAPI.find_elements( name=file['filename'], assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
+                    found = False
+                    for elm in elementInfo:
+                        print("Check with Element ID:")
+                        print(elm['ID'])
+                        if elm['ID'] == metadata['elementID']:
+                            print("Found element linked to our file in check")
+                            return (file, elm)
+
+                    # Couldn't find linked element associated to out file
+                    return (file, None)
                 break
     elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
     if elmts:
@@ -971,7 +1002,7 @@ def createRenderIcon( elementInfo ):
         middlepath = os.path.join('C:', middlepath)
     if not os.path.exists(middlepath):
         nimP.error("Frame for render icon doesn't exists: %s"%middlepath)
-        nimP.error("Element for this render was published with the frame range: %d - %d. Using frame %d for icon"%(int(elementInfo['startFrame']), int(elementInfo['endFrame']), middleframe))
+        nimP.error("Element for this render was published with the frame range: %d - %d. Using frame %s for icon"%(int(elementInfo['startFrame']), int(elementInfo['endFrame']), middleframe))
         return False
     filename = os.path.basename(middlepath)
     rendername = filename.split('.')[0]
@@ -1257,9 +1288,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Get publish task
     if not nim.ID( elem='task' ):
         res['msg'] = "couldn't find a supported task in the path: %s"%path
+    print("Entity type: %s"%nim.tab())
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
     if not pid:
-        res['msg'] = "Shot or Asset name in path doesn't exists"
+        res['msg'] = "Shot or Asset name in file path doesn't exists"
         return res
     else:
         pid = int(pid)
@@ -1357,6 +1389,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     # Update file
     # Link file to elements and render preview if needed. Update comment
+    # Update filename and filepath in case the file is being reused and it has
+    # change frame range
     pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
     if comment.strip("''"):
         pubcomment += ". " + comment.strip("'")
@@ -1365,7 +1399,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         'extraElementsID': res['extraElementsID']
     }
     metadata = json.dumps(metadata)
-    updatefile_res = nimAPI.update_file( int(res['fileID']), comment=pubcomment, metadata=metadata )
+    updatefile_res = nimAPI.update_file( int(res['fileID']), filename=nim.name('file'), path=nim.filePath(), comment=pubcomment, metadata=metadata )
     if updatefile_res['success'] != 'true':
         if verbose:
             nimP.error("Error updating published file metadata")
@@ -1407,14 +1441,19 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     if verbose and not plain and not jsonout and not profile:
         nimP.info("Publishing Details:")
-        print("\tName        : %s"%nim.name('file'))
-        print("\tVersion     : %s"%nim.version())
-        print("\tShot        : %s"%nim.name('shot'))
-        print("\tTask        : %s"%nim.name('task'))
-        print("\tOwner       : %s"%nim.name('user'))
+        print("\tName        : %s"%info['filename'])
+        print("\tVersion     : %s"%info['version'])
+        if nim.tab() == 'SHOT':
+            print("\tShot        : %s"%nim.name('shot'))
+        else:
+            print("\tAsset       : %s"%nim.name('asset'))
+        # print("\tTask        : %s"%nim.name('task'))
+        print("\tTask        : %s"%nimUtl.gettasksTypesIDDict()[int(info['task_type_ID'])])
+        print("\tOwner       : %s"%info['username'])
         print("\tDate        : %s"%info['date'])
-        print("\tFile Type   : %s"%nim.nim['fileExt']['fileType'])
-        print("\tElement Type: %s"%nim.name('element'))
+        print("\tFile Type   : %s"%info['ext'][1:] if info['ext'].startswith('.') else info['ext'])
+        # print("\tElement Type: %s"%nim.name('element'))
+        print("\tElement Type: %s"%nimUtl.getelementsIDDict()[int(elm['elementTypeID'])])
         print("\tStart       : %s"%elm['startFrame'])
         print("\tEnd         : %s"%elm['endFrame'])
         print("\tComment     : %s"%info['note'])
@@ -2074,16 +2113,36 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     if parent.upper() == 'SHOT':
         parentname = nimAPI.get_shotInfo( shotID=pid)[0]['shotName']
     else:
-        parentname = nimAPI.get_asseetInfo( shotID=pid)[0]['assetName']
+        parentname = nimAPI.get_assetInfo( assetID=pid)[0]['assetName']
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     # Check availability:
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
         nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
+    metadata = json.loads(fileInfo['metadata'])
     elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=pid if parent.upper()=='ASSET' else '', shotID=pid if parent.upper()=='SHOT' else '')
+    # print("Element Info:")
+    # pprint(elementInfo)
     if elementInfo:
-        elementInfo=elementInfo[0]
+        if 'elementID' in metadata:
+            # Try to use the element linked to our file
+            found = False
+            for elm in elementInfo:
+                if elm['ID'] == metadata['elementID']:
+                    elementInfo = elm
+                    found = True
+                    break
+
+            if not found:
+                if verbose:
+                    nimP.error("Couldn't find a linked element for our file for output render: %s"%name)
+                res['success'] = False
+                res['msg'] = "Couldn't find a linked element for our file for output render: %s"%name
+                return res
+        else:
+            # If there is no elementID in our file, then assume first match
+            elementInfo=elementInfo[0]
     else:
         if verbose:
             nimP.error("Couldn't find an element for the render: %s"%name)
@@ -2094,9 +2153,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         taskid = int(elementInfo['taskID']) 
     else:
         taskid = 0
+    frange   = elementInfo['startFrame'] + "-" + elementInfo['endFrame']
     
     # print("Render Element:")
     # pprint(elementInfo)
+    nimP.info("Create render from %s in %s %s (Frames %s)"%(name, parent, parentname, frange))
 
     renderid = 0
     if taskid:
@@ -2132,7 +2193,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         # Create draft movie
         if verbose:
             nimP.info("Create render review ......")
-        frange   = elementInfo['startFrame'] + "-" + elementInfo['endFrame']
         draft    = createDraftMovie( path, str(frange))
         if not draft:
             return False
