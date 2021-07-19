@@ -413,6 +413,30 @@ def getshotsIDDict(jobid, showid=None):
 
 #
 # Assets
+def getassets(jobid):
+    """
+    Get the list of all assets in the job
+
+    Paremeters
+    ----------
+    jobid: int
+        Id for working job
+
+    Returns
+    -------
+    list
+        List of assets. empty list if jobid is wrong or there are no assets in the job
+    """
+    assets = nimAPI.get_assets(jobid)
+    return assets
+    # (cat, name) = os.path.split(assetname)
+    # for asset in assets:
+        # assetcat = getassetcategory(asset['ID'])
+        # if cat == assetcat and name == asset['name']:
+            # return int(asset['ID'])
+
+    # return 0
+
 def getassetIdFromName(jobid, assetname):
     """
     From a shot name returns it's ID
@@ -438,9 +462,6 @@ def getassetIdFromName(jobid, assetname):
             return int(asset['ID'])
 
     return 0
-
-    print(asset)
-
 
 def getassetsIDDict(jobid):
     '''
@@ -582,7 +603,7 @@ def gettaskTypesIdFromName(taskname):
 
 def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
     '''
-    Use custom rohtau API from NIm Labs to get all tasks from a parent: job, show, shot or asset
+    Use custom rohtau API from NIM Labs to get all tasks from a parent: job, show, shot or asset
     Or get all the details from a task given it's ID
 
     The main difference between this custom function and the default nimAPU.getTaskInfo()  is this

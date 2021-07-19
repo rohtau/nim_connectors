@@ -2802,12 +2802,17 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     # if filePath and os.path.isfile( filePath ) :
     if verUpResult:
         # Get publishing task
-        with open("C:\\tmp\\nimDic.txt", 'w') as f:
-            f.write(pformat(verUpNim.get_nim()))
-
         pubtask = Rt.pubTask( nim=verUpNim) 
         if not pubtask:
             P.error("Can't get a valid publishing task on file save. Aborting")
+            return False
+
+        # Moved here in order to save file before publishing, there is no
+        # point in publishing data that doesnt exists on disk.
+        # So first save on disk and then update data base
+        # Update host app vars to keep NIM data consistent and actually save files and create dirs
+        # Pass empty string for projpath to avoid creating projects paths.
+        if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
             return False
 
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
@@ -2827,12 +2832,12 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
 
             
-            P.info( 'File has been %s successfully.\n' % action )
+            P.info( 'File has been %s successfully.\n' % action.lower() )
             if not pub :
                 if nim.mode().lower() in ['save', 'saveas'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been Saved successfully.' )
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been saved successfully.' )
                 elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been Versioned Up successfully.' )
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been versioned up successfully.' )
             else :
                 #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
                 pass
@@ -2997,10 +3002,15 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             P.error( '    %s' % traceback.print_exc() )
                             return False
             
+            '''
+            # Moved up in order t o save file before publishing, there is no
+            # point in publishing data that doesnt exists on disk.
+            # So first save on disk and then update data base
             # Update host app vars to keep NIM data consistent and actually save files and create dirs
             # Pass empty string for projpath to avoid creating projects paths.
             if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
                 return False
+            '''
              
             return filePath
     

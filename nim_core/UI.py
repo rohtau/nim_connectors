@@ -901,7 +901,7 @@ class GUI(QtGui.QMainWindow) :
         except : pass
         self.btn_1.clicked.connect( self.file_open )
         # Flags to force in top
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -1050,7 +1050,7 @@ class GUI(QtGui.QMainWindow) :
         # Set default tag name as main
         self.nim.Input('tag').setText(defaultSceneName)
         # Flags to force in top
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -3249,6 +3249,7 @@ class GUI(QtGui.QMainWindow) :
             # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
+            P.error(traceback.format_stack())
             P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
         

@@ -31,7 +31,7 @@ except:
 if sys.version_info >= (3,0):
     import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 else:
-    import urllib, urllib2
+    import urllib, urllib2, urlparse
 
 #  NIM Imports :
 if sys.version_info >= (3,0):

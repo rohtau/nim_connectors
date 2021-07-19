@@ -958,10 +958,7 @@ def checkFileAndElementPublished( nim ):
                     elementInfo = nimAPI.find_elements( name=file['filename'], assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
                     found = False
                     for elm in elementInfo:
-                        print("Check with Element ID:")
-                        print(elm['ID'])
                         if elm['ID'] == metadata['elementID']:
-                            print("Found element linked to our file in check")
                             return (file, elm)
 
                     # Couldn't find linked element associated to out file
@@ -1288,7 +1285,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Get publish task
     if not nim.ID( elem='task' ):
         res['msg'] = "couldn't find a supported task in the path: %s"%path
-    print("Entity type: %s"%nim.tab())
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
     if not pid:
         res['msg'] = "Shot or Asset name in file path doesn't exists"
@@ -2278,7 +2274,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     if parent.upper() == 'SHOT':
         parentname = nimAPI.get_shotInfo( shotID=pid)[0]['shotName']
     else:
-        parentname = nimAPI.get_asseetInfo( shotID=pid)[0]['assetName']
+        parentname = nimAPI.get_assetInfo( assetID=pid)[0]['assetName']
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     if not userID:

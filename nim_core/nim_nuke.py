@@ -145,7 +145,8 @@ def set_vars( nim=None ) :
         P.warning( msg )
     else:
         PS.knob('nim_task').setValue(pubtask['taskName'])
-        PS.knob('nim_taskID').setValue(pubtask['taskID'])
+        PS.knob('nim_taskID').setValue(int(pubtask['taskID']))
+        # PS.knob('nim_taskID').setValue(pubtask['taskID'])
 
 
     '''
