@@ -1591,8 +1591,12 @@ class GUI(QtGui.QMainWindow) :
                         if basenameapp in self.appsIcons:
                             item.setIcon( self.appsIcons[basenameapp] )
                         # Only enable basenames for the current host app
-                        if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
-                            item.setFlags( QtCore.Qt.NoItemFlags )
+                        # TODO: support Nuke scenes called as Scene and Nuke
+                        # Script. Hiero creates scripts without the custom key
+                        # File Type, and we need to detect it and assign these
+                        # scenes to Nuke
+                        # if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
+                            # item.setFlags( QtCore.Qt.NoItemFlags )
                         # Ownership color
                         if latestver['userID'].encode('ascii') == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
