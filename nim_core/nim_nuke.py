@@ -1026,7 +1026,7 @@ class NIM_Node() :
                     #  List of IDs will always be one behind index of 'list', due to "Select..." :
                     self.nim[elem]['list'].append( 'Select...' )
                     for ver in vers :
-                        print ver
+                        print (ver)
                         if nuke.env['nc'] :
                             srch=re.search( '_[v]?[0-9]+.nknc$', ver['filename'] )
                         else :
