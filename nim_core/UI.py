@@ -1480,7 +1480,7 @@ class GUI(QtGui.QMainWindow) :
             if elem=='job' and not self.jobOverride.isChecked():
                 widget = self.nim.Input( elem )
                 # Get jobs in combo box
-                jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 rezjob = nimUtl.hasRezCtxJob( jobs )
                 if rezjob:
                     # Set job according to Rez context
@@ -1495,9 +1495,7 @@ class GUI(QtGui.QMainWindow) :
                 self.populate_server()
                 #  Set tab from Rez :
                 rezTab = nimUtl.getRezCtxTab()
-                print("Getting tab from Rez")
                 if rezTab:
-                    print("Tab from Rez: %s"%rezTab)
                     if rezTab=='ASSET' :
                         self.jobTab.setCurrentIndex(0)
                         self.nim.set_tab('ASSET')
@@ -1523,7 +1521,7 @@ class GUI(QtGui.QMainWindow) :
             if elem=='show' and not self.showOverride.isChecked() :
                 widget = self.nim.Input( elem )
                 # Get shows
-                shows = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                shows = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
                 if rezshow:
                     # Set show according to Rez context
@@ -1531,6 +1529,9 @@ class GUI(QtGui.QMainWindow) :
                     widget.setEnabled( False )
                     widget.setCurrentIndex( idx )
                     self.nim.set_name( elem='show', name=rezshow )
+                    # Correct index from UI widget if needed
+                    if shows[0].startswith('Select'):
+                        idx -= 1
                     self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
                     P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
                     self.update_elem(elem='show') # Populate shots
