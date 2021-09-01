@@ -1282,6 +1282,11 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     if not nim.mode() :
         nim.set_mode('ver')
 
+    # Fill NIM data in res
+    res['filename']  = nim.name('file')
+    res['filepath']  = nim.filePath()
+    res['version']   = nim.version()
+
     # print("NIM Dict:")
     # pprint(nim.get_nim())
     # import nuke

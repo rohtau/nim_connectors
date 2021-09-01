@@ -681,8 +681,16 @@ def getuserTask(userid, tasktype, parent, parentID):
     # print(pformat(tasks))
     # print("Look for task type ID: %d for userID: %d"%(tasktypeID, userid))
     for task in tasks:
-        if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
-            return task
+        if task['userID'] is not None and task['userID'] != '0':
+            if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
+                return task
+        elif int(task['typeID']) == tasktypeID:
+            typename = tasktype
+            if isinstance(tasktype, int) or tasktype.isdigit():
+                typename = gettasksTypesIDDict()[int(tasktype)]
+            nimP.warning("Task of type %s found (#%d). But it has not an user assigned to it. Could this be a wrong or temporal task?"%(typename, int(task['taskID'])))
+
+
 
     return False
 
