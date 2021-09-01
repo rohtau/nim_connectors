@@ -48,6 +48,8 @@ def debug( msg='' ) :
 
 def info( msg='' ) :
     'Custom info printer'
+    if isinstance(msg, list):
+        msg = ''.join(msg)
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
         if isNuke:
@@ -64,6 +66,8 @@ def info( msg='' ) :
 
 def log( msg='' ) :
     'Custom info logger'
+    if isinstance(msg, list):
+        msg = ''.join(msg)
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
         if isNuke:
@@ -80,6 +84,8 @@ def log( msg='' ) :
 
 def warning( msg='' ) :
     'Custom warning printer'
+    if isinstance(msg, list):
+        msg = ''.join(msg)
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
         if isNuke:
@@ -97,6 +103,8 @@ def warning( msg='' ) :
 def error( msg='' ) :
     'Custom error printer'
     if msg :
+        if isinstance(msg, list):
+            msg = ''.join(msg)
         tokens=msg.rstrip().split( '\n' )
         for toke in tokens :
             if isNuke:
