@@ -2139,7 +2139,7 @@ def extract_basename( nim=None, filepath=None ) :
             P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
             return False
         shotname = nameparts[0]
-        # taskname = nameparts[1]
+        taskname = nameparts[1]
         taskname = nameparts[1].split('_')[0] if nameparts[1].count('_') else taskname
         elemname = nameparts[1].split('_')[1] if nameparts[1].count('_') else "" # elem is not mandatory
         basename = '__'.join(nameparts[:2])
@@ -2772,6 +2772,9 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     # Check basename is using the same app as our host.
     # In other words ensure a Houdini scene is not saved using a tag (basename)
     # that has Nuke scripts, for instance
+    # FIXME: check this with Hiero scripts. hiero scripts don't publish the path
+    # correctly, they don't put customKeys
+    '''
     if nim.name('base') and ( nim.ID('asset') is not None or  nim.ID('shot') is not None ):
         latestver = get_vers(assetID = int(nim.ID('asset')) if nim.tab() == 'ASSET' else None,
                                 shotID = int(nim.ID('shot')) if nim.tab() == 'SHOT' else None,
@@ -2786,6 +2789,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                 P.error(msg)
                 P.error("Abort file save")
                 return False
+    '''
 
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file
@@ -2802,12 +2806,17 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     # if filePath and os.path.isfile( filePath ) :
     if verUpResult:
         # Get publishing task
-        with open("C:\\tmp\\nimDic.txt", 'w') as f:
-            f.write(pformat(verUpNim.get_nim()))
-
         pubtask = Rt.pubTask( nim=verUpNim) 
         if not pubtask:
             P.error("Can't get a valid publishing task on file save. Aborting")
+            return False
+
+        # Moved here in order to save file before publishing, there is no
+        # point in publishing data that doesnt exists on disk.
+        # So first save on disk and then update data base
+        # Update host app vars to keep NIM data consistent and actually save files and create dirs
+        # Pass empty string for projpath to avoid creating projects paths.
+        if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
             return False
 
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
@@ -2827,12 +2836,12 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
 
             
-            P.info( 'File has been %s successfully.\n' % action )
+            P.info( 'File has been %s successfully.\n' % action.lower() )
             if not pub :
                 if nim.mode().lower() in ['save', 'saveas'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been Saved successfully.' )
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been saved successfully.' )
                 elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been Versioned Up successfully.' )
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been versioned up successfully.' )
             else :
                 #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
                 pass
@@ -2997,10 +3006,15 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             P.error( '    %s' % traceback.print_exc() )
                             return False
             
+            '''
+            # Moved up in order t o save file before publishing, there is no
+            # point in publishing data that doesnt exists on disk.
+            # So first save on disk and then update data base
             # Update host app vars to keep NIM data consistent and actually save files and create dirs
             # Pass empty string for projpath to avoid creating projects paths.
             if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
                 return False
+            '''
              
             return filePath
     

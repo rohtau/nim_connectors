@@ -230,9 +230,20 @@ class NimShotProcessorUI(NimProcessorUIBase, QtCore.QObject):
       if not sequence in sequences:
         sequences.append(sequence)
 
-    trackWidget = TrackSelectionWidget(sequences,
-                                           self._preset.nonPersistentProperties()["excludedTracks"],
-                                           excludedTrackIDs = self._preset._excludedTrackIDs)
+    # XXX: fix API change introduced in 12.2v6 in TrackSelectionWidget
+    HieroVersionMajor   = int(hiero.core.env['VersionMajor'])
+    HieroVersionMinor   = int(hiero.core.env['VersionMinor'])
+    HieroVersionRelease = int(hiero.core.env['VersionRelease'][1:])
+    if HieroVersionMajor < 12 or (HieroVersionMajor == 12 and HieroVersionMinor < 2 ) or \
+       (HieroVersionMajor == 12 and HieroVersionMinor == 2 and HieroVersionRelease < 6 ):
+        trackWidget = TrackSelectionWidget(sequences,
+                                            self._preset.nonPersistentProperties()["excludedTracks"],
+                                            excludedTrackIDs = self._preset._excludedTrackIDs)
+    else:
+        # New call to TrackSelectionWidget from 12.2v6
+        trackWidget = TrackSelectionWidget(sequences, [],
+                                            self._preset.nonPersistentProperties()["excludedTracks"],
+                                            excludedTrackIDs = self._preset._excludedTrackIDs)
     hLayout.addWidget(trackWidget)
 
     tagsLayout = QtWidgets.QVBoxLayout()

@@ -901,7 +901,7 @@ class GUI(QtGui.QMainWindow) :
         except : pass
         self.btn_1.clicked.connect( self.file_open )
         # Flags to force in top
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -1050,7 +1050,7 @@ class GUI(QtGui.QMainWindow) :
         # Set default tag name as main
         self.nim.Input('tag').setText(defaultSceneName)
         # Flags to force in top
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -1480,7 +1480,7 @@ class GUI(QtGui.QMainWindow) :
             if elem=='job' and not self.jobOverride.isChecked():
                 widget = self.nim.Input( elem )
                 # Get jobs in combo box
-                jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 rezjob = nimUtl.hasRezCtxJob( jobs )
                 if rezjob:
                     # Set job according to Rez context
@@ -1495,9 +1495,7 @@ class GUI(QtGui.QMainWindow) :
                 self.populate_server()
                 #  Set tab from Rez :
                 rezTab = nimUtl.getRezCtxTab()
-                print("Getting tab from Rez")
                 if rezTab:
-                    print("Tab from Rez: %s"%rezTab)
                     if rezTab=='ASSET' :
                         self.jobTab.setCurrentIndex(0)
                         self.nim.set_tab('ASSET')
@@ -1523,7 +1521,7 @@ class GUI(QtGui.QMainWindow) :
             if elem=='show' and not self.showOverride.isChecked() :
                 widget = self.nim.Input( elem )
                 # Get shows
-                shows = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                shows = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
                 if rezshow:
                     # Set show according to Rez context
@@ -1531,6 +1529,9 @@ class GUI(QtGui.QMainWindow) :
                     widget.setEnabled( False )
                     widget.setCurrentIndex( idx )
                     self.nim.set_name( elem='show', name=rezshow )
+                    # Correct index from UI widget if needed
+                    if shows[0].startswith('Select'):
+                        idx -= 1
                     self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
                     P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
                     self.update_elem(elem='show') # Populate shots
@@ -1591,8 +1592,12 @@ class GUI(QtGui.QMainWindow) :
                         if basenameapp in self.appsIcons:
                             item.setIcon( self.appsIcons[basenameapp] )
                         # Only enable basenames for the current host app
-                        if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
-                            item.setFlags( QtCore.Qt.NoItemFlags )
+                        # TODO: support Nuke scenes called as Scene and Nuke
+                        # Script. Hiero creates scripts without the custom key
+                        # File Type, and we need to detect it and assign these
+                        # scenes to Nuke
+                        # if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
+                            # item.setFlags( QtCore.Qt.NoItemFlags )
                         # Ownership color
                         if latestver['userID'].encode('ascii') == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
@@ -3249,6 +3254,7 @@ class GUI(QtGui.QMainWindow) :
             # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
+            P.error(traceback.format_stack())
             P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
         

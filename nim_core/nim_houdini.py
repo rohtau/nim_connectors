@@ -308,7 +308,7 @@ def reset_vars( confirm=True ):
         return False
 
     # Try to create a valid task
-    pubtask = nimRt.pubTask(nimpubdata)
+    pubtask = Rt.pubTask(nimpubdata)
 
     set_vars( nimpubdata )
 

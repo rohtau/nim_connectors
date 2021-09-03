@@ -490,7 +490,6 @@ class NIM( object ) :
                             ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
                             if tok==version['filename'] or tok==ver_abbrev :
-                                # self.set_name( elem='ver', name=version['filename'] )
                                 self.set_name( elem='ver', name=version['version'] )
                                 self.set_ID( elem='ver', ID=version['fileID'] )
                                 self.set_version( version['version'])
@@ -502,18 +501,70 @@ class NIM( object ) :
                                 versionFound=True
                                 break
 
-        # If the path if a file wit a previous version published then we have been able to detect basename and version.
-        # Otherwise basename and version haven't been found and we need to guess the from the file path
-        # TODO: check if this is actually happening with nuke publishing
-        if not basenameFound or not versionFound:
+        # XXX: Special cases
+        filename = os.path.basename(filePath)
+        if not taskFound:
+            # In some special cases the filapath doesn't contain a task
+            # folder
+            # Some task for instance doesnt have a folder or there are some
+            # special locations for elements  like plates that are an exception
+            # to the usualt task path. In this cases we run our nimUtl.splitName
+            # trying yo guess as most as possible from the file path.
+            # if task hasnt been found then basenamea nd version are also
+            # missing
+            import nim_rohtau_utils as nimUtl
+            nameparts = nimUtl.splitName(filename)
+            if nameparts:
+                self.set_name( elem='base', name=nameparts['base'] )
+                self.nim['file']['basename']=nameparts['base']
+                self.nim['file']['filename']=self.name('file')
+                basenameFound=True
+                self.set_name( elem='tag', name=nameparts['tag'] )
+                self.set_version(str(nameparts['ver']))
+                self.set_name( elem='ver', name=nameparts['ver'] )
+                if nameparts['task']:
+                    for task in self.Dict('task') :
+                        if task['name'] == nameparts['task']:
+                            self.set_name( elem='task', name=task['name'] )
+                            self.set_ID( elem='task', ID=task['ID'] )
+                            # self.set_taskFolder(task['folder'])
+                            taskFound = True
+        elif not basenameFound or not versionFound:
+            # If the path if a file with a previous version published then we have been able to detect basename and version.
+            # Otherwise basename and version haven't been found and we need to guess the from the file path
             # Guess basename from file name.
             (basename, tagname, ver) = Api.extract_basename( self, filePath )
             # Fill file key
+            self.set_name( elem='base', name=basename )
             self.nim['file']['basename']=basename
             self.nim['file']['filename']=self.name('file')
+            basenameFound=True
+            self.set_name( elem='tag', name=tagname )
             self.set_version(str(ver))
+            self.set_name( elem='ver', name=str(ver) )
 
-        
+        if basenameFound and not versionFound:
+            if assetFound==True :
+                versions=Api.get_vers( assetID=self.ID( 'asset' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
+            if shotFound==True :
+                versions=Api.get_vers( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
+            self.set_dict('ver')
+            for version in versions :
+                task_abbrev=F.task_toAbbrev( self.name( 'task' ) )
+                ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
+                    '_'+task_abbrev+'_' )
+                if filename==version['filename'] or tok==ver_abbrev :
+                    # self.set_name( elem='ver', name=version['filename'] )
+                    self.set_name( elem='ver', name=version['version'] )
+                    self.set_ID( elem='ver', ID=version['fileID'] )
+                    self.set_version( version['version'])
+                    self.get_nim()['file']['basename'] = version['basename']
+                    self.get_nim()['file']['filename'] = version['filename']
+                    # Extract user info from file version:
+                    self.set_name( elem='user', name=version['username'])
+                    self.set_ID( elem='user', ID=version['userID'])
+                    versionFound=True
+
         #  Derive Server :
         if self.name( 'job' ) :
             # self.set_name( elem='server', name=filePath.split( self.name( 'job' ).split()[0] )[0] )

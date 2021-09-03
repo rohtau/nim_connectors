@@ -427,19 +427,23 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="",
 
     return attrs
 
-def runAsyncCommand( cmd ):
+def runAsyncCommand( cmd, timeout=120 ):
     '''
     Run a command asynchronously.
 
-    Arguments:
-        cmd {str} -- command string
+    Parameters
+    ----------
+        cmd : str
+            command string
+        timeout : int
+            Number of second to wait for command to be executed
 
     Returns:
         bool -- True if the command finished with errorcode 0, False other wise
     '''
     args = shlex.split(cmd, posix=platform.system() != 'Windows')
     # print(args)
-    timeout = 60*2 #some amount of seconds
+    # timeout = 60*2 #some amount of seconds
     delay = 1.0
         
     try:
@@ -591,7 +595,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         os.environ.update(thinkboclivenv)
-    if not runAsyncCommand( cmd ):
+    if not runAsyncCommand( cmd, timeout = 5*60 ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
         return False
     
@@ -943,31 +947,33 @@ def checkFileAndElementPublished( nim ):
         nimP.warning("NIM dictionary doesn't have basename or version information. Basename: %s, Version: %s"%(basename, ver))
         return (file, element)
 
-    if nim.tab() == 'SHOT':
-        vers = nimAPI.get_vers( shotID=int(nim.ID('shot')), basename=nim.name('base'))
+    # First check if the nim object already has detected this version published:
+    if nim.Dict('ver') and nim.ID('ver'):
+        file = nimAPI.get_verInfo(int(nim.ID('ver')))
+        if file:
+            file = file[0]
     else:
-        vers = nimAPI.get_vers( assetID=int(nim.ID('asset')), basename=nim.name('base'))
-    if vers:
-        # pprint(vers)
-        for verfile in vers:
-            if int(ver) == int(verfile['version']):
-                file = verfile
-                metadata = json.loads(file['metadata'])
-                #TODO: try to use the element linked to this files rather than start  a new element search later.
-                if 'elementID' in metadata:
-                    # Try to use the element linked to our file
-                    elementInfo = nimAPI.find_elements( name=file['filename'], assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
-                    found = False
-                    for elm in elementInfo:
-                        print("Check with Element ID:")
-                        print(elm['ID'])
-                        if elm['ID'] == metadata['elementID']:
-                            print("Found element linked to our file in check")
-                            return (file, elm)
-
-                    # Couldn't find linked element associated to out file
-                    return (file, None)
-                break
+        if nim.tab() == 'SHOT':
+            vers = nimAPI.get_vers( shotID=int(nim.ID('shot')), basename=nim.name('base'))
+        else:
+            vers = nimAPI.get_vers( assetID=int(nim.ID('asset')), basename=nim.name('base'))
+        if vers:
+            # pprint(vers)
+            for verfile in vers:
+                if int(ver) == int(verfile['version']):
+                    file = verfile
+    if file:
+        metadata = json.loads(file['metadata'])
+        if 'elementID' in metadata:
+            # Try to use the element linked to our file
+            elementInfo = nimAPI.find_elements( name=file['filename'], assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
+            found = False
+            for elm in elementInfo:
+                if elm['ID'] == metadata['elementID']:
+                    return (file, elm)
+            # Couldn't find linked element associated to out file
+            return (file, None)
+    # try to find element
     elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
     if elmts:
         for elm in elmts:
@@ -1105,12 +1111,12 @@ def pubTask( nim=None, filepath=None, user=None ):
     if not nim and filepath:
         nim = Nim.NIM().ingest_filePath( filepath )
     task    = nim.name('task')
-    taskid  = int(nim.ID('task'))
     if not task:
         msg = "Couldn't detect a task from provided %s"%("NIM object", "path: %s"%filepath)[nimFromFile]
-        P.error(msg)
+        nimP.error(msg)
         Win.popup( title='NIM - Save Error', msg=msg )
         return False
+    taskid  = int(nim.ID('task'))
 
     tab      = nim.tab()
     if not user:
@@ -1168,7 +1174,7 @@ def pubTask( nim=None, filepath=None, user=None ):
     
     return pubtask
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING, asrender=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , asrender=False, disable_task_pub=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -1230,6 +1236,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
     asrender     : bool
         Create a render publish after publishing the path.
+    disable_task_pub     : bool
+        Disable publishing element on task. Allow to publish a file without having a task for the user.
     plain     : bool
         Output in plain text format.
     jsonout   : bool
@@ -1274,7 +1282,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     posixpath = toPosix( path )
     # Normalize padding format
     posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
-    posixpath = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
+    osixpath = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
 
@@ -1298,20 +1306,26 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Get publish task
     if not nim.ID( elem='task' ):
         res['msg'] = "couldn't find a supported task in the path: %s"%path
-    print("Entity type: %s"%nim.tab())
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
     if not pid:
         res['msg'] = "Shot or Asset name in file path doesn't exists"
         return res
     else:
         pid = int(pid)
-    pubtask = pubTask( nim )
-    if not pubtask:
-        res['success'] = False
-        res['errorcode'] = 2
-        res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo['name'], nim.name('task'))
-        nimP.error(res['msg'])
-        return res if not plain and not jsonout else False
+
+    # Pub Task
+    pubtask = None
+    if not  disable_task_pub:
+        pubtask = pubTask( nim )
+        if not pubtask:
+            res['success'] = False
+            res['errorcode'] = 2
+            if nim.name('task'):
+                res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo['name'], nim.name('task'))
+            else:
+                res['msg'] = "Couldn't detect a task for publishing from the given path. Is this path correct?\n%s"%posixpath
+            nimP.error(res['msg'])
+            return res if not plain and not jsonout else False
 
     # Check if there is already a file published with different file type
     check_res = checkFileAlreadyPublished( nim )
@@ -1385,7 +1399,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             return res if not plain and not jsonout else False
         else:
             res['elementID'] = addelmt_result['ID']
-        if pubtask:
+        if pubtask and not disable_task_pub:
             updateelmt_result = nimAPI.update_element( ID=int(addelmt_result['ID']), taskID=int(pubtask['taskID']))
             if updateelmt_result['success'] != 'true':
                 # TODO: remove element and file
@@ -2212,6 +2226,27 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         res['ID'] = renderid
     else:
         nimP.warning("Couldn't find a task %s for %s %s. Render item won't be published."%(nimUtl.gettasksTypesIDDict()[tasktype], parent, parentname))
+    '''
+    # Create icon
+    if verbose:
+        nimP.info("Create render icon ..")
+    icon = createRenderIcon( elementInfo )
+    if not icon:
+        # Don't fail publishing if render icon creation failed, put a
+        # warning and try to keep going with the render publish
+        nimP.warning("Error creating render icon for %s"%rendername)
+        icon=""
+    # Publish render
+    if verbose:
+        nimP.info("Publish render ....")
+    res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
+    if not res['success']:
+        res['success'] = False
+        res['msg']     = "Error publishing render %s in %s %s"%(fileparts['base'], fileparts['shot'], parentname)
+        return res
+    renderid = int(res['ID'].encode('ascii'))
+    res['ID'] = renderid
+    '''
             
 
     if doreview:
@@ -2306,7 +2341,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     if parent.upper() == 'SHOT':
         parentname = nimAPI.get_shotInfo( shotID=pid)[0]['shotName']
     else:
-        parentname = nimAPI.get_asseetInfo( shotID=pid)[0]['assetName']
+        parentname = nimAPI.get_assetInfo( assetID=pid)[0]['assetName']
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     if not userID:
