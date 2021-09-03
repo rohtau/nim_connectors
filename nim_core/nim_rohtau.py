@@ -23,6 +23,7 @@ import time
 import json
 import shutil
 import stat
+import getpass
 from glob import glob
 from subprocess import Popen
 from datetime   import datetime
@@ -1173,7 +1174,7 @@ def pubTask( nim=None, filepath=None, user=None ):
     
     return pubtask
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , disable_task_pub=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , asrender=False, disable_task_pub=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -1208,6 +1209,13 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         - 7: Error logging path as element in NIM
         - 8: Error updating Element or File metadata
 
+    Publish A Render
+    ----------------
+    If the path we are publishing is a render then you can use `asrender`.
+    This will call to createRender() after the path has been published succesfully creating 
+    an icon and a review movie for the render and publishing everything into NIM.
+    With this option is possible to publish a render in one go, first log the files apth and then log the render.
+
     Parameters
     ----------
     path      : str
@@ -1226,6 +1234,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         Overwrite policy. Whether or not allow to reuse pub elements/files
     state     : pub.pubState
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
+    asrender     : bool
+        Create a render publish after publishing the path.
     disable_task_pub     : bool
         Disable publishing element on task. Allow to publish a file without having a task for the user.
     plain     : bool
@@ -1449,7 +1459,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     res['errorcode'] = 0
     res['filename']  = nim.name('file')
     res['filepath']  = nim.filePath()
-    res['version']   = nim.version()
+    # res['version']   = nim.version()
+    res['version']   = int(nim.version())
+    res['fileID']    = int(res['fileID'].encode('ascii'))
+    res['elementID'] = int(res['elementID'].encode('ascii'))
 
     # Grab just published info
     info = nimAPI.get_verInfo( res['fileID'] )
@@ -1515,6 +1528,21 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             'element': elm
         }
         jsonstr = json.dumps(out, indent=4)
+
+    # Publish render if needed. Is doing a simplified version of createRender
+    # (No render times, rener type, etc ... )
+    if asrender:
+        myuser   = getpass.getuser()
+        userid   = nimUtl.getuserID(myuser)
+        # doreview = writenode.knob('pub_doreview') is not None and writenode.knob('pub_doreview').value()
+        render   = createRender(fileID=res['fileID'], userid=userid, comment=comment, verbose=True)
+        if not render or not render['success']:
+            if render:
+                log("Error creating publish render: %s"%render['msg'], openwindow=True, severity=rt.Severity.Error)
+            else:
+                log("Error creating publish render", openwindow=True, severity=rt.Severity.Error)
+            return False
+        
         
 
     if plain or profile:
@@ -1522,9 +1550,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     elif jsonout and not profile:
         return jsonstr
     else:
-        res['version']   = int(res['version'])
-        res['fileID']    = int(res['fileID'].encode('ascii'))
-        res['elementID'] = int(res['elementID'].encode('ascii'))
         return res
 
     pass
@@ -1987,7 +2012,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     Parameters
     ----------
     fileID : int
-        If passed all info about the render will be gather from the published File. filename, userid, job, parent and parentID wont be needed.
+        If passed all info about the render will be gather from the published File. Filename, userid, job, parent and parentID wont be needed.
     filename : str
         Filename of element to query. Name convention: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext. Not needed if fileID is passed.
     userid    : int
@@ -2246,6 +2271,9 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         else:
             res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), userID=userid, path=draftPosix, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
         if res_review:
+            # Check this, apparently is a byte type, so I cant do a pattern
+            # match, so check if res_review is byt, and in  that case convert to
+            # string.
             p = re.compile('^.+"ID":"\(\d+\)".+$')
             m = p.match(res_review)
             if m:
