@@ -37,7 +37,7 @@ def updateNimWriteNodes():
     # find autoFillWrite nodes
     for n in writeNodes:
         for k in n.knobs():
-            print k
+            print (k)
             if k == "nim_outputFileText":
                 try:
                     n[k].setValue(n.knobs()['nimFilename'].value())
@@ -53,7 +53,7 @@ def logNimRender(writeNode=None):
     # Currently this function is hardcoded to a single elementTypeID until a dropdown picker is added to the writeNIM node
 
     if writeNode is not None :
-        print "Logging Render to NIM"
+        print ("Logging Render to NIM")
         import nuke
         import nim_core.nim_api as nimAPI
         
