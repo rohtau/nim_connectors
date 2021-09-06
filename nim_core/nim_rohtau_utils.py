@@ -681,8 +681,14 @@ def getuserTask(userid, tasktype, parent, parentID):
     # print(pformat(tasks))
     # print("Look for task type ID: %d for userID: %d"%(tasktypeID, userid))
     for task in tasks:
-        if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
-            return task
+        if task['userID'] is not None and task['userID'] != '0':
+            if int(task['typeID']) == tasktypeID and int(task['userID']) == userid:
+                return task
+        elif int(task['typeID']) == tasktypeID:
+            typename = tasktype
+            if isinstance(tasktype, int) or tasktype.isdigit():
+                typename = gettasksTypesIDDict()[int(tasktype)]
+            nimP.warning("Task of type %s found (#%d). But it has not an user assigned to it. Could this be a wrong or temporal task?"%(typename, int(task['taskID'])))
 
     return False
 
@@ -1172,9 +1178,13 @@ def splitName(filename, error=True):
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = 0
-    if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('v'): 
+    # Version is always the 3rd or 4th element. assumin is the last is wrong, we
+    # can ad sufixes to the name, like in the render scene where we add  a time
+    # stamp.
+    verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
+    if verstr.startswith('v') or verstr.startswith('v'): 
         # There is version part
-        ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
+        ver = verstr[1:]  # Get ver part and remove the initial v
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
@@ -1182,10 +1192,13 @@ def splitName(filename, error=True):
                 nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
             return False
         fileparts['ver']  = int(ver)
-        fileparts['tag']  = basenameparts[2] if len(basenameparts) > 3 else "" # tag is not mandatory
+        if len(basenameparts) > 3:
+            fileparts['tag']  = basenameparts[2]
+        else:
+            fileparts['tag']  = '' # tag is not mandatory
     else:
         # No version part
-        fileparts['tag']  = basenameparts[-1] if len(basenameparts) > 2 else "" # tag is not mandatory
+        fileparts['tag']  = basenameparts[2]
     fileparts['shot'] = basenameparts[0]
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
