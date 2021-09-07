@@ -141,7 +141,10 @@ def getjobNumberFromId(id):
     """
     Using a job integer id string, return it's job number identifier
 
-    Return empty string job id is not found
+    Return 
+    -------
+    str:
+        Job number, code. Empty string job id is not found
     """
     jobinfo = nimAPI.get_jobInfo(id)
     if jobinfo:
@@ -166,13 +169,13 @@ def getjobIdNumberTuple(job):
         jobnumber = getjobNumberFromId(job)
         jobid = int(job)
         if not jobnumber:
-            nimP.error("Can't get job number from given id: %d" % job)
+            nimP.error("Can't get job number from given id: %d. Does the job exists?" % job)
             return (0, "")
     else:
         # jobnumber =  fixjobNumber(job)
         jobid = getjobIdFromNumber(jobnumber)
         if not jobid:
-            nimP.error("Can't get job id from given job number: %s" %
+            nimP.error("Can't get job id from given job number: %s. Does the job exists?" %
                        jobnumber)
             return (0, "")
 
@@ -286,6 +289,38 @@ def isJobOnline(jobid):
 
     pass
 
+def get_job_users(jobid):
+    '''
+    Get all users included in the given job
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+
+    Returns
+    -------
+    list
+        List of users. False if job doesn't exists. Empty list if there is no users in the job yet.
+    '''
+    users = nimAPI.get_userList()
+    jobusers = []
+    if not getjobNumberFromId( jobid ):
+        nimP.error("Can't get job number from given id: %d. Does the job exists?" % job)
+        return False
+
+    for user in sorted(users, key=lambda k: k['first_name']):
+        jobsnames = nimAPI.get_jobs(user['ID'])
+        # pprint(jobsnames)
+        jobs = ""
+        jobfound = False
+        for jobname in jobsnames.keys():
+            (jobnumber, name) = jobname.decode('utf-8').strip().split(' ', 1)
+            jobID = jobsnames[jobname].decode('utf-8')
+            if int(jobid) == int(jobID):
+                jobusers.append(user)
+    # pprint(jobusers)
+    return jobusers
 
 #
 # Shows
@@ -1233,7 +1268,6 @@ def getuserName(userid):
         if int(user['ID']) == userid:
             return user['username']
     return False
-
 
 def getusersIDDict():
     '''
