@@ -69,12 +69,14 @@ class jobAwardStatusID:
     '''
     Enum for job status ID in NIM
     '''
-    BIDDING = 1
-    NOT_AWARDED = 2
-    AWARDED = 3
-    IN_PROGRESS = 4
-    COMPLETED = 5
-    CLOSED = 6
+    BIDDING       = 1
+    NOT_AWARDED   = 2
+    AWARDED       = 3
+    IN_PROGRESS   = 4
+    COMPLETED     = 5
+    CLOSED        = 6
+    ARCHIVED      = 7
+    DEEP_ARCHIVED = 8
 
 #
 # Utilities
