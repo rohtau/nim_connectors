@@ -324,6 +324,49 @@ def get_job_users(jobid):
     # pprint(jobusers)
     return jobusers
 
+def set_job_status(jobid, status):
+    '''
+    Set job status
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+    status : int
+        A value from nim_rohtau_util.jobAwardStatusID enum
+
+    Returns
+    -------
+    bool
+        True if set finished correctly
+    '''
+    res = nimAPI.update_job(jobID=jobid, jobStatusID=status)
+
+    return res
+
+def set_job_active(jobid, active=True):
+    '''
+    Set job activity
+    An INCATIVE job is closed to any work. Pipeline is not working anymore for the peoject and crew users are
+    removed from job's security group so they cant access the data.
+    On the contrary an ACTIVE job has the pipeline enabled and crew members can access job's data.
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+    active : bool
+        Set job activity. 
+
+    Returns
+    -------
+    bool
+        True if set finished correctly
+    '''
+    res = nimAPI.update_job(jobID=jobid, projectStatus=('INACTIVE', 'ACTIVE')[int(active)])
+
+    return res
+
 #
 # Shows
 def getshowIdFromName(jobid, showname):
