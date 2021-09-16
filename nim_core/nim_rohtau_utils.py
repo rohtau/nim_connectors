@@ -20,6 +20,9 @@ import re
 # import getpass
 import time
 # from pathlib import PurePath
+import subprocess
+import getpass
+from subprocess import Popen
 from pprint import pprint
 from pprint import pformat
 from itertools import groupby
@@ -90,15 +93,113 @@ def logtimer(msg, start, end=0.0):
     If end time is not provided, start will be printed as the time.
     If provided the difference between end and start will be the printed time.
 
-    Arguments:
-        msg {str} -- log message. A semicolo plus final time will be added.
-        start {float} -- start time
-        end {float} -- end time
+    Parameters
+    ----------
+        msg : str
+            log message. A semicolo plus final time will be added.
+        start : float
+            start time
+        end :float
+            end time
     '''
     print("NIM.Profile ~> %s : %0.4f" %
           (msg, (end-start) if end > 0 else start))
 
     pass
+
+def runCommand( cmd, output=False ):
+    '''
+    Run a shell command
+
+    Parameters
+    ----------
+        cmd : str
+            git command string
+        output : bool
+            Whether or not return the command output. If command fails returns False
+
+    Returns
+    -------
+        bool or string : 
+            True if the command finished with errorcode 0, False other wise. If output is True return command output on success.
+    '''
+    try:
+        if output:
+            ret = subprocess.check_output(cmd, shell=True, stderr= subprocess.STDOUT)
+        else:
+            ret = subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        nimP.error( "Failed command: %s "%cmd)
+        if 'ret' in locals():
+            log("%s"%ret)
+        return False
+    except FileNotFoundError:
+        nimP.error( "command is not available in PATH")
+        nimP.error( cmd )
+        return False
+
+    if output:
+        return ret
+    else:
+        return True
+
+def set_file_as_ro_others( filepath ):
+    '''
+    Set file as Read Only for other users.
+    This is mostly used to change permissions for scene files that we dont want to be
+    overwritten but other users.
+
+    The function generates and execute a series of powershell commands in windows.
+    Change roles permission to only read.
+
+    Parameters
+    ----------
+        filepath : str
+            Path to file to change permissions
+
+    Returns
+    -------
+    bool
+        True if permissions were changed correctly
+    '''
+    roles_sec_grps = ( 'artist', 'editorial', 'pipe', 'prod', 'supe', 'wrangler')
+    if not os.path.exists(filepath):
+        return False
+
+    cmd = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -ExecutionPolicy bypass  (Get-ACL -Path \"%s\").Access"%filepath
+    ret = runCommand( cmd, output=True )
+    if not ret:
+        nimP.error("Can't file  : %s"%filepath)
+    serverfound = False
+    if len(ret) == 0:
+        return False
+    for line in ret.splitlines():
+        # print (line.decode(encoding='ascii'))
+        for role in roles_sec_grps:
+            if re.search(role, line.decode(encoding='ascii')) is not None:
+                # remove rol ACL:
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s;$Acl.SetAccessRuleProtection($True, $True);(Get-Item %s).SetAccessControl($Acl)"%(filepath, filepath)
+                print("Permisson command:")
+                print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Write\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, role, filepath)
+                print("Permisson command:")
+                print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+    myuser   = getpass.getuser()
+    myuser = myuser.split('@')[0]
+    cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Delete\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, myuser, filepath)
+    print("Permisson command:")
+    print(cmd)
+    if not runCommand( cmd ):
+        nimP.error("Error removing owner permissions for %s in file:\n %s"%(role, filepath))
+
+
+    return True
 
 #
 # Jobs
