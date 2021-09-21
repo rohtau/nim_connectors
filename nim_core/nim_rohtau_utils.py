@@ -20,6 +20,9 @@ import re
 # import getpass
 import time
 # from pathlib import PurePath
+import subprocess
+import getpass
+from subprocess import Popen
 from pprint import pprint
 from pprint import pformat
 from itertools import groupby
@@ -69,12 +72,14 @@ class jobAwardStatusID:
     '''
     Enum for job status ID in NIM
     '''
-    BIDDING = 1
-    NOT_AWARDED = 2
-    AWARDED = 3
-    IN_PROGRESS = 4
-    COMPLETED = 5
-    CLOSED = 6
+    BIDDING       = 1
+    NOT_AWARDED   = 2
+    AWARDED       = 3
+    IN_PROGRESS   = 4
+    COMPLETED     = 5
+    CLOSED        = 6
+    ARCHIVED      = 7
+    DEEP_ARCHIVED = 8
 
 #
 # Utilities
@@ -88,15 +93,113 @@ def logtimer(msg, start, end=0.0):
     If end time is not provided, start will be printed as the time.
     If provided the difference between end and start will be the printed time.
 
-    Arguments:
-        msg {str} -- log message. A semicolo plus final time will be added.
-        start {float} -- start time
-        end {float} -- end time
+    Parameters
+    ----------
+        msg : str
+            log message. A semicolo plus final time will be added.
+        start : float
+            start time
+        end :float
+            end time
     '''
     print("NIM.Profile ~> %s : %0.4f" %
           (msg, (end-start) if end > 0 else start))
 
     pass
+
+def runCommand( cmd, output=False ):
+    '''
+    Run a shell command
+
+    Parameters
+    ----------
+        cmd : str
+            git command string
+        output : bool
+            Whether or not return the command output. If command fails returns False
+
+    Returns
+    -------
+        bool or string : 
+            True if the command finished with errorcode 0, False other wise. If output is True return command output on success.
+    '''
+    try:
+        if output:
+            ret = subprocess.check_output(cmd, shell=True, stderr= subprocess.STDOUT)
+        else:
+            ret = subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        nimP.error( "Failed command: %s "%cmd)
+        if 'ret' in locals():
+            log("%s"%ret)
+        return False
+    except FileNotFoundError:
+        nimP.error( "command is not available in PATH")
+        nimP.error( cmd )
+        return False
+
+    if output:
+        return ret
+    else:
+        return True
+
+def set_file_as_ro_others( filepath ):
+    '''
+    Set file as Read Only for other users.
+    This is mostly used to change permissions for scene files that we dont want to be
+    overwritten but other users.
+
+    The function generates and execute a series of powershell commands in windows.
+    Change roles permission to only read.
+
+    Parameters
+    ----------
+        filepath : str
+            Path to file to change permissions
+
+    Returns
+    -------
+    bool
+        True if permissions were changed correctly
+    '''
+    roles_sec_grps = ( 'artist', 'editorial', 'pipe', 'prod', 'supe', 'wrangler')
+    if not os.path.exists(filepath):
+        return False
+
+    cmd = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -ExecutionPolicy bypass  (Get-ACL -Path \"%s\").Access"%filepath
+    ret = runCommand( cmd, output=True )
+    if not ret:
+        nimP.error("Can't file  : %s"%filepath)
+    serverfound = False
+    if len(ret) == 0:
+        return False
+    for line in ret.splitlines():
+        # print (line.decode(encoding='ascii'))
+        for role in roles_sec_grps:
+            if re.search(role, line.decode(encoding='ascii')) is not None:
+                # remove rol ACL:
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s;$Acl.SetAccessRuleProtection($True, $True);(Get-Item %s).SetAccessControl($Acl)"%(filepath, filepath)
+                print("Permisson command:")
+                print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Write\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, role, filepath)
+                print("Permisson command:")
+                print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+    myuser   = getpass.getuser()
+    myuser = myuser.split('@')[0]
+    cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Delete\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, myuser, filepath)
+    print("Permisson command:")
+    print(cmd)
+    if not runCommand( cmd ):
+        nimP.error("Error removing owner permissions for %s in file:\n %s"%(role, filepath))
+
+
+    return True
 
 #
 # Jobs
@@ -141,7 +244,10 @@ def getjobNumberFromId(id):
     """
     Using a job integer id string, return it's job number identifier
 
-    Return empty string job id is not found
+    Return 
+    -------
+    str:
+        Job number, code. Empty string job id is not found
     """
     jobinfo = nimAPI.get_jobInfo(id)
     if jobinfo:
@@ -166,13 +272,13 @@ def getjobIdNumberTuple(job):
         jobnumber = getjobNumberFromId(job)
         jobid = int(job)
         if not jobnumber:
-            nimP.error("Can't get job number from given id: %d" % job)
+            nimP.error("Can't get job number from given id: %d. Does the job exists?" % job)
             return (0, "")
     else:
         # jobnumber =  fixjobNumber(job)
         jobid = getjobIdFromNumber(jobnumber)
         if not jobid:
-            nimP.error("Can't get job id from given job number: %s" %
+            nimP.error("Can't get job id from given job number: %s. Does the job exists?" %
                        jobnumber)
             return (0, "")
 
@@ -286,6 +392,81 @@ def isJobOnline(jobid):
 
     pass
 
+def get_job_users(jobid):
+    '''
+    Get all users included in the given job
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+
+    Returns
+    -------
+    list
+        List of users. False if job doesn't exists. Empty list if there is no users in the job yet.
+    '''
+    users = nimAPI.get_userList()
+    jobusers = []
+    if not getjobNumberFromId( jobid ):
+        nimP.error("Can't get job number from given id: %d. Does the job exists?" % job)
+        return False
+
+    for user in sorted(users, key=lambda k: k['first_name']):
+        jobsnames = nimAPI.get_jobs(user['ID'])
+        # pprint(jobsnames)
+        jobs = ""
+        jobfound = False
+        for jobname in jobsnames.keys():
+            (jobnumber, name) = jobname.decode('utf-8').strip().split(' ', 1)
+            jobID = jobsnames[jobname].decode('utf-8')
+            if int(jobid) == int(jobID):
+                jobusers.append(user)
+    # pprint(jobusers)
+    return jobusers
+
+def set_job_status(jobid, status):
+    '''
+    Set job status
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+    status : int
+        A value from nim_rohtau_util.jobAwardStatusID enum
+
+    Returns
+    -------
+    bool
+        True if set finished correctly
+    '''
+    res = nimAPI.update_job(jobID=jobid, jobStatusID=status)
+
+    return res
+
+def set_job_active(jobid, active=True):
+    '''
+    Set job activity
+    An INCATIVE job is closed to any work. Pipeline is not working anymore for the peoject and crew users are
+    removed from job's security group so they cant access the data.
+    On the contrary an ACTIVE job has the pipeline enabled and crew members can access job's data.
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+    active : bool
+        Set job activity. 
+
+    Returns
+    -------
+    bool
+        True if set finished correctly
+    '''
+    res = nimAPI.update_job(jobID=jobid, projectStatus=('INACTIVE', 'ACTIVE')[int(active)])
+
+    return res
 
 #
 # Shows
@@ -350,7 +531,7 @@ def getshots(jobid, showid=None):
     shots = {}
     shows = nimAPI.get_shows(jobid)
     if not shows:
-        nimP.error("Can't get shows from given job id number or name: %s" % jobid)
+        nimP.warning("Can't get shows from given job id number or name: %s. Does this job have any show?" % jobid)
         return None
 
     for show in shows:
@@ -689,8 +870,6 @@ def getuserTask(userid, tasktype, parent, parentID):
             if isinstance(tasktype, int) or tasktype.isdigit():
                 typename = gettasksTypesIDDict()[int(tasktype)]
             nimP.warning("Task of type %s found (#%d). But it has not an user assigned to it. Could this be a wrong or temporal task?"%(typename, int(task['taskID'])))
-
-
 
     return False
 
@@ -1180,9 +1359,13 @@ def splitName(filename, error=True):
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = 0
-    if basenameparts[-1].startswith('v') or basenameparts[-1].startswith('v'): 
+    # Version is always the 3rd or 4th element. assumin is the last is wrong, we
+    # can ad sufixes to the name, like in the render scene where we add  a time
+    # stamp.
+    verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
+    if verstr.startswith('v') or verstr.startswith('v'): 
         # There is version part
-        ver = basenameparts[-1][1:]  # Get ver part and remove the initial v
+        ver = verstr[1:]  # Get ver part and remove the initial v
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
@@ -1190,10 +1373,13 @@ def splitName(filename, error=True):
                 nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
             return False
         fileparts['ver']  = int(ver)
-        fileparts['tag']  = basenameparts[2] if len(basenameparts) > 3 else "" # tag is not mandatory
+        if len(basenameparts) > 3:
+            fileparts['tag']  = basenameparts[2]
+        else:
+            fileparts['tag']  = '' # tag is not mandatory
     else:
         # No version part
-        fileparts['tag']  = basenameparts[-1] if len(basenameparts) > 2 else "" # tag is not mandatory
+        fileparts['tag']  = basenameparts[2]
     fileparts['shot'] = basenameparts[0]
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
@@ -1241,7 +1427,6 @@ def getuserName(userid):
         if int(user['ID']) == userid:
             return user['username']
     return False
-
 
 def getusersIDDict():
     '''

@@ -2939,7 +2939,13 @@ class GUI(QtGui.QMainWindow) :
                     return False
                 #  Prompt to Save the current file :
                 elif mod :
-                    result=N.Win_SavePySide.get_btn()
+                    # result=N.Win_SavePySide.get_btn()
+                    choices = ("Save", 'VerUp', 'No', 'Cancel',)
+                    result = nuke.choice('Save Before Opening Script', 'Current file is about to be closed...  Save first?',  choices)
+                    if result is not None:
+                        result = choices[ result ]
+                    else:
+                        result = "Cancel"
                     if result.lower()=='save' :
                         P.info('\nSaving file...\n')
                         cur_filePath=F.get_filePath()
