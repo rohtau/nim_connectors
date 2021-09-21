@@ -531,7 +531,7 @@ def getshots(jobid, showid=None):
     shots = {}
     shows = nimAPI.get_shows(jobid)
     if not shows:
-        nimP.error("Can't get shows from given job id number or name: %s" % jobid)
+        nimP.warning("Can't get shows from given job id number or name: %s. Does this job have any show?" % jobid)
         return None
 
     for show in shows:
