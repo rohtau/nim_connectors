@@ -135,8 +135,18 @@ def set_vars( nim=None ) :
         # knob.setEnabled( False )
         knob.setFlag(nuke.READ_ONLY)
 
-    # Try to find a valid task for the task type and user in the shot/asset
-    pubtask  = nimUtl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # Set file version owner
+    for ver in nim.Dict('ver'):
+        if ver['version'] == nim.version():
+            PS.knob('nim_user').setValue(ver['username'])
+            PS.knob('nim_userID').setValue(int(ver['userID']))
+
+
+    # Try to find a valid task for the task type and user in the shot/asset.
+    # User is the owner of the published scene, it doent need to be user opening
+    # the scene
+    # pubtask  = nimUtl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    pubtask  = nimUtl.getuserTask(int(PS.knob('nim_userID').value()), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
         PS.knob('nim_task').setValue('')
         PS.knob('nim_taskID').setValue(0)
@@ -148,31 +158,6 @@ def set_vars( nim=None ) :
         PS.knob('nim_taskID').setValue(int(pubtask['taskID']))
         # PS.knob('nim_taskID').setValue(pubtask['taskID'])
 
-
-    '''
-    tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    taskfound = False
-    for task in tasks:
-        if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(knobCmds[3]):
-            PS.knob('nim_task').setValue(str(task['taskName']))
-            PS.knob('nim_taskID').setValue(int(task['taskID']))
-            taskfound = True
-            break
-    if not taskfound :
-        # hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
-        taskid = createNIMTaskForRender( PS )
-        if taskid:
-            PS.knob('nim_task').setValue(nim.name('task'))
-            PS.knob('nim_taskID').setValue(taskid)
-        else:
-            PS.knob('nim_task').setValue('')
-            PS.knob('nim_taskID').setValue(0)
-            msg = "Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot'))
-            nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
-            # PS.knob('nim_taskFolder').setValue('')
-    '''
-
-    
     P.info( 'Done setting Nuke Vars.' )
     
     return
@@ -391,7 +376,7 @@ def get_vars( nim=None ) :
     knobNames, knobLabels, knobCmds=knobInfo[0], knobInfo[1],knobInfo[2]
     #  Get Project Settings Node :
     PS=nuke.root()
-    
+
     #  Get knob values :
     for x in range(len(knobNames)) :
         if knobNames[x] in PS.knobs().keys() :
@@ -470,7 +455,7 @@ def get_vars( nim=None ) :
                 #  NIM version :
                 elif knobNames[x]=='nim_version' :
                     nim.set_nimVer(knob.value())
-
+                    
     return nim
 
 def getTaskNameFromVars(tasktypeid):

@@ -23,9 +23,9 @@ import time
 import subprocess
 import getpass
 from subprocess import Popen
-from pprint import pprint
-from pprint import pformat
-from itertools import groupby
+from pprint     import pprint
+from pprint     import pformat
+from itertools  import groupby
 
 if sys.version_info >= (3, 0):
     from . import nim_api as nimAPI
@@ -54,19 +54,17 @@ class shotStatusID:
     NOT_STARTED = 6
     BLOCKED = 7
 
-
 class assetStatusID:
     '''
     Enum for asset status ID in NIM
     '''
-    ON_HOLD = 1
-    OMIT = 2
-    COMPLETED = 3
+    ON_HOLD     = 1
+    OMIT        = 2
+    COMPLETED   = 3
     IN_PROGRESS = 4
-    BLOCKED = 5
-    REVIEW = 6
-    APPROVED = 7
-
+    BLOCKED     = 5
+    REVIEW      = 6
+    APPROVED    = 7
 
 class jobAwardStatusID:
     '''
@@ -80,6 +78,23 @@ class jobAwardStatusID:
     CLOSED        = 6
     ARCHIVED      = 7
     DEEP_ARCHIVED = 8
+
+class taskStatusID:
+    '''
+    Enum for task status ID in NIM
+    '''
+    NOT_STARTED     = 1
+    IN_PROGRESS     = 2
+    ON_HOLD         = 3
+    TO_REVIEW       = 4
+    KICKBACK        = 5
+    COULD_BE_BETTER = 6
+    COMPLETED       = 7
+    OMIT            = 8
+    PARKED          = 18
+    APPROVED        = 19
+    BLOCKED         = 20
+
 
 #
 # Utilities
@@ -932,6 +947,25 @@ def createTaskFromFilepath(path, user):
         P.error(msg)
         Win.popup( title='NIM - Save Error', msg=msg )
         return False
+
+def set_task_status(ID, itemID, itemClass='shot', status = taskStatusID.IN_PROGRESS):
+    '''
+    Change tgask status
+
+    Parameters
+    ----------
+    path : str
+        Path t oscene to get task from
+    user : str
+        User name to create the task for
+
+    Returns
+    -------
+    bool
+        True if task for user already exists or has been created. False if creation failed
+    '''
+    #TODO: implement task set status. Fix docustring ^
+    return True
 
 
 #

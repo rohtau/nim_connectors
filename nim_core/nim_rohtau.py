@@ -83,6 +83,7 @@ pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 
 pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'precomp', 'roto', 'dmp']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
+
 class pubOverwritePolicy:
     '''
     Enum for different publishing overwrite policies
@@ -130,6 +131,25 @@ class reviewType:
     name          = ('N/A', 'Daily', 'Edit', 'Reference', 'Making Of') # types names
 
     pass
+
+# Copied from nim_rohtau_utils due to issues importing it. Apparently I cant
+# access this class from the nim_rohtau_utils module here.
+class taskStatusID:
+    '''
+    Enum for task status ID in NIM
+    '''
+    NOT_STARTED     = 1
+    IN_PROGRESS     = 2
+    ON_HOLD         = 3
+    TO_REVIEW       = 4
+    KICKBACK        = 5
+    COULD_BE_BETTER = 6
+    COMPLETED       = 7
+    OMIT            = 8
+    PARKED          = 18
+    APPROVED        = 19
+    BLOCKED         = 20
+
 
 def toPosix( path, force=False ):
     '''
@@ -1174,7 +1194,8 @@ def pubTask( nim=None, filepath=None, user=None ):
     
     return pubtask
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING , asrender=False, disable_task_pub=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, state=pubState.PENDING ,asrender=False, disable_task_pub=False, 
+            task_status=taskStatusID.IN_PROGRESS, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -1215,6 +1236,16 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     This will call to createRender() after the path has been published succesfully creating 
     an icon and a review movie for the render and publishing everything into NIM.
     With this option is possible to publish a render in one go, first log the files apth and then log the render.
+
+    Publish Task
+    ------------
+    Some published elements like cg or 2d renders requires a task to be published to.
+    For elements where a task is not mandatory we can use disable_task_pub .
+    If task_status is greater than 0 then the publish task state will be changed to this
+    status if the publishing is successful.
+    This is useful to mark that some work is being published, hence done, in this particular 
+    task so we assume the task is in progress.
+
 
     Parameters
     ----------
@@ -1331,6 +1362,13 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
                 res['msg'] = "Couldn't detect a task for publishing from the given path. Is this path correct?\n%s"%posixpath
             nimP.error(res['msg'])
             return res if not plain and not jsonout else False
+        elif task_status:
+            # Changing the task status here allows to automatically mark that
+            # some work is being done in the task, and the proof is that we are
+            # publishing data
+            # TODO: set task status
+            pass
+
 
     # Check if there is already a file published with different file type
     check_res = checkFileAlreadyPublished( nim )

@@ -99,8 +99,16 @@ def set_vars( nim ) :
     h_root.setUserData("nim_compPath", str(nim.compPath())) 
     h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
     h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
+
+    # Set file version owner
+    for ver in nim.Dict('ver'):
+        if ver['version'] == nim.version():
+            h_root.setUserData("nim_user", str(ver['username']))
+            h_root.setUserData("nim_userID", str(ver['userID']))
+
     # Try to check a valid task for the task type and user in the shot/asset
-    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    pubtask  = Utl.getuserTask(int(h_root.userData("nim_userID")), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
         h_root.setUserData("nim_task", '')
         h_root.setUserData("nim_taskID", '0') 
@@ -108,41 +116,6 @@ def set_vars( nim ) :
     else:
         h_root.setUserData("nim_task", str(pubtask['taskName']))
         h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    '''
-    # Try to find a valid task for the task type and user in the shot/asset
-    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    if not pubtask:
-        h_root.setUserData("nim_task", '')
-        h_root.setUserData("nim_taskID", '0') 
-        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Error)
-        hou.ui.displayMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), title='Scene publish error', 
-                              help='Please create a task for this scene from the rohtau menu', 
-                              details='If there is no valid task for this scene, any publishing, like reneders or caches will fail', 
-                              severity= hou.severityType.Error)
-    else:
-        h_root.setUserData("nim_task", str(pubtask['taskName']))
-        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    '''
-    '''
-    pubtask = Utl.getuserTask(int(userInfo['ID']), int(nim.ID(elem='task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    if pubtask:
-        h_root.setUserData("nim_task", str(pubtask['taskName']))
-        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    # tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    # taskfound = False
-    # for task in tasks:
-        # if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(userInfo['ID']):
-            # print("Found task %d!"%int(task['taskID']))
-            # print(task)
-            # h_root.setUserData("nim_task", str(task['taskName']))
-            # h_root.setUserData("nim_taskID", str(task['taskID'])) 
-            # taskfound = True
-            # break
-    if not pubtask and hou.isUIAvailable():
-        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
-        h_root.setUserData("nim_task", '')
-        h_root.setUserData("nim_taskID", '0') 
-    '''
 
     
     P.info("Publishing information added to HIP")
@@ -172,7 +145,7 @@ def dump_vars( ):
     for var in sessionvars:
         dump += "%s %s %s\n"%(var, "=>".rjust(25), hou.getenv(var))
     
-    title = "NIM Publish info for: %s"%hou.expandString('HIPFILE')
+    title = "NIM Publish info for: %s"%hou.expandString('$HIPFILE')
     if hou.isUIAvailable():
         ret = hou.ui.displayMessage( dump, title=title, buttons=('OK','Check Publish Info'), close_choice=0 )
         if ret == 1:

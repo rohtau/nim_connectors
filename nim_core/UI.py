@@ -1627,6 +1627,8 @@ class GUI(QtGui.QMainWindow) :
                         #  Set variables :
                         self.nim.set_name( elem=elem, name=option['basename'] )
                         initbasefound = True
+                        self.nim.Input('tag').setText(nameparts['tag'])
+                        self.nim.set_name( elem='tag', name=nameparts['tag'] )
 
                 self.tagPresets.clear()
                 self.tagPresets.addItems(tags)
@@ -2095,6 +2097,7 @@ class GUI(QtGui.QMainWindow) :
                             nameparts = nimUtl.splitName(self.nim.Input( elem ).currentItem().text())
                             if nameparts and nameparts['tag']:
                                 self.nim.Input('tag').setText(nameparts['tag'])
+                                self.nim.set_name( elem='tag', name=nameparts['tag'] )
                             self.nim.set_name( elem=elem, name=self.nim.Input( elem ).currentItem().text() )
                 '''
                 if self.nim.name('filter') !='Asset Master' :
@@ -2403,6 +2406,7 @@ class GUI(QtGui.QMainWindow) :
         'Update tag field from preset from combo box'
         presetstr = self.tagPresets.currentText()
         self.nim.Input('tag').setText(presetstr)
+        self.update_tag()
 
         pass
     
@@ -2589,6 +2593,7 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('filter').activated.connect( lambda: self.update_elem('filter') )
         self.nim.Input('task').activated.connect( lambda: self.update_elem('task') )
         self.nim.Input('base').itemClicked.connect( lambda: self.update_elem('base') )
+        self.nim.Input('base').itemClicked.connect( self.update_tag )
         # self.nim.Input('tag').textChanged.connect( self.update_tag )
         self.nim.Input('tag').editingFinished.connect( self.update_tag )
         self.tagPresets.activated.connect( self.update_tag_from_preset )
