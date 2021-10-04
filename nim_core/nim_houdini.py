@@ -88,6 +88,7 @@ def set_vars( nim ) :
         h_root.setUserData("nim_name", str(nim.name('asset')))
 
     h_root.setUserData("nim_basename", str(nim.name('base'))) 
+    h_root.setUserData("nim_task", str(nim.name( elem='task')))
     h_root.setUserData("nim_type", str(nim.name( elem='task'))) 
     h_root.setUserData("nim_typeID", str(nim.ID( elem='task' ))) 
     h_root.setUserData("nim_typeFolder", str(nim.taskFolder())) 
@@ -102,12 +103,13 @@ def set_vars( nim ) :
 
     # Set file version owner
     for ver in nim.Dict('ver'):
-        if ver['version'] == nim.version():
+        if ver['version'] == nim.version() and nim.name('base') == nim.Dict('ver')[0]['basename']:
             h_root.setUserData("nim_user", str(ver['username']))
             h_root.setUserData("nim_userID", str(ver['userID']))
 
     # Try to check a valid task for the task type and user in the shot/asset
     # pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    '''
     pubtask  = Utl.getuserTask(int(h_root.userData("nim_userID")), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
         h_root.setUserData("nim_task", '')
@@ -116,6 +118,7 @@ def set_vars( nim ) :
     else:
         h_root.setUserData("nim_task", str(pubtask['taskName']))
         h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    '''
 
     
     P.info("Publishing information added to HIP")
@@ -133,6 +136,20 @@ def set_vars( nim ) :
     P.info("Session env vars updated with Publishing data")
 
     return
+
+def set_fileid_var( fileid ):
+    '''
+    Set FileID data.
+    Needed to update scene after it has been published
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    if 'nim_fileID' not in h_root.userDataDict():
+        P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
+        return False
+    h_root.setUserData("nim_fileID", str(fileid))
+
+    return True
 
 def dump_vars( ):
     from pprint import pformat
@@ -281,7 +298,9 @@ def reset_vars( confirm=True ):
         return False
 
     # Try to create a valid task
-    pubtask = Rt.pubTask(nimpubdata)
+    # DEPRECATED: since tasks are not mandatory for publishing info, dont do
+    # anything here
+    # pubtask = Rt.pubTask(nimpubdata)
 
     set_vars( nimpubdata )
 

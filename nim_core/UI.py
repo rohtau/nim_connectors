@@ -3240,6 +3240,7 @@ class GUI(QtGui.QMainWindow) :
         if self.app=='Maya' :
             mc.undoInfo(openChunk=True)
 
+        '''
         # Save current before Save As:
         if self.app == "Nuke":
             # If the Nuke script has been modified, then save it to preserve SG settings.
@@ -3258,6 +3259,7 @@ class GUI(QtGui.QMainWindow) :
             if hou.hipFile.hasUnsavedChanges() and hou.hipFile.basename() != 'untitled.hip':
                 if hou.ui.displayMessage( "Scene has been modified, do you want to save it before saving it as a different file?", buttons=( "Yes" , "No" ), title="NIM - Save" ) == 0:
                     hou.hipFile.save()
+        '''
 
         #  Version up file and add to API :
         # Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )

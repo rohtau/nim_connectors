@@ -817,6 +817,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     if 'plates' in pathInfo:
         P.info( '  Plates Directory = %s\n' % platesPath )
 
+
     # TODO: check that file path and projDir are writable
     
     '''

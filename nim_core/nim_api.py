@@ -35,6 +35,7 @@
 #  General Imports :
 import json, os, re, sys, traceback
 import tempfile
+import getpass
 from pprint import pformat
 from pprint import pprint
 
@@ -930,12 +931,12 @@ def get_app() :
 
 
 #  Users  #
-# TODO: improve this using getpass instead of looking into envars.
 # getpass is multiplatform
 
 def get_user() :
     'Retrieves the current user\'s username'
     #  Get username :
+    '''
     if os.getenv( 'USER' ) :
         _usr=os.getenv( 'USER' )
     elif os.getenv( 'USERNAME' ) :
@@ -944,6 +945,14 @@ def get_user() :
         return _usr
     else :
         return False
+    '''
+    # Better use getpass to have compatibility with all systems anf forget about
+    # envvars
+    user = getpass.getuser()
+    # Add domain if not included in the user name
+    if not user.count('@'):
+        user += '@rohtau.com'
+    return user
 
 def get_userID( user='' ) :
     'Retrieves the current user\'s user ID'
@@ -954,7 +963,10 @@ def get_userID( user='' ) :
         if type(userID)==type(list()) and len(userID)==1 :
             return userID[0]['ID']
         else :
-            return userID
+            if len(userID)>0:
+                return userID
+            else:
+                return False
     except Exception as e :
         print (traceback.print_exc())
         return False
@@ -2662,10 +2674,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
 
         
 
-    # import nuke
-    # nuke.tprint("Passed NIM:")
-    # nuke.tprint("================================")
-    # nuke.tprint(pformat( nim.get_nim() ))
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2676,6 +2684,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         #  Set Publish state :
         if pub : nim.set_name( elem='filter', name='Published' )
         else : nim.set_name( elem='filter', name='Work' )
+
+    # import nuke
+    # nuke.tprint("Passed NIM:")
+    # nuke.tprint("================================")
+    # nuke.tprint(pformat( nim.get_nim() ))
     
     #  Print :
     action=''
@@ -2805,11 +2818,34 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  Add file to API :
     # if filePath and os.path.isfile( filePath ) :
     if verUpResult:
+        '''
+        # Remove tasks for any saving process, is not needed anmymore, this will
+        # be obnly checked in pubPath
         # Get publishing task
         pubtask = Rt.pubTask( nim=verUpNim) 
         if not pubtask:
             P.error("Can't get a valid publishing task on file save. Aborting")
             return False
+        '''
+
+        # XXX: just exit here at the moment, only testing
+        # nuke.tprint("Publishing Task:")
+        # nuke.tprint(pformat(pubtask))
+
+        # Set user for publishing:
+        user = get_user()
+        userid = int(get_userID(user))
+        nim.set_userInfo(userName=user, userID=userid)
+        verUpNim.set_userInfo(userName=user, userID=userid)
+        '''
+        import nuke
+        nuke.tprint("Passed NIM:")
+        nuke.tprint("================================")
+        nuke.tprint(pformat( nim.get_nim() ))
+        nuke.tprint("\n\nVerUpNIM NIM:")
+        nuke.tprint("================================")
+        nuke.tprint(pformat( verUpNim.get_nim() ))
+        '''
 
         # Moved here in order to save file before publishing, there is no
         # point in publishing data that doesnt exists on disk.
@@ -2819,6 +2855,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
             return False
 
+        # Publish file
         result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
         if result_addFile :
             action=''
@@ -2830,6 +2867,15 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                 action='Versioned Up'
             # Update nim dictionary with version info from API
             nim.set_ID('ver', result_addFile)
+
+            # TODO: create funciton in nim_nuke and nim_houdini
+            # ,set_fileid_var() to update fileID info in scene pub info
+            if nim.app()=='Nuke' :
+                from . import nim_nuke as N
+                N.set_fileid_var( result_addFile )
+            elif nim.app()=='Houdini' :
+                from . import nim_houdini as Houdini
+                Houdini.set_fileid_var( result_addFile )
             
             # Update published file with File Type denpending on the app
             customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}

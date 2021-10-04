@@ -194,22 +194,22 @@ def set_file_as_ro_others( filepath ):
             if re.search(role, line.decode(encoding='ascii')) is not None:
                 # remove rol ACL:
                 cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s;$Acl.SetAccessRuleProtection($True, $True);(Get-Item %s).SetAccessControl($Acl)"%(filepath, filepath)
-                print("Permisson command:")
-                print(cmd)
+                # print("Permission command:")
+                # print(cmd)
                 if not runCommand( cmd ):
                     nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
                     continue
                 cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Write\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, role, filepath)
-                print("Permisson command:")
-                print(cmd)
+                # print("Permission command:")
+                # print(cmd)
                 if not runCommand( cmd ):
                     nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
                     continue
     myuser   = getpass.getuser()
     myuser = myuser.split('@')[0]
     cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Delete\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, myuser, filepath)
-    print("Permisson command:")
-    print(cmd)
+    # print("Permisson command:")
+    # print(cmd)
     if not runCommand( cmd ):
         nimP.error("Error removing owner permissions for %s in file:\n %s"%(role, filepath))
 

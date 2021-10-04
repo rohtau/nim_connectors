@@ -99,7 +99,13 @@ def rtCreateTaskForScript():
     bool
         True if task was created correctly or if it already exists. False if task creation failed
     '''
-    return nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+    task = nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+    if task:
+        h_root = hou.node("/")
+        h_root.setUserData("nim_taskID", str(task['taskID']))
+    else:
+        return False
+    return  True
 
 def rtShowPubInfo():
     '''
