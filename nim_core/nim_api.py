@@ -2876,6 +2876,8 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             elif nim.app()=='Houdini' :
                 from . import nim_houdini as Houdini
                 Houdini.set_fileid_var( result_addFile )
+            else:
+                nimP.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
             
             # Update published file with File Type denpending on the app
             customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}

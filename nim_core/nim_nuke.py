@@ -199,6 +199,16 @@ def set_fileid_var( fileid ):
     '''
     Set FileID knob.
     Needed to update script after it has been published
+
+    Parameters
+    ----------
+    fileid : str
+        Id for published file. Usually as a str
+
+    Returns
+    -------
+    bool
+        True if no errors
     '''
     #  Get Project Settings Node :
     PS=nuke.root()
@@ -208,6 +218,32 @@ def set_fileid_var( fileid ):
     PS.knob('nim_fileID').setValue( int(fileid) )
 
     return True
+
+
+def set_taskid_var( taskid ):
+    '''
+    Set Task ID knob.
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Parameters
+    ----------
+    taskid : int
+        Id for the publishing task
+
+    Returns
+    -------
+    bool
+        True if no errors
+    '''
+    #  Get Project Settings Node :
+    PS=nuke.root()
+    if not PS.knob('nim_taskID'):
+        P.error("Can't set FileID, knob doesn't exists, has this script publish information?")
+        return False
+    PS.knob('nim_taskID').setValue( int(taskid) )
+
+    return True
+
 
 def check_vars():
     'Check current nim dict in nuke file against the publish data returned by NIM'
@@ -495,6 +531,22 @@ def get_vars( nim=None ) :
                     nim.set_nimVer(knob.value())
                     
     return nim
+
+def get_taskid_var():
+    '''
+    Get publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    PS=nuke.root()
+    if not PS.knob('nim_taskID'):
+        P.error("Can't get Task ID, knob doesn't exists, has this script publish information?")
+    return int(PS.knob('nim_taskID').value())
 
 def getTaskNameFromVars(tasktypeid):
     '''

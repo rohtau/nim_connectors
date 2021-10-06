@@ -151,6 +151,31 @@ def set_fileid_var( fileid ):
 
     return True
 
+def set_taskid_var( taskid ):
+    '''
+    Set publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Parameters
+    ----------
+    taskid : int
+        Id for the publishing task
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    if 'nim_taskID' not in h_root.userDataDict():
+        P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        return False
+    h_root.setUserData("nim_taskID", str(taskid)) 
+    return True
+
+
+
 def dump_vars( ):
     from pprint import pformat
 
@@ -524,7 +549,24 @@ def get_vars( nim=None ) :
     #nim.Print()
     
     return
-    
+
+def get_taskid_var():
+    '''
+    Get publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    if 'nim_taskID' not in h_root.userDataDict():
+        P.error("Can't get Task ID, knob doesn't exists, has this script publish information?")
+        return False
+    return int(h_root.userData("nim_taskID"))
+
 
 def mk_workspace( proj_folder='', renPath='' ) :
     'Creates the NIM Project Workspace'

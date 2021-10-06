@@ -978,7 +978,6 @@ def checkFileAndElementPublished( nim ):
         else:
             vers = nimAPI.get_vers( assetID=int(nim.ID('asset')), basename=nim.name('base'))
         if vers:
-            # pprint(vers)
             for verfile in vers:
                 if int(ver) == int(verfile['version']):
                     file = verfile
@@ -1000,8 +999,7 @@ def checkFileAndElementPublished( nim ):
             if elm['name'] == nim.name('file'):
                 element = elm
                 break
-            
-    
+
     return (file, element)
 
 def createRenderIcon( elementInfo ):
@@ -1099,7 +1097,7 @@ def showPubInfo( fileid, hasgui=True ):
 
     return
 
-def pubTask( nim=None, filepath=None, user=None ):
+def pubTask( nim=None, filepath=None, user=None, yes=False ):
     '''
     Create a task needed for publishing. If a valid task for publishing already exists it will be returned.
 
@@ -1127,6 +1125,8 @@ def pubTask( nim=None, filepath=None, user=None ):
     user : str
         User name to be used for publishing. If this is not passed but a NIM object is provided we will get the user from the NIM object.
         Is mandatory if we pass a filepath.
+    yes : bool
+        Assume yes for any option given to the user. This will allows to use a task from a different user without any questions
 
     Returns
     -------
@@ -1152,10 +1152,41 @@ def pubTask( nim=None, filepath=None, user=None ):
         userID   = nimUtl.getuserID( user )
     entity   = nim.name('shot') if tab == 'SHOT' else nim.name('asset')
     entityID = int(nim.ID('shot')) if tab == 'SHOT' else int(nim.ID('asset'))
-
-    pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
     myuser   = nimAPI.get_user()
     myuserid = int(nimAPI.get_userID(myuser))
+
+    # Check if the scene file already has information for a publishing Task:
+    scene_pubtask_id = 0
+    pubtask = None
+    if nim.app()=='Nuke' :
+        from . import nim_nuke as N
+        scene_pubtask_id = N.get_taskid_var()
+    elif nim.app()=='Houdini' :
+        from . import nim_houdini as Houdini
+        scene_pubtask_id = Houdini.get_taskid_var()
+    else:
+        nimP.error("Can't get taskid from scene's publishing info. App not supported: %s"%nim.app())
+
+    if scene_pubtask_id:
+        scene_pubtask = nimAPI.get_taskInfo( scene_pubtask_id, itemClass=entity, itemID=entityID )
+        if scene_pubtask:
+            scene_pubtask = scene_pubtask[0]
+            if (tab == 'ASSET' and scene_pubtask['assetID'] and int(scene_pubtask['assetID']) == entityID) or \
+               (tab == 'SHOT' and scene_pubtask['shotID'] and int(scene_pubtask['shotID']) == entityID):
+                if scene_pubtask['taskName'] == task:
+                    if int(scene_pubtask['userID']) == myuserid:
+                        # Got valid tast, return it
+                        return scene_pubtask
+                    else:
+                        # Set pubtask from different user to be the scene task, so we don't try later to
+                        # look for another task
+                        pubtask = scene_pubtask
+                else:
+                    nimP.warning("Task Id in scene publish data is for a different shot/asset.")
+
+    if not pubtask:
+        # If we haven't any task at this point, then ask for it
+        pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
     if not pubtask or int(pubtask['userID']) != myuserid:
         if not pubtask:
             msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, tab.lower(), entity, user)
@@ -1165,22 +1196,25 @@ def pubTask( nim=None, filepath=None, user=None ):
                     \nIf you are just doing a quick fix in someone else scene is ok to continue using this task.\
                     \nBut if you are taking over this scene then is better you create your own task\
                     \n\nIf you choose Yes a new task for your user will be created and used fro this scene and all data generated from it.\
-                    \nOn the other hand if you choose No the current task will be used"%(user)
+                    \nOn the other hand if you choose No the current task will be used"%(pubtask['username'])
 
         nimP.warning( msg )
-        res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+        if not yes:
+            res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
+        else:
+            res = 'OK'
         if res == 'OK':
             # Check first if there is already a task for the user
             mypubtask  = nimUtl.getuserTask(myuserid, taskid, tab.lower(), entityID)
             if not mypubtask:
-                msg = "%s task created by %s from %s"%(task, user, nim.app())
-                now = datetime.now()
-                start = now.isoformat()
+                msg       = "%s task created by %s from %s"%(task, user, nim.app())
+                now       = datetime.now()
+                start     = now.isoformat()
                 starttime = datetime.strptime( start.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                end = now + timedelta(days=5)
-                endtime = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
-                taskres = nimAPI.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab.upper() == 'SHOT' else None,
-                                        taskTypeID=taskid, userID=userID, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
+                end       = now + timedelta(days=5)
+                endtime   = datetime.strptime( end.isoformat().split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+                taskres   = nimAPI.add_task( assetID=entityID if tab.upper() == 'ASSET' else None, shotID=entityID if tab.upper() == 'SHOT' else None,
+                                        taskTypeID=taskid, userID=myuserid, taskStatusID=2, description=msg, startDate=starttime, endDate=endtime) 
                 # pprint(taskres)
                 if taskres['success'] != 'true':
                     msg = "Couldn't create task %s for %s in %s %s"%(task, user, tab.lower(), entity )
@@ -1192,13 +1226,12 @@ def pubTask( nim=None, filepath=None, user=None ):
                     nimP.info(msg)
                     Win.popup( title='NIM - Task', msg=msg )
                     # TODO: update pubtask here
-                    pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))
+                    pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))[0]
             else:
                 msg = "There is already a task created for your user (#%s)"%mypubtask['taskID']
                 nimP.info(msg)
                 Win.popup( title='NIM - Task', msg=msg )
                 pubtask = mypubtask
-
 
         else:
             if not pubtask:
@@ -1208,6 +1241,16 @@ def pubTask( nim=None, filepath=None, user=None ):
                 nimP.error(msg)
                 Win.popup( title='NIM - Task Warning', msg=msg )
                 return False
+
+    # Set pubtask in the scene as the new publishing task
+    if nim.app()=='Nuke' :
+        from . import nim_nuke as N
+        N.set_taskid_var(pubtask['taskID'])
+    elif nim.app()=='Houdini' :
+        from . import nim_houdini as Houdini
+        Houdini.set_taskid_var(pubtask['taskID'])
+    else:
+        nimP.error("Can't set taskid in scene's publishing info. App not supported: %s"%nim.app())
 
     # With pub task check if we need to update the NIM object or the passed
     # scene vars
@@ -1221,16 +1264,11 @@ def pubTask( nim=None, filepath=None, user=None ):
         pass
     
     return pubtask
-# TODO: change disable_task_pub to require_task=False. By default a published
-# path doesn't require a task, except if it is a render.
-# So from the reserve functions for rendering tyhey have to set
-# require_task=True.
-# Fis this one:
-#176:            res = nimRt.pubPath(path, userid=userid, comment=comment, start=startframe, end=endframe, handles=10, state=nimRt.pubState.AVAILABLE, disable_task_pub=True, verbose=True)
+
 
 def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, 
-            state=pubState.PENDING ,asrender=False, disable_task_pub=False, task_status=taskStatusID.IN_PROGRESS, 
-            plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+            state=pubState.PENDING ,asrender=False, require_task=False, task_status=taskStatusID.IN_PROGRESS, 
+            yes=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -1265,7 +1303,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     Publish A Render
     ----------------
     If the path we are publishing is a render then you can use `asrender`.
-    This will call to createRender() after the path has been published succesfully creating 
+    This will call to createRender() after the path has been published successfully creating 
     an icon and a review movie for the render and publishing everything into NIM.
     With this option is possible to publish a render in one go, first log the files path and then log the render.
     Render ID is returned in the output dir for further adding icons and review elements.
@@ -1273,7 +1311,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     Publish Task
     ------------
     Some published elements like cg or 2d renders requires a task to be published to.
-    For elements where a task is not mandatory we can use disable_task_pub .
+    For these elements we need to pass require_task.
     If task_status is greater than 0 then the publish task state will be changed to this
     status if the publishing is successful.
     This is useful to mark that some work is being published, hence done, in this particular 
@@ -1299,9 +1337,11 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     state     : pub.pubState
         Data state, condition. look pub.pubState. PENDING, AVAILABLE or ERROR.
     asrender     : bool
-        Create a render publish after publishing the path.
-    disable_task_pub     : bool
-        Disable publishing element on task. Allow to publish a file without having a task for the user.
+        Create a render publish after publishing the path. Force to have an asset to publish the renders to.
+    require_task     : bool
+        The data being published requires a proper task to be linked to. This is only used for renders. The option asrender will also force to have task.
+    yes     : bool
+        Assume yes for options given to the user. This will bypass asking to create a task if needed or use other user task, it will just do it.
     plain     : bool
         Output in plain text format.
     jsonout   : bool
@@ -1384,8 +1424,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
 
     # Pub Task
     pubtask = None
-    if not  disable_task_pub:
-        pubtask = pubTask( nim )
+    if require_task:
+        pubtask = pubTask( nim, yes=yes )
         if not pubtask:
             res['success'] = False
             res['errorcode'] = 2
@@ -1401,6 +1441,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             # publishing data
             # TODO: set task status
             pass
+
+        # import nuke
+        # nuke.tprint("Publish task:")
+        # nuke.tprint(pformat(pubtask))
 
 
     # Check if there is already a file published with different file type
@@ -1475,7 +1519,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             return res if not plain and not jsonout else False
         else:
             res['elementID'] = addelmt_result['ID']
-        if pubtask and not disable_task_pub:
+        if pubtask and require_task:
             updateelmt_result = nimAPI.update_element( ID=int(addelmt_result['ID']), taskID=int(pubtask['taskID']))
             if updateelmt_result['success'] != 'true':
                 # TODO: remove element and file
@@ -1769,7 +1813,8 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
 
     return True
 
-def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
+def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID='',
+              comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
     '''
     Publish a new render from a basename
     This is needed to get file sequences available in the render and review sections
@@ -1809,6 +1854,8 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
         Shot or Asset ID
     renderkey : str
         Render ID in the farm. For instance from Deadline wit will be Deadline's job id.
+    taskid : str
+        Id for publishing task. If not provided the function will search for the first user's task in the shot for this element type.
     comment   : str
         Render comment.
     rendertype   : str
@@ -1933,7 +1980,10 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
         nimP.warning("Couldn't find an element for the render")
     # print("Element")
     # pprint(elementInfo)
-    task = nimUtl.getuserTask( userid, tasktype=tasktype, parent=parent, parentID=id) 
+    if taskID:
+        task = nimAPI.get_taskInfo( taskID, itemClass=parent, itemID=id )[0]
+    else:
+        task = nimUtl.getuserTask( userid, tasktype=tasktype, parent=parent, parentID=id) 
     if not task:
         user = nimUtl.getuserName(userid)
         if verbose:
@@ -2066,7 +2116,8 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     
     return res
 
-def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', comment='', rendertype='', starttimedate='', endtimedate='', doreview=True, reviewtype=reviewType.DAILY, verbose=False):
+def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID='', comment='',
+                 rendertype='', starttimedate='', endtimedate='', doreview=True, reviewtype=reviewType.DAILY, verbose=False):
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
     This is the function to call to get a published path, with pubpath(), and create a render for it.
@@ -2096,6 +2147,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         Shot or Asset ID .Not needed if fileID is passed.
     renderkey : str
         Render ID in the farm. For instance from Deadline wit will be Deadline's job id.
+    taskid : str
+        Id for publishing task. If not provided the function will search for the first user's task in the shot for this element type.
     comment   : str
         Render comment.
     rendertype   : str
@@ -2293,7 +2346,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         # Publish render
         if verbose:
             nimP.info("Publish render ....")
-        res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
+        res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, taskID=int(taskID),
+                        starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
         if not res['success']:
             res['success'] = False
             res['msg']     = "Error publishing render %s in %s %s"%(fileparts['base'], fileparts['shot'], parentname)

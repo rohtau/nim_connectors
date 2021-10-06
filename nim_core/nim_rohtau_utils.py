@@ -1383,8 +1383,9 @@ def splitName(filename, error=True):
         Dict with keys: {'base', 'shot', 'task', 'elem', 'tag', 'ver'}
     '''
     fileparts = {'base':'', 'shot':'', 'task':'', 'elem':'','tag':'','ver':0}
-    filenoext = filename.split('.')[0]
-    basenameparts = filenoext.split('__')
+    basename = os.path.basename(filename)
+    basename = basename.split('.')[0]
+    basenameparts = basename.split('__')
     if len(basenameparts) < 3:
         if error:
             nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
