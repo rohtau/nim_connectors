@@ -2787,7 +2787,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     # that has Nuke scripts, for instance
     # FIXME: check this with Hiero scripts. hiero scripts don't publish the path
     # correctly, they don't put customKeys
-    '''
     if nim.name('base') and ( nim.ID('asset') is not None or  nim.ID('shot') is not None ):
         latestver = get_vers(assetID = int(nim.ID('asset')) if nim.tab() == 'ASSET' else None,
                                 shotID = int(nim.ID('shot')) if nim.tab() == 'SHOT' else None,
@@ -2795,14 +2794,14 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         if latestver:
             latestver = latestver[0]
             # pprint(latestver)
-            basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
-            if basenameapp != nim.app():
-                msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
-                Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
-                P.error(msg)
-                P.error("Abort file save")
-                return False
-    '''
+            if 'customKeys' in latestver and 'File Type' in latestver['customKeys']:
+                basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
+                if basenameapp != nim.app():
+                    msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
+                    Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+                    P.error(msg)
+                    P.error("Abort file save")
+                    return False
 
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file

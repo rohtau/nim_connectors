@@ -720,7 +720,7 @@ def saveRenderScene (renderscene=''):
     return renderscene
 
 
-def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
+def setupWriteForRendering( renderscene, writeNode, fileid=0, deps=None ):
     '''
     Do all the mandatory settings needed in a Write node for our pipeline
 
@@ -732,6 +732,8 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
         Write node for rendering
     fileid : id
         File ID for published render
+    deps : dict
+        Dictionary with dependencies for this EXR.
 
     Returns
     -------
@@ -756,7 +758,7 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), job=PS.knob('nim_job').value().split()[0], jobid=int(PS.knob('nim_jobID').value()),
                                                   show=PS.knob('nim_show').value(), showid=int(PS.knob('nim_showID').value()), shot=PS.knob('nim_shot').value(), 
                                                   shotid=int(PS.knob('nim_showID').value()), asset=PS.knob('nim_asset').value(),
-                                                  assetid=int(PS.knob('nim_assetID').value()), fileid=int(fileid))
+                                                  assetid=int(PS.knob('nim_assetID').value()), fileid=int(fileid), deps=deps)
         else:
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
     except ValueError:
@@ -764,6 +766,7 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
     attrsscript = ""
     for attr in attrs:
         attrsscript += "{set exr/%s %s}\n"%(attr, str(attrs[attr]).replace('\\', '/'))
+    #  TODO: add dependencies metadata
     attrsKnob.fromScript( attrsscript )
     
     # Write metadata output knob
@@ -796,9 +799,10 @@ def restoreRenderingSetup( writeNode ):
     '''
     metadatanode = nuke.toNode(writeNode.name() + '_metadata')
     if metadatanode is None:
-        P.error("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
-        return False
-    nuke.delete(metadatanode)
+        P.warning("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
+        # return False
+    else:
+        nuke.delete(metadatanode)
     stickynode = nuke.toNode("__renderStickyNote")
     if stickynode  is not None:
         nuke.delete(stickynode)

@@ -382,9 +382,21 @@ def saveJobOutputRenderScene(  renderscene, outputpath, docompress=True ):
 
     return compressed_renderscene
 
-def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="", showid=0, shot="", shotid=0, asset="", assetid=0, fileid=0 ):
+def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="", showid=0, shot="", shotid=0, 
+                            asset="", assetid=0, fileid=0, deps=None ):
     '''
     Create a dictionary with attributes for EXR metadata used in our renders
+
+    Dependencies
+    ------------
+    Dependencies are passed as a dictionary:
+    {
+        'ReadNodeName' : [filepath, fileid],
+        ...
+    }
+    Basically it stores all the read nodes sources used to generate the EXR output image.
+    We store it as two list, strings separated by comas, the first list stores media paths
+    and the second the fileIDs if the media is published.
 
     Parameters
     ----------
@@ -410,6 +422,9 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="",
             Optional assetID for render. Indicates to what asset this render was done
         fileid : int
             Optional fileID for render. Indicates publish ID for this render
+        deps : dict
+            Dictionary with dependencies for this EXR.
+            
             
 
     Returns
@@ -443,7 +458,16 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="",
         attrs['rt_nim_asset']   = asset
         attrs['rt_nim_assetID'] = assetid
         attrs['rt_nim_fileID']  = fileid
-        
+
+    if deps:
+        # Store dependencies
+        attrs['rt_render_dependencies']    = ""
+        attrs['rt_render_dependencies_id'] = ""
+        for dep in deps:
+            attrs['rt_render_dependencies']    += "%s,"%deps[dep][0]
+            attrs['rt_render_dependencies_id'] += "%s,"%deps[dep][1]
+        attrs['rt_render_dependencies']    = attrs['rt_render_dependencies'].rstrip(',')
+        attrs['rt_render_dependencies_id'] = attrs['rt_render_dependencies_id'].rstrip(',')
 
     return attrs
 
@@ -1386,7 +1410,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     posixpath = toPosix( path )
     # Normalize padding format
     posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
-    osixpath = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
+    osixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
 
@@ -1439,7 +1463,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             # Changing the task status here allows to automatically mark that
             # some work is being done in the task, and the proof is that we are
             # publishing data
-            # TODO: set task status
+            nimUtl.set_task_status(pubtask['taskID'], pid, itemClass=nim.tab().lower(), status=task_status)
             pass
 
         # import nuke
@@ -1813,7 +1837,7 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
 
     return True
 
-def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID='',
+def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID=0,
               comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
     '''
     Publish a new render from a basename
@@ -2116,7 +2140,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     
     return res
 
-def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID='', comment='',
+def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID=0, comment='',
                  rendertype='', starttimedate='', endtimedate='', doreview=True, reviewtype=reviewType.DAILY, verbose=False):
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
@@ -2411,6 +2435,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     res['success'] = True
     res['msg'] = "Render %s created in %s %s"%(rendername, parent, fileparts['shot'])
+    nimP.info(res['msg'])
 
     return res
 

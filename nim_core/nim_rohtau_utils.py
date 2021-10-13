@@ -964,7 +964,9 @@ def set_task_status(ID, itemID, itemClass='shot', status = taskStatusID.IN_PROGR
     bool
         True if task for user already exists or has been created. False if creation failed
     '''
-    #TODO: implement task set status. Fix docustring ^
+    newtask = nimAPI.update_task(taskID=ID, taskStatusID=status)
+    if not newtask:
+        return False
     return True
 
 
