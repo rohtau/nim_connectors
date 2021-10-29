@@ -144,9 +144,9 @@ def set_fileid_var( fileid ):
     '''
     #  Get Project Settings Node :
     h_root = hou.node("/")
-    if 'nim_fileID' not in h_root.userDataDict():
-        P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
-        return False
+    # if 'nim_fileID' not in h_root.userDataDict():
+        # P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
+        # return False
     h_root.setUserData("nim_fileID", str(fileid))
 
     return True
@@ -168,9 +168,9 @@ def set_taskid_var( taskid ):
     '''
     #  Get Project Settings Node :
     h_root = hou.node("/")
-    if 'nim_taskID' not in h_root.userDataDict():
-        P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
-        return False
+    # if 'nim_taskID' not in h_root.userDataDict():
+        # P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        # return False
     h_root.setUserData("nim_taskID", str(taskid)) 
     return True
 
@@ -563,7 +563,7 @@ def get_taskid_var():
     #  Get Project Settings Node :
     h_root = hou.node("/")
     if 'nim_taskID' not in h_root.userDataDict():
-        P.error("Can't get Task ID, knob doesn't exists, has this script publish information?")
+        P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
         return False
     return int(h_root.userData("nim_taskID"))
 

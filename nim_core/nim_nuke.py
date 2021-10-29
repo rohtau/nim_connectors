@@ -238,7 +238,7 @@ def set_taskid_var( taskid ):
     #  Get Project Settings Node :
     PS=nuke.root()
     if not PS.knob('nim_taskID'):
-        P.error("Can't set FileID, knob doesn't exists, has this script publish information?")
+        P.error("Can't set Task ID, knob doesn't exists, has this script publish information?")
         return False
     PS.knob('nim_taskID').setValue( int(taskid) )
 

@@ -17,7 +17,6 @@ import sys
 import platform
 import os
 import re
-# import getpass
 import time
 # from pathlib import PurePath
 import subprocess
@@ -1482,6 +1481,31 @@ def getusersIDDict():
     for user in users:
         usersid[int(user['ID'])] = user['username']
     return usersid
+
+def getuserFullName( username ):
+    '''
+    Given  the login name, get user Full Name.
+    At the moment only windows version is implemented.
+    On Linux the username will be returned
+
+    Returns
+    -------
+    str
+        Full Name for the user. Or login username if it is not implemented for the platform.
+    '''
+    fullname = username
+    if platform.system() == 'Windows':
+        username = getpass.getuser()
+        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        info, err = p.stdout.read(), p.stderr.read()
+        fullname = re.findall(r'Full Name\s+(.*\S)', info)
+        if not fullname:
+            fullname = username
+        else:
+            fullname = fullname[0]
+
+    return fullname
+
 
 #
 # Templates for Rez packages
