@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 5th January 2021 12:53:26 am
+Last Modified: Wednesday, 03 November 2021 03:37:39 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -1365,13 +1365,14 @@ def updateJobTemplateData(job, template):
     (jobid, jobnumber) = getjobIdNumberTuple(job)
     if not jobid:
         return False
-    jobinfo = nimAPI.get_jobInfo(jobid)
+    # jobinfo = nimAPI.get_jobInfo(jobid)
     # print(jobinfo)
     jobpath = getjobLocation(jobid, force_posix=True)
     if not os.path.exists(jobpath):
         nimP.error(
             "Job location is not accessible, is the job online?: %s" % jobpath)
         return False
+    # jobglobals = nim
 
     res = template.replace('<name>', fixjobNumber(jobnumber))
     res = res.replace('<number>', jobnumber)
