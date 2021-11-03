@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Wednesday, 03 November 2021 03:37:39 CUT
+Last Modified: Wednesday, 03 November 2021 12:48:48 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -547,7 +547,7 @@ def getShowGlobals( job):
         Dictionary with all show globals found
 
     '''
-    (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+    (jobid, jobnumber) = getjobIdNumberTuple( job )
     if not jobid:
         sys.exit()
     jobglobals = {}
@@ -557,6 +557,7 @@ def getShowGlobals( job):
     jobinfo = jobinfo[0]
 
     # Show
+    # pprint(jobinfo)
     jobglobals['name'] = jobinfo['jobname'].encode('ascii')
     jobglobals['number'] = jobinfo['number'].encode('ascii')
     jobglobals['description'] = jobinfo['description'].encode('ascii')
@@ -564,7 +565,7 @@ def getShowGlobals( job):
     for custom in jobinfo['customKeys']:
         name = custom['keyName']
         if name == 'Working Resolution':
-            res = custom['dropdownText'].encode('ascii')
+            res = custom['dropdownText']
             res = res.replace(' ', '')
             jobglobals['output_res'] = res
         elif name == 'Working Frame Rate':
@@ -678,11 +679,11 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
         shotid = int(shot)
         shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
     elif job:
-        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+        (jobid, jobnumber) = getjobIdNumberTuple( job )
         if not jobid:
             nimP.error("Cant get jobid from %s"%job)
             sys.exit(1)
-        shotid = nimUtl.getshowIdFromName(jobid, shot)
+        shotid = getshowIdFromName(jobid, shot)
         shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
     else:
         nimP.error("Bad parameters. shot needs to be the name or ID of the shot. If name is provided job must have the show nyumber")
@@ -1640,11 +1641,17 @@ def updateJobTemplateData(job, template):
         nimP.error(
             "Job location is not accessible, is the job online?: %s" % jobpath)
         return False
-    # jobglobals = nim
+    jobglobals = getShowGlobals(jobid)
 
     res = template.replace('<name>', fixjobNumber(jobnumber))
     res = res.replace('<number>', jobnumber)
     res = res.replace('<path>', jobpath)
+    if 'output_res' in jobglobals:
+        res = res.replace('<output_res>', jobglobals['output_res'])
+    if 'fps' in jobglobals:
+        res = res.replace('<fps>', str(jobglobals['fps']))
+
+
 
     return res
 
@@ -1665,7 +1672,8 @@ def updateShotTemplateData(job, shotid, template):
     (jobid, jobnumber) = getjobIdNumberTuple(job)
     if not jobid:
         return False
-    jobinfo = nimAPI.get_jobInfo(jobid)[0]
+    shotglobals = getShotGlobals( shotid )
+    # jobinfo = nimAPI.get_jobInfo(jobid)[0]
     jobloc = os.path.dirname(getjobLocation(jobid, force_posix=True))
     shotinfo = nimAPI.get_shotInfo(shotid)[0]
     shotpaths = nimAPI.get_paths('shot', shotid)
@@ -1681,10 +1689,22 @@ def updateShotTemplateData(job, shotid, template):
 
     res = template.replace('<name>', shotinfo['shotName'])
     res = res.replace('<path>', shotpath)
-    res = res.replace('<job>', fixjobNumber(jobinfo['number']))
+    # res = res.replace('<job>', fixjobNumber(jobinfo['number']))
+    res = res.replace('<job>', fixjobNumber(jobnumber))
     res = res.replace('<plates>', shotplatespath)
     res = res.replace('<comps>', shotcompspath)
     res = res.replace('<renders>', shotrenderspath)
+
+    res = res.replace('<start>', "1001")
+    if 'frames' in shotglobals:
+        end = 1001 + shotglobals['frames'] - 1
+        res = res.replace('<start>', str(1001))
+        res = res.replace('<end>', str(end))
+        res = res.replace('<frames>', str(shotglobals['frames']))
+        if 'handles' in shotglobals:
+            res = res.replace('<handles>', str(shotglobals['handles']))
+            res = res.replace('<startcut>', str(1001+shotglobals['handles']))
+            res = res.replace('<endcut>', str(end-shotglobals['handles']))
 
     return res
 
