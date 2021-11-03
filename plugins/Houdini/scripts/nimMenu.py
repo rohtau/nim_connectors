@@ -99,7 +99,13 @@ def rtCreateTaskForScript():
     bool
         True if task was created correctly or if it already exists. False if task creation failed
     '''
-    return nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+    task = nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+    if task:
+        h_root = hou.node("/")
+        h_root.setUserData("nim_taskID", str(task['taskID']))
+    else:
+        return False
+    return  True
 
 def rtShowPubInfo():
     '''
@@ -118,6 +124,27 @@ def rtShowPubInfo():
 
         return
 
+
+def rtSetGlobals( ):
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Globals' )
+    hou.ui.setStatusMessage( "NIM: Set Scene Globals")
+    nimHoudini.set_globals()
+
+    pass
+
+    
+
+
+        
 
 
 if action == 'open':
@@ -158,3 +185,6 @@ if action == 'task':
 
 if action == 'info':
 	rtShowPubInfo()
+
+if action == 'setglobals':
+	rtSetGlobals()

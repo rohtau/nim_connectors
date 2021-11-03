@@ -53,7 +53,7 @@ def _knobInfo( nim=None ) :
         'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'Publishing Tasks', 'NIM Version' )
     knobCmds=(  nim.server(), nim.ID('server'), userInfo['name'], userInfo['ID'],
         nim.name('job'), nim.ID('job'), nim.tab(),nim.name('asset'), nim.ID('asset'), nim.name('show'),
-        nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), '', '', nim.name('task'),
+        nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), nim.name('task'), '', nim.name('task'),
         nim.ID('task'), nim.taskFolder(), nim.jobPath(), nim.shotPath(), nim.compPath(), nim.renderPath(), nim.platesPath(),
         str(Api.get_elementTypes()), str(Api.get_taskTypes()), version )
     return ( knobNames, knobLabels, knobCmds )
@@ -61,19 +61,24 @@ def _knobInfo( nim=None ) :
 def set_vars( nim=None ) :
     'Sets the environment variables inside of Nuke, for Deadline to pick up'
 
+    P.info( 'Setting Nuke Vars...' )
+
     # Debug incoming NIM dictionary
     # from pprint import pformat
     # dictstr = pformat( nim.get_nim(), indent=4)
     # nuke.tprint("NIM Dict:")
     # nuke.tprint(dictstr)
-
-    P.info( 'Setting Nuke Vars...' )
     
+    taskID = 0
     tabName='NIM'
     knobInfo=_knobInfo( nim )
     knobNames, knobLabels, knobCmds=knobInfo[0], knobInfo[1],knobInfo[2]
     #  Get Project Settings Node :
     PS=nuke.root()
+
+    # Save curent task ID if it exists
+    if PS.knob('nim_taskID'):
+        taskID = int(PS.knob('nim_taskID').value())
 
     # Rebuild all the UI. Stupid Nuke, seriously, for a tool that cost 8k the scripting is awful. Anyway ....
     for knobname in knobNames:
@@ -118,7 +123,7 @@ def set_vars( nim=None ) :
         knob=PS.knob( knobNames[x] )
         knob.setEnabled( True )
         if knobCmds[x] :
-            #  Convert backslashes to forwardslashes for Nuke :
+            #  Convert backslashes to forward slashes for Nuke :
             if knobNames[x]=='nim_compPath' :
                 correctedPath=knobCmds[x].replace( '\\', '/' )
                 knob.setValue( correctedPath )
@@ -135,8 +140,45 @@ def set_vars( nim=None ) :
         # knob.setEnabled( False )
         knob.setFlag(nuke.READ_ONLY)
 
-    # Try to find a valid task for the task type and user in the shot/asset
-    pubtask  = nimUtl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # Set file version owner
+    nuke.tprint("Look version: %s"%nim.version())
+    if nim.Dict('ver') and nim.name('base') == nim.Dict('ver')[0]['basename']:
+        for ver in nim.Dict('ver'):
+            if ver['version'] == nim.version():
+                PS.knob('nim_user').setValue(ver['username'])
+                PS.knob('nim_userID').setValue(int(ver['userID']))
+
+    # Restore taskID
+    if taskID:
+        PS.knob('nim_taskID').setValue(taskID)
+
+
+
+    # Try to find a valid task for the task type and user in the shot/asset.
+    # User is the owner of the published scene, it doesn't need to be user opening
+    # the scene
+    # pubtask  = nimUtl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # FIXME: Ok so here is the problem. If we are opening a scene is correct to
+    # set the user to the owner of the scene. Now the problem is with the task,
+    # we need a task here. If the scene is own by another user usually we have
+    # as task and is al right.
+    # Now we are doing a versionUp, we take ownership of the scene, but want to
+    # use the previous task, here getuserTask() is going to fail because there
+    # is no scene for our user, but that is not what we want to use. We want to
+    # keep using the previous task. -> Mmmm problem!
+    # The first and most simple option can be not to set the Task here in
+    # set_vars. Remember the task is only needed for publishing, so it can be
+    # set only when a path is published in pubPath(). If we have a scene tha
+    # hasnt craete any data before then Task ID will be 0.
+    # First time we create data then TaskID is set, if it is zero the only
+    # option will be to  crate a task. If different than 0 then we check if the
+    # task is from another user, i nthat case we offer options to keep using it
+    # or create a new one for the user.
+    # In othe rwords we should remove the task stuff from any open/save
+    # operation, and just keep user and userID consistent with the owner of the
+    # scene
+    '''
+    pubtask  = nimUtl.getuserTask(int(PS.knob('nim_userID').value()), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
         PS.knob('nim_task').setValue('')
         PS.knob('nim_taskID').setValue(0)
@@ -147,35 +189,61 @@ def set_vars( nim=None ) :
         PS.knob('nim_task').setValue(pubtask['taskName'])
         PS.knob('nim_taskID').setValue(int(pubtask['taskID']))
         # PS.knob('nim_taskID').setValue(pubtask['taskID'])
-
-
-    '''
-    tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    taskfound = False
-    for task in tasks:
-        if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(knobCmds[3]):
-            PS.knob('nim_task').setValue(str(task['taskName']))
-            PS.knob('nim_taskID').setValue(int(task['taskID']))
-            taskfound = True
-            break
-    if not taskfound :
-        # hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
-        taskid = createNIMTaskForRender( PS )
-        if taskid:
-            PS.knob('nim_task').setValue(nim.name('task'))
-            PS.knob('nim_taskID').setValue(taskid)
-        else:
-            PS.knob('nim_task').setValue('')
-            PS.knob('nim_taskID').setValue(0)
-            msg = "Couldn't find a %s task for %s for %s"%(nim.name('task'), knobCmds[2], nim.name('shot'))
-            nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
-            # PS.knob('nim_taskFolder').setValue('')
     '''
 
-    
     P.info( 'Done setting Nuke Vars.' )
     
     return
+
+def set_fileid_var( fileid ):
+    '''
+    Set FileID knob.
+    Needed to update script after it has been published
+
+    Parameters
+    ----------
+    fileid : str
+        Id for published file. Usually as a str
+
+    Returns
+    -------
+    bool
+        True if no errors
+    '''
+    #  Get Project Settings Node :
+    PS=nuke.root()
+    if not PS.knob('nim_fileID'):
+        P.error("Can't set FileID, knob doesn't exists, has this script publish information?")
+        return False
+    PS.knob('nim_fileID').setValue( int(fileid) )
+
+    return True
+
+
+def set_taskid_var( taskid ):
+    '''
+    Set Task ID knob.
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Parameters
+    ----------
+    taskid : int
+        Id for the publishing task
+
+    Returns
+    -------
+    bool
+        True if no errors
+    '''
+    #  Get Project Settings Node :
+    PS=nuke.root()
+    if not PS.knob('nim_taskID'):
+        P.error("Can't set Task ID, knob doesn't exists, has this script publish information?")
+        return False
+    PS.knob('nim_taskID').setValue( int(taskid) )
+
+    return True
+
 
 def check_vars():
     'Check current nim dict in nuke file against the publish data returned by NIM'
@@ -283,17 +351,11 @@ def check_vars():
     taskfound = False
     # nuke.tprint("Search for task:%s, for user %s"%(nimdata.ID('task'), nimdata.ID('user')))
     #  Get Project Settings Node :
-    # TODO: refactor this in a function so all apps use the same code to check tasks
-    # TODO: use function in API
     PS=nuke.root()
     taskName = PS.knob('nim_task').value()
     taskID = str(int(PS.knob('nim_taskID').value()))
     for task in tasks:
-        # nuke.tprint(task)
-        # print("Compare task %s with Nim task %s, and user %s with Nim user: %s"%(task['typeID'], nimdata.ID('task'), task['userID'], nimdata.ID('user')))
         if task['typeID'] == nimdata.ID('task') and task['userID'] == str(nimdata.ID('user')):
-            # print("Found task %d!"%int(task['taskID']))
-            # if int(nim.ID('task')) == 0:
             if int(taskID) == 0:
                 errors += "Nuke scene pub data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimdata.name('task')
                 iserror = True
@@ -303,8 +365,6 @@ def check_vars():
             taskfound = True
             break
     if not taskfound and nuke.GUI:
-        # hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nimpubdata.name('task'), userInfo['name'], nimpubdata.name('shot')), severity= hou.severityType.Warning)
-        # nuke.tprint( "Couldn't find a %s task for %s for %s"%(nimdata.name('task'), userInfo['name'], nimdata.name('shot')))
         msg = "Couldn't find a %s task for %s for %s"%(nimdata.name('task'), nimdata.name('user'), nimdata.name('shot'))
         ret = nimRt.DisplayMessage.get_btn( msg, title= title )
     # Version
@@ -322,9 +382,6 @@ def check_vars():
 
     if iserror:
         if nuke.GUI:
-            # ret = hou.ui.displayMessage( "Some Nuke script publish data failed tests against NIM online publish data:", title='Check Nuke Publish Info',\
-                # buttons= ('OK', 'Reset Publish Data'), default_choice=0, close_choice=0, details=errors, details_label='Failed Publish Data',\
-                    # severity= hou.severityType.Error)
             nuke.tprint("Publishing data discrepancies:")
             nuke.tprint(errors)
             msg = "Some Nuke scene publish data failed tests against NIM online publish data:"
@@ -374,7 +431,9 @@ def reset_vars( confirm=True ):
         return False
 
     # Try to create a valid task
-    pubtask = nimRt.pubTask(nimpubdata)
+    # DEPRECATED: since tasks are not mandatory for publishing info, dont do
+    # anything here
+    # pubtask = nimRt.pubTask(nimpubdata)
 
     set_vars( nimpubdata )
 
@@ -391,7 +450,7 @@ def get_vars( nim=None ) :
     knobNames, knobLabels, knobCmds=knobInfo[0], knobInfo[1],knobInfo[2]
     #  Get Project Settings Node :
     PS=nuke.root()
-    
+
     #  Get knob values :
     for x in range(len(knobNames)) :
         if knobNames[x] in PS.knobs().keys() :
@@ -470,8 +529,24 @@ def get_vars( nim=None ) :
                 #  NIM version :
                 elif knobNames[x]=='nim_version' :
                     nim.set_nimVer(knob.value())
-
+                    
     return nim
+
+def get_taskid_var():
+    '''
+    Get publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    PS=nuke.root()
+    if not PS.knob('nim_taskID'):
+        P.error("Can't get Task ID, knob doesn't exists, has this script publish information?")
+    return int(PS.knob('nim_taskID').value())
 
 def getTaskNameFromVars(tasktypeid):
     '''
@@ -645,7 +720,7 @@ def saveRenderScene (renderscene=''):
     return renderscene
 
 
-def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
+def setupWriteForRendering( renderscene, writeNode, fileid=0, deps=None ):
     '''
     Do all the mandatory settings needed in a Write node for our pipeline
 
@@ -657,6 +732,8 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
         Write node for rendering
     fileid : id
         File ID for published render
+    deps : dict
+        Dictionary with dependencies for this EXR.
 
     Returns
     -------
@@ -681,7 +758,7 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ), job=PS.knob('nim_job').value().split()[0], jobid=int(PS.knob('nim_jobID').value()),
                                                   show=PS.knob('nim_show').value(), showid=int(PS.knob('nim_showID').value()), shot=PS.knob('nim_shot').value(), 
                                                   shotid=int(PS.knob('nim_showID').value()), asset=PS.knob('nim_asset').value(),
-                                                  assetid=int(PS.knob('nim_assetID').value()), fileid=int(fileid))
+                                                  assetid=int(PS.knob('nim_assetID').value()), fileid=int(fileid), deps=deps)
         else:
             attrs = nimRt.getEXRMetadataAttrsDict(  renderscene, os.path.dirname(nuke.filename(node) ) )
     except ValueError:
@@ -689,6 +766,7 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0 ):
     attrsscript = ""
     for attr in attrs:
         attrsscript += "{set exr/%s %s}\n"%(attr, str(attrs[attr]).replace('\\', '/'))
+    #  TODO: add dependencies metadata
     attrsKnob.fromScript( attrsscript )
     
     # Write metadata output knob
@@ -721,9 +799,10 @@ def restoreRenderingSetup( writeNode ):
     '''
     metadatanode = nuke.toNode(writeNode.name() + '_metadata')
     if metadatanode is None:
-        P.error("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
-        return False
-    nuke.delete(metadatanode)
+        P.warning("Missing Metadata node for %s. Render scene setup is incorrect"%writeNode.name())
+        # return False
+    else:
+        nuke.delete(metadatanode)
     stickynode = nuke.toNode("__renderStickyNote")
     if stickynode  is not None:
         nuke.delete(stickynode)

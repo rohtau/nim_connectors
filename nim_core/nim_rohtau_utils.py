@@ -17,12 +17,14 @@ import sys
 import platform
 import os
 import re
-# import getpass
 import time
 # from pathlib import PurePath
-from pprint import pprint
-from pprint import pformat
-from itertools import groupby
+import subprocess
+import getpass
+from subprocess import Popen
+from pprint     import pprint
+from pprint     import pformat
+from itertools  import groupby
 
 if sys.version_info >= (3, 0):
     from . import nim_api as nimAPI
@@ -51,19 +53,17 @@ class shotStatusID:
     NOT_STARTED = 6
     BLOCKED = 7
 
-
 class assetStatusID:
     '''
     Enum for asset status ID in NIM
     '''
-    ON_HOLD = 1
-    OMIT = 2
-    COMPLETED = 3
+    ON_HOLD     = 1
+    OMIT        = 2
+    COMPLETED   = 3
     IN_PROGRESS = 4
-    BLOCKED = 5
-    REVIEW = 6
-    APPROVED = 7
-
+    BLOCKED     = 5
+    REVIEW      = 6
+    APPROVED    = 7
 
 class jobAwardStatusID:
     '''
@@ -78,6 +78,23 @@ class jobAwardStatusID:
     ARCHIVED      = 7
     DEEP_ARCHIVED = 8
 
+class taskStatusID:
+    '''
+    Enum for task status ID in NIM
+    '''
+    NOT_STARTED     = 1
+    IN_PROGRESS     = 2
+    ON_HOLD         = 3
+    TO_REVIEW       = 4
+    KICKBACK        = 5
+    COULD_BE_BETTER = 6
+    COMPLETED       = 7
+    OMIT            = 8
+    PARKED          = 18
+    APPROVED        = 19
+    BLOCKED         = 20
+
+
 #
 # Utilities
 #
@@ -90,15 +107,113 @@ def logtimer(msg, start, end=0.0):
     If end time is not provided, start will be printed as the time.
     If provided the difference between end and start will be the printed time.
 
-    Arguments:
-        msg {str} -- log message. A semicolo plus final time will be added.
-        start {float} -- start time
-        end {float} -- end time
+    Parameters
+    ----------
+        msg : str
+            log message. A semicolo plus final time will be added.
+        start : float
+            start time
+        end :float
+            end time
     '''
     print("NIM.Profile ~> %s : %0.4f" %
           (msg, (end-start) if end > 0 else start))
 
     pass
+
+def runCommand( cmd, output=False ):
+    '''
+    Run a shell command
+
+    Parameters
+    ----------
+        cmd : str
+            git command string
+        output : bool
+            Whether or not return the command output. If command fails returns False
+
+    Returns
+    -------
+        bool or string : 
+            True if the command finished with errorcode 0, False other wise. If output is True return command output on success.
+    '''
+    try:
+        if output:
+            ret = subprocess.check_output(cmd, shell=True, stderr= subprocess.STDOUT)
+        else:
+            ret = subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        nimP.error( "Failed command: %s "%cmd)
+        if 'ret' in locals():
+            log("%s"%ret)
+        return False
+    except FileNotFoundError:
+        nimP.error( "command is not available in PATH")
+        nimP.error( cmd )
+        return False
+
+    if output:
+        return ret
+    else:
+        return True
+
+def set_file_as_ro_others( filepath ):
+    '''
+    Set file as Read Only for other users.
+    This is mostly used to change permissions for scene files that we dont want to be
+    overwritten but other users.
+
+    The function generates and execute a series of powershell commands in windows.
+    Change roles permission to only read.
+
+    Parameters
+    ----------
+        filepath : str
+            Path to file to change permissions
+
+    Returns
+    -------
+    bool
+        True if permissions were changed correctly
+    '''
+    roles_sec_grps = ( 'artist', 'editorial', 'pipe', 'prod', 'supe', 'wrangler')
+    if not os.path.exists(filepath):
+        return False
+
+    cmd = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -ExecutionPolicy bypass  (Get-ACL -Path \"%s\").Access"%filepath
+    ret = runCommand( cmd, output=True )
+    if not ret:
+        nimP.error("Can't file  : %s"%filepath)
+    serverfound = False
+    if len(ret) == 0:
+        return False
+    for line in ret.splitlines():
+        # print (line.decode(encoding='ascii'))
+        for role in roles_sec_grps:
+            if re.search(role, line.decode(encoding='ascii')) is not None:
+                # remove rol ACL:
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s;$Acl.SetAccessRuleProtection($True, $True);(Get-Item %s).SetAccessControl($Acl)"%(filepath, filepath)
+                # print("Permission command:")
+                # print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+                cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Write\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, role, filepath)
+                # print("Permission command:")
+                # print(cmd)
+                if not runCommand( cmd ):
+                    nimP.error("Error removing role permissions for %s in file:\n %s"%(role, filepath))
+                    continue
+    myuser   = getpass.getuser()
+    myuser = myuser.split('@')[0]
+    cmd ="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NonInteractive -NoLogo -ExecutionPolicy Unrestricted $Acl = Get-Acl %s; $permission  = \\\"rohtau\\%s\\\",\\\"Delete\\\",,,\\\"Allow\\\";$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission;$Acl.RemoveAccessRule($accessRule);(Get-Item %s).SetAccessControl($Acl)"%(filepath, myuser, filepath)
+    # print("Permisson command:")
+    # print(cmd)
+    if not runCommand( cmd ):
+        nimP.error("Error removing owner permissions for %s in file:\n %s"%(role, filepath))
+
+
+    return True
 
 #
 # Jobs
@@ -413,6 +528,50 @@ def getshowsIDDict(jobid):
         showsid[int(show['ID'])] = show['showname']
     return showsid
 
+def getShowGlobals( job):
+    '''
+    Get global configuration options for the show.
+    These options defines any aspect that will be shared by all data generated
+    for the show.
+    Some examples are: Output resolution, FPS, etc ...
+
+    Parameters
+    ----------
+    job : str
+        Job number or ID. (ID can be an integer also)
+    
+
+    Returns
+    ---------
+    dict
+        Dictionary with all show globals found
+
+    '''
+    (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+    if not jobid:
+        sys.exit()
+    jobglobals = {}
+    jobinfo = nimAPI.get_jobInfo( jobid )
+    if not jobinfo:
+        nimP.error("Can't get job details from %s (#%d)"%(jobnumber, jobid))
+    jobinfo = jobinfo[0]
+
+    # Show
+    jobglobals['name'] = jobinfo['jobname'].encode('ascii')
+    jobglobals['number'] = jobinfo['number'].encode('ascii')
+    jobglobals['description'] = jobinfo['description'].encode('ascii')
+    jobglobals['id'] = int(jobinfo['ID'])
+    for custom in jobinfo['customKeys']:
+        name = custom['keyName']
+        if name == 'Working Resolution':
+            res = custom['dropdownText'].encode('ascii')
+            res = res.replace(' ', '')
+            jobglobals['output_res'] = res
+        elif name == 'Working Frame Rate':
+            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+
+    return jobglobals
+
 
 #
 # Shots
@@ -490,6 +649,68 @@ def getshotsIDDict(jobid, showid=None):
         for shot in shots[show]:
             shotsid[int(shot['ID'])] = shot['name']
     return shotsid
+
+
+def getShotGlobals( shot, entity_type='SHOT', job=0 ):
+    '''
+    Get global configuration options for a shot or asset.
+    These options defines any aspect that will be shared by all data generated
+    for the show.
+    Some examples are: Output resolution, FPS, etc ...
+
+    Parameters
+    ----------
+    shotid : int
+        ID for shot or asset
+    class : str
+        ID entity type(class), SHOT ot ASSETd
+    job : str
+        Job number or ID. (ID can be an integer also)
+
+    Returns
+    ---------
+    dict
+        Dictionary with all shot globals found
+
+    '''
+    shotglobals = {}
+    if isinstance(shot, int) or shot.isdigit():
+        shotid = int(shot)
+        shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
+    elif job:
+        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+        if not jobid:
+            nimP.error("Cant get jobid from %s"%job)
+            sys.exit(1)
+        shotid = nimUtl.getshowIdFromName(jobid, shot)
+        shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
+    else:
+        nimP.error("Bad parameters. shot needs to be the name or ID of the shot. If name is provided job must have the show nyumber")
+        sys.exit(1)
+    if shotinfo:
+        shotinfo = shotinfo[0]
+    else:
+        nimP.error("Can't get %s info from ID %s"%(entity_type.lower(), str(shot)))
+
+    # Shot
+    shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
+    shotglobals['description'] = shotinfo['description'].encode('ascii')
+    shotglobals['id'] = int(shotid)
+    if entity_type=='SHOT':
+        shotglobals['frames'] = int(shotinfo['frames'])
+        shotglobals['handles'] = int(shotinfo['handles'])
+    '''
+    for custom in jobinfo['customKeys']:
+        name = custom['keyName']
+        if name == 'Working Resolution':
+            res = custom['dropdownText'].encode('ascii')
+            res = res.replace(' ', '')
+            jobglobals['output_res'] = res
+        elif name == 'Working Frame Rate':
+            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+    '''
+
+    return shotglobals
 
 #
 # Assets
@@ -831,6 +1052,27 @@ def createTaskFromFilepath(path, user):
         P.error(msg)
         Win.popup( title='NIM - Save Error', msg=msg )
         return False
+
+def set_task_status(ID, itemID, itemClass='shot', status = taskStatusID.IN_PROGRESS):
+    '''
+    Change tgask status
+
+    Parameters
+    ----------
+    path : str
+        Path t oscene to get task from
+    user : str
+        User name to create the task for
+
+    Returns
+    -------
+    bool
+        True if task for user already exists or has been created. False if creation failed
+    '''
+    newtask = nimAPI.update_task(taskID=ID, taskStatusID=status)
+    if not newtask:
+        return False
+    return True
 
 
 #
@@ -1248,8 +1490,9 @@ def splitName(filename, error=True):
         Dict with keys: {'base', 'shot', 'task', 'elem', 'tag', 'ver'}
     '''
     fileparts = {'base':'', 'shot':'', 'task':'', 'elem':'','tag':'','ver':0}
-    filenoext = filename.split('.')[0]
-    basenameparts = filenoext.split('__')
+    basename = os.path.basename(filename)
+    basename = basename.split('.')[0]
+    basenameparts = basename.split('__')
     if len(basenameparts) < 3:
         if error:
             nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
@@ -1344,6 +1587,31 @@ def getusersIDDict():
     for user in users:
         usersid[int(user['ID'])] = user['username']
     return usersid
+
+def getuserFullName( username ):
+    '''
+    Given  the login name, get user Full Name.
+    At the moment only windows version is implemented.
+    On Linux the username will be returned
+
+    Returns
+    -------
+    str
+        Full Name for the user. Or login username if it is not implemented for the platform.
+    '''
+    fullname = username
+    if platform.system() == 'Windows':
+        username = getpass.getuser()
+        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        info, err = p.stdout.read(), p.stderr.read()
+        fullname = re.findall(r'Full Name\s+(.*\S)', info)
+        if not fullname:
+            fullname = username
+        else:
+            fullname = fullname[0]
+
+    return fullname
+
 
 #
 # Templates for Rez packages

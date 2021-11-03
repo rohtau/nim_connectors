@@ -572,6 +572,14 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         #  Copy fiile and make it read-only :
         shutil.copyfile( filepath, pub_filePath )
         os.chmod( pub_filePath, stat.S_IREAD )
+
+    # Change file permissions for others.
+    # This implement our policy fo protecting user's scene files from being
+    # overwritten by others and force a Version Up.
+    if Utl.set_file_as_ro_others( filepath ):
+        P.info("Scene file overwrite protection setup.")
+
+
         
     #  Print save success :
     P.info( '\nFile successfully saved to...\n    %s\n' % filepath )
@@ -808,6 +816,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( '  Comp Directory = %s\n' % compPath )
     if 'plates' in pathInfo:
         P.info( '  Plates Directory = %s\n' % platesPath )
+
 
     # TODO: check that file path and projDir are writable
     

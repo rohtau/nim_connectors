@@ -22,9 +22,10 @@ import nim_print as P
 import nim_api as Api
 import nim_rohtau as Rt
 import nim_rohtau_utils as Utl
-from pprint import pprint
+from pprint import pprint, pformat
 #  Houdini Imports :
 import hou
+import toolutils
 #  Import Python GUI packages :
 try : from PySide import QtCore, QtGui
 except :
@@ -88,6 +89,7 @@ def set_vars( nim ) :
         h_root.setUserData("nim_name", str(nim.name('asset')))
 
     h_root.setUserData("nim_basename", str(nim.name('base'))) 
+    h_root.setUserData("nim_task", str(nim.name( elem='task')))
     h_root.setUserData("nim_type", str(nim.name( elem='task'))) 
     h_root.setUserData("nim_typeID", str(nim.ID( elem='task' ))) 
     h_root.setUserData("nim_typeFolder", str(nim.taskFolder())) 
@@ -99,8 +101,17 @@ def set_vars( nim ) :
     h_root.setUserData("nim_compPath", str(nim.compPath())) 
     h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
     h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
+
+    # Set file version owner
+    for ver in nim.Dict('ver'):
+        if ver['version'] == nim.version() and nim.name('base') == nim.Dict('ver')[0]['basename']:
+            h_root.setUserData("nim_user", str(ver['username']))
+            h_root.setUserData("nim_userID", str(ver['userID']))
+
     # Try to check a valid task for the task type and user in the shot/asset
-    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    # pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    '''
+    pubtask  = Utl.getuserTask(int(h_root.userData("nim_userID")), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
     if not pubtask:
         h_root.setUserData("nim_task", '')
         h_root.setUserData("nim_taskID", '0') 
@@ -108,40 +119,6 @@ def set_vars( nim ) :
     else:
         h_root.setUserData("nim_task", str(pubtask['taskName']))
         h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    '''
-    # Try to find a valid task for the task type and user in the shot/asset
-    pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    if not pubtask:
-        h_root.setUserData("nim_task", '')
-        h_root.setUserData("nim_taskID", '0') 
-        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Error)
-        hou.ui.displayMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), title='Scene publish error', 
-                              help='Please create a task for this scene from the rohtau menu', 
-                              details='If there is no valid task for this scene, any publishing, like reneders or caches will fail', 
-                              severity= hou.severityType.Error)
-    else:
-        h_root.setUserData("nim_task", str(pubtask['taskName']))
-        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    '''
-    '''
-    pubtask = Utl.getuserTask(int(userInfo['ID']), int(nim.ID(elem='task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    if pubtask:
-        h_root.setUserData("nim_task", str(pubtask['taskName']))
-        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
-    # tasks = Api.get_taskInfo( itemClass=nim.tab().lower(), itemID=int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
-    # taskfound = False
-    # for task in tasks:
-        # if task['typeID'] == str(nim.ID( elem='task' )) and task['userID'] == str(userInfo['ID']):
-            # print("Found task %d!"%int(task['taskID']))
-            # print(task)
-            # h_root.setUserData("nim_task", str(task['taskName']))
-            # h_root.setUserData("nim_taskID", str(task['taskID'])) 
-            # taskfound = True
-            # break
-    if not pubtask and hou.isUIAvailable():
-        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
-        h_root.setUserData("nim_task", '')
-        h_root.setUserData("nim_taskID", '0') 
     '''
 
     
@@ -161,6 +138,45 @@ def set_vars( nim ) :
 
     return
 
+def set_fileid_var( fileid ):
+    '''
+    Set FileID data.
+    Needed to update scene after it has been published
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    # if 'nim_fileID' not in h_root.userDataDict():
+        # P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
+        # return False
+    h_root.setUserData("nim_fileID", str(fileid))
+
+    return True
+
+def set_taskid_var( taskid ):
+    '''
+    Set publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Parameters
+    ----------
+    taskid : int
+        Id for the publishing task
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    # if 'nim_taskID' not in h_root.userDataDict():
+        # P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        # return False
+    h_root.setUserData("nim_taskID", str(taskid)) 
+    return True
+
+
+
 def dump_vars( ):
     from pprint import pformat
 
@@ -172,7 +188,7 @@ def dump_vars( ):
     for var in sessionvars:
         dump += "%s %s %s\n"%(var, "=>".rjust(25), hou.getenv(var))
     
-    title = "NIM Publish info for: %s"%hou.expandString('HIPFILE')
+    title = "NIM Publish info for: %s"%hou.expandString('$HIPFILE')
     if hou.isUIAvailable():
         ret = hou.ui.displayMessage( dump, title=title, buttons=('OK','Check Publish Info'), close_choice=0 )
         if ret == 1:
@@ -308,7 +324,9 @@ def reset_vars( confirm=True ):
         return False
 
     # Try to create a valid task
-    pubtask = Rt.pubTask(nimpubdata)
+    # DEPRECATED: since tasks are not mandatory for publishing info, dont do
+    # anything here
+    # pubtask = Rt.pubTask(nimpubdata)
 
     set_vars( nimpubdata )
 
@@ -532,7 +550,24 @@ def get_vars( nim=None ) :
     #nim.Print()
     
     return
-    
+
+def get_taskid_var():
+    '''
+    Get publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    if 'nim_taskID' not in h_root.userDataDict():
+        P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        return False
+    return int(h_root.userData("nim_taskID"))
+
 
 def mk_workspace( proj_folder='', renPath='' ) :
     'Creates the NIM Project Workspace'
@@ -657,6 +692,90 @@ def mk_proj( path='', renPath='' ) :
     except : pass
     
     return True
+    
+def set_globals():
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Globals
+    --------
+    - Render resolution
+    - FPS
+    - Shot range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    msg = ""
+
+    # Set output format.
+    # If format doesn't match, create format for show.
+    if 'output_res' in jobglobals:
+        hou.putenv('SHOWOUTPUT', jobglobals['output_res'])
+        (resx, resy) = jobglobals['output_res'].split('x')
+        # Set flipbook res
+        viewer = toolutils.sceneViewer()
+        if viewer:
+            flipbook_settings = viewer.flipbookSettings().stash()
+            flipbook_settings.useResolution(True)
+            flipbook_settings.resolution((int(resx), int(resy)))
+            flipbook_settings.outputZoom(75)
+            viewer.flipbookSettings().copy(flipbook_settings)
+
+    
+    # Set FPS
+    if 'fps' in jobglobals:
+        hou.putenv('FPS', str(jobglobals['fps']))
+        hou.setFps(jobglobals['fps'])
+        msg += "- FPS set to %d\n"%jobglobals['fps']
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    shotglobals = Utl.getShotGlobals( shotid, entity_type=rootdict['nim_class'])
+
+    print("Shot Globals")
+    print(pformat(shotglobals))
+    if 'frames' in shotglobals:
+        # Set frame range and display range. Move to first display frame. Disable cooking
+        hou.setUpdateMode(hou.updateMode.Manual)
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + shotglobals['frames'] - 1
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
+        hou.setFrame(first+shotglobals['handles'])
+
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
+                                                                                   last-shotglobals['handles'])
+
+
+    if msg:
+        msg = "The next changes have been apply in the script:\n\n" + msg
+        hou.ui.displayMessage(msg, title='Set Globals ...')
+    else:
+        hou.ui.displayMessage(msg, title='Set Globals ...', severity=hou.severityType.Warning)
+
+
+    return True
+
+    
+
+
     
 
 
