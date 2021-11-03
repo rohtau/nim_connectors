@@ -125,6 +125,27 @@ def rtShowPubInfo():
         return
 
 
+def rtSetGlobals( ):
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Globals' )
+    hou.ui.setStatusMessage( "NIM: Set Scene Globals")
+    nimHoudini.set_globals()
+
+    pass
+
+    
+
+
+        
+
 
 if action == 'open':
 	openFileAction()
@@ -164,3 +185,6 @@ if action == 'task':
 
 if action == 'info':
 	rtShowPubInfo()
+
+if action == 'setglobals':
+	rtSetGlobals()

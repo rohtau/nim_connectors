@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 22nd December 2020 6:38:33 pm
+Last Modified: Tuesday, 02 November 2021 18:12:42 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -2796,6 +2796,8 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
 
     res['success'] = True
     return res
+
+
 
 
 

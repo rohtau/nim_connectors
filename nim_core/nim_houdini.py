@@ -22,9 +22,10 @@ import nim_print as P
 import nim_api as Api
 import nim_rohtau as Rt
 import nim_rohtau_utils as Utl
-from pprint import pprint
+from pprint import pprint, pformat
 #  Houdini Imports :
 import hou
+import toolutils
 #  Import Python GUI packages :
 try : from PySide import QtCore, QtGui
 except :
@@ -691,6 +692,90 @@ def mk_proj( path='', renPath='' ) :
     except : pass
     
     return True
+    
+def set_globals():
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Globals
+    --------
+    - Render resolution
+    - FPS
+    - Shot range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    msg = ""
+
+    # Set output format.
+    # If format doesn't match, create format for show.
+    if 'output_res' in jobglobals:
+        hou.putenv('SHOWOUTPUT', jobglobals['output_res'])
+        (resx, resy) = jobglobals['output_res'].split('x')
+        # Set flipbook res
+        viewer = toolutils.sceneViewer()
+        if viewer:
+            flipbook_settings = viewer.flipbookSettings().stash()
+            flipbook_settings.useResolution(True)
+            flipbook_settings.resolution((int(resx), int(resy)))
+            flipbook_settings.outputZoom(75)
+            viewer.flipbookSettings().copy(flipbook_settings)
+
+    
+    # Set FPS
+    if 'fps' in jobglobals:
+        hou.putenv('FPS', str(jobglobals['fps']))
+        hou.setFps(jobglobals['fps'])
+        msg += "- FPS set to %d\n"%jobglobals['fps']
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    shotglobals = Utl.getShotGlobals( shotid, entity_type=rootdict['nim_class'])
+
+    print("Shot Globals")
+    print(pformat(shotglobals))
+    if 'frames' in shotglobals:
+        # Set frame range and display range. Move to first display frame. Disable cooking
+        hou.setUpdateMode(hou.updateMode.Manual)
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + shotglobals['frames'] - 1
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
+        hou.setFrame(first+shotglobals['handles'])
+
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
+                                                                                   last-shotglobals['handles'])
+
+
+    if msg:
+        msg = "The next changes have been apply in the script:\n\n" + msg
+        hou.ui.displayMessage(msg, title='Set Globals ...')
+    else:
+        hou.ui.displayMessage(msg, title='Set Globals ...', severity=hou.severityType.Warning)
+
+
+    return True
+
+    
+
+
     
 
 

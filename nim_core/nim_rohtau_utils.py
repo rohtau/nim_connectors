@@ -528,6 +528,50 @@ def getshowsIDDict(jobid):
         showsid[int(show['ID'])] = show['showname']
     return showsid
 
+def getShowGlobals( job):
+    '''
+    Get global configuration options for the show.
+    These options defines any aspect that will be shared by all data generated
+    for the show.
+    Some examples are: Output resolution, FPS, etc ...
+
+    Parameters
+    ----------
+    job : str
+        Job number or ID. (ID can be an integer also)
+    
+
+    Returns
+    ---------
+    dict
+        Dictionary with all show globals found
+
+    '''
+    (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+    if not jobid:
+        sys.exit()
+    jobglobals = {}
+    jobinfo = nimAPI.get_jobInfo( jobid )
+    if not jobinfo:
+        nimP.error("Can't get job details from %s (#%d)"%(jobnumber, jobid))
+    jobinfo = jobinfo[0]
+
+    # Show
+    jobglobals['name'] = jobinfo['jobname'].encode('ascii')
+    jobglobals['number'] = jobinfo['number'].encode('ascii')
+    jobglobals['description'] = jobinfo['description'].encode('ascii')
+    jobglobals['id'] = int(jobinfo['ID'])
+    for custom in jobinfo['customKeys']:
+        name = custom['keyName']
+        if name == 'Working Resolution':
+            res = custom['dropdownText'].encode('ascii')
+            res = res.replace(' ', '')
+            jobglobals['output_res'] = res
+        elif name == 'Working Frame Rate':
+            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+
+    return jobglobals
+
 
 #
 # Shots
@@ -605,6 +649,68 @@ def getshotsIDDict(jobid, showid=None):
         for shot in shots[show]:
             shotsid[int(shot['ID'])] = shot['name']
     return shotsid
+
+
+def getShotGlobals( shot, entity_type='SHOT', job=0 ):
+    '''
+    Get global configuration options for a shot or asset.
+    These options defines any aspect that will be shared by all data generated
+    for the show.
+    Some examples are: Output resolution, FPS, etc ...
+
+    Parameters
+    ----------
+    shotid : int
+        ID for shot or asset
+    class : str
+        ID entity type(class), SHOT ot ASSETd
+    job : str
+        Job number or ID. (ID can be an integer also)
+
+    Returns
+    ---------
+    dict
+        Dictionary with all shot globals found
+
+    '''
+    shotglobals = {}
+    if isinstance(shot, int) or shot.isdigit():
+        shotid = int(shot)
+        shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
+    elif job:
+        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+        if not jobid:
+            nimP.error("Cant get jobid from %s"%job)
+            sys.exit(1)
+        shotid = nimUtl.getshowIdFromName(jobid, shot)
+        shotinfo = nimAPI.get_shotInfo( int(shot) ) if entity_type=='SHOT' else nimAPI.get_assetInfo( int(shot) ) 
+    else:
+        nimP.error("Bad parameters. shot needs to be the name or ID of the shot. If name is provided job must have the show nyumber")
+        sys.exit(1)
+    if shotinfo:
+        shotinfo = shotinfo[0]
+    else:
+        nimP.error("Can't get %s info from ID %s"%(entity_type.lower(), str(shot)))
+
+    # Shot
+    shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
+    shotglobals['description'] = shotinfo['description'].encode('ascii')
+    shotglobals['id'] = int(shotid)
+    if entity_type=='SHOT':
+        shotglobals['frames'] = int(shotinfo['frames'])
+        shotglobals['handles'] = int(shotinfo['handles'])
+    '''
+    for custom in jobinfo['customKeys']:
+        name = custom['keyName']
+        if name == 'Working Resolution':
+            res = custom['dropdownText'].encode('ascii')
+            res = res.replace(' ', '')
+            jobglobals['output_res'] = res
+        elif name == 'Working Frame Rate':
+            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+    '''
+
+    return shotglobals
 
 #
 # Assets
