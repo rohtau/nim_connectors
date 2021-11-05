@@ -896,6 +896,13 @@ def createNIMTaskForRender( root ):
 
 #
 # Set Globals
+
+def setViewerRange(n, range):
+    n.redraw()
+    n.knob('frame_range').setValue(range)
+    nuke.tprint("Viewer %s range: %s"%(n.name(), n.knob('frame_range').value()))
+    n.redraw()
+
 def set_globals():
     '''
     Get globals parameters for the show and shot and apply them to our script
@@ -918,6 +925,9 @@ def set_globals():
 
     '''
     import nuke
+    from PySide2.QtCore import QTimer
+
+
     PS = nuke.root()
     try:
         if PS is None:
@@ -971,14 +981,7 @@ def set_globals():
             n.redraw()
             n.knob('frame_range_lock').setValue(True)
             viewer_range = "%d-%d"%(first+shotglobals['handles'], (last-shotglobals['handles']))
-            # viewer_range = str(1001+shotglobals['handles']) + '-' + str(int(1001+shotglobals['frames'])-shotglobals['handles']) #frames handles on head an tail
-            nuke.tprint("Modify viewer: %s"%n.name())
-            nuke.tprint(viewer_range)
-            n.knob('frame_range').setValue(viewer_range)
-            n.redraw()
-            PS.knob('frame').setValue(first+shotglobals['handles'])
-            n.knob('frame_range').setValue(viewer_range)
-            nuke.tprint("Viewer %s range: %s"%(n.name(), n.knob('frame_range').value()))
+            QTimer.singleShot(100, lambda: setViewerRange(n, viewer_range))
 
         msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
                                                                                    last-shotglobals['handles'])
