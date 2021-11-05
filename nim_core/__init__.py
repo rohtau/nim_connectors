@@ -11,6 +11,7 @@ padding     = 3 # Global padding used for file versions.
 imgpadding  = 4 # Global padding used for images files.
 nimAPIConnectInfoFile = os.path.join(tempfile.gettempdir(), "nimAPIConnectInfo") # Temp file used to store API connection info for non login sessions. For instance, Deadline
 defaultSceneName = 'main'
+default_frame_range = 100 # Default frame range. Use this value if frame range is no defined in NIM
 
 
 #  END

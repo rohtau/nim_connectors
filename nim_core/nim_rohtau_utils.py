@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Wednesday, 03 November 2021 12:48:48 CUT
+Last Modified: Thursday, 04 November 2021 19:45:40 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -39,6 +39,7 @@ else:
 from .import version
 from .import winTitle
 from .import padding
+from .import default_frame_range
 
 
 class shotStatusID:
@@ -570,6 +571,9 @@ def getShowGlobals( job):
             jobglobals['output_res'] = res
         elif name == 'Working Frame Rate':
             jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+        elif name == 'Tools':
+            res = custom['value'].splitlines()
+            jobglobals['tools'] = res
 
     return jobglobals
 
@@ -694,22 +698,13 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
         nimP.error("Can't get %s info from ID %s"%(entity_type.lower(), str(shot)))
 
     # Shot
+    # pprint(shotinfo)
     shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
     shotglobals['description'] = shotinfo['description'].encode('ascii')
     shotglobals['id'] = int(shotid)
     if entity_type=='SHOT':
-        shotglobals['frames'] = int(shotinfo['frames'])
-        shotglobals['handles'] = int(shotinfo['handles'])
-    '''
-    for custom in jobinfo['customKeys']:
-        name = custom['keyName']
-        if name == 'Working Resolution':
-            res = custom['dropdownText'].encode('ascii')
-            res = res.replace(' ', '')
-            jobglobals['output_res'] = res
-        elif name == 'Working Frame Rate':
-            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
-    '''
+        shotglobals['frames'] = int(shotinfo['frames']) if shotinfo['frames'] else 0
+        shotglobals['handles'] = int(shotinfo['handles']) if shotinfo['handles'] else 0
 
     return shotglobals
 
@@ -1643,6 +1638,8 @@ def updateJobTemplateData(job, template):
         return False
     jobglobals = getShowGlobals(jobid)
 
+    # print(template)
+
     res = template.replace('<name>', fixjobNumber(jobnumber))
     res = res.replace('<number>', jobnumber)
     res = res.replace('<path>', jobpath)
@@ -1650,6 +1647,21 @@ def updateJobTemplateData(job, template):
         res = res.replace('<output_res>', jobglobals['output_res'])
     if 'fps' in jobglobals:
         res = res.replace('<fps>', str(jobglobals['fps']))
+    if 'tools' in jobglobals and jobglobals['tools']:
+        reqstr = "requires = [\"common\""
+        for tool in jobglobals['tools']:
+            reqstr += ", \"%s\""%tool
+        reqstr += "]"
+        # print("New requires:")
+        # print(reqstr)
+        oldrequire = ""
+        for l in res.splitlines():
+            m = re.match(r"^requires.+$", l)
+            if m:
+                oldrequire=m.group()
+        res = res.replace(oldrequire, reqstr)
+        pass
+
 
 
 
@@ -1697,10 +1709,12 @@ def updateShotTemplateData(job, shotid, template):
 
     res = res.replace('<start>', "1001")
     if 'frames' in shotglobals:
-        end = 1001 + shotglobals['frames'] - 1
+        # Use default shot length if notdefined in NIM
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
+        end = 1001 + frames - 1
         res = res.replace('<start>', str(1001))
         res = res.replace('<end>', str(end))
-        res = res.replace('<frames>', str(shotglobals['frames']))
+        res = res.replace('<frames>', str(frames))
         if 'handles' in shotglobals:
             res = res.replace('<handles>', str(shotglobals['handles']))
             res = res.replace('<startcut>', str(1001+shotglobals['handles']))
