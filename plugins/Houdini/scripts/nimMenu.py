@@ -124,7 +124,6 @@ def rtShowPubInfo():
 
         return
 
-
 def rtSetGlobals( ):
     '''
     Get globals parameters for the show and shot and apply them to our scene
@@ -141,50 +140,103 @@ def rtSetGlobals( ):
 
     pass
 
-    
+def rtSetShotRange( ):
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Shot Range' )
+    hou.ui.setStatusMessage( "NIM: Set Shot Range")
+    nimHoudini.set_shot_range()
+
+    pass
 
 
+def rtSetPreRoll( ):
+    '''
+    Set pre roll frames for simulations
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Pre-Roll' )
+    hou.ui.setStatusMessage( "NIM: Set Pre-Roll")
+    nimHoudini.set_preroll()
+
+    pass
+
+def rtSimRange( ):
+    '''
+    Set simulation range in timeline
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Sim Range' )
+    hou.ui.setStatusMessage( "NIM: Set Sim Range")
+    nimHoudini.set_sim_range()
+
+    pass
         
+def rtRestoreRange( ):
+    '''
+    Restore previously stached range
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Restore Range' )
+    hou.ui.setStatusMessage( "NIM: Restore Range")
+    nimHoudini.restore_range()
+
+    pass
 
 
 if action == 'open':
 	openFileAction()
-
-if action == 'import':
+elif action == 'import':
 	importFileAction()
-
-if action == 'ref':
+elif action == 'ref':
 	refereceFileAction()
-
-if action == 'saveas':
+elif action == 'saveas':
 	saveFileAction()
-
-if action == 'savesel':
+elif action == 'savesel':
 	saveSelectedAction()
-
-if action == 'ver':
+elif action == 'ver':
 	versionUpAction()
-
-if action == 'pub':
+elif action == 'pub':
 	publishAction()
-
-if action == 'user':
+elif action == 'user':
     changeUserAction()
-
-if action == 'reload':
+elif action == 'reload':
 	reloadScriptsAction()
-
-if action == 'dump':
+elif action == 'dump':
     dumpPublishInfo()
-
-if action == 'reset':
+elif action == 'reset':
 	resetPublishInfo()
-
-if action == 'task':
+elif action == 'task':
 	rtCreateTaskForScript()
-
-if action == 'info':
+elif action == 'info':
 	rtShowPubInfo()
-
-if action == 'setglobals':
+elif action == 'setglobals':
 	rtSetGlobals()
+elif action == 'setshotrange':
+	rtSetShotRange()
+elif action == 'setpreroll':
+	rtSetPreRoll()
+elif action == 'setsimrange':
+	rtSimRange()
+elif action == 'restorerange':
+	rtRestoreRange()
+

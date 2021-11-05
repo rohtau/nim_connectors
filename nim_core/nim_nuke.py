@@ -893,6 +893,114 @@ def createNIMTaskForRender( root ):
 
     pass
 
+
+#
+# Set Globals
+
+def setViewerRange(n, range):
+    n.redraw()
+    n.knob('frame_range').setValue(range)
+    nuke.tprint("Viewer %s range: %s"%(n.name(), n.knob('frame_range').value()))
+    n.redraw()
+
+def set_globals():
+    '''
+    Get globals parameters for the show and shot and apply them to our script
+    Globals are gather from environment variables and/or NIM.
+
+    Globals
+    --------
+    - Render resolution
+    - FPS
+    - Shot range
+
+    Parameters
+    ----------
+    
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+
+    '''
+    import nuke
+    from PySide2.QtCore import QTimer
+
+
+    PS = nuke.root()
+    try:
+        if PS is None:
+            return ""
+        if PS is not None and PS.knob('nim_compPath') is None:
+            P.error("Missing NIM data in Project Settings")
+            return "ERROR: Missing NIM data in Project Settings. Use rohtau->Save As"
+    except ValueError:
+        return False
+    jobid = int(PS.knob('nim_jobID').value())
+    jobglobals = nimUtl.getShowGlobals( jobid )
+
+    msg = ""
+
+    # Show
+    # Set output format.
+    # If format doesn't match, create format for show.
+    if 'output_res' in jobglobals:
+        (resx, resy) = jobglobals['output_res'].split('x')
+        if not [f for f in nuke.formats() if f.name()==jobglobals['number']]:
+            nuke.addFormat('%s %s %s'%(resx, resy, jobglobals['number']))
+            msg += "- Added default show format (%s x %s)\n"%(resx, resy)
+        PS['format'].setValue( jobglobals['number'] )
+        PS['proxy_type'].setValue( 'format' )
+        PS['proxy_format'].setValue( 'HD_720' )
+        msg = "- Output format set to show default.\n"
+        
+    
+    # Set FPS
+    if 'fps' in jobglobals:
+        PS.knob('fps').setValue(jobglobals['fps'])
+        msg += "- FPS set to %d\n"%jobglobals['fps']
+    
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(PS.knob('nim_shotID').value()) if PS.knob('nim_tab').value() == 'SHOT' else int(PS.knob('nim_assetID').value())
+    shotglobals = nimUtl.getShotGlobals( shotid, entity_type=PS.knob('nim_tab').value())
+
+    # nuke.tprint("Shot Globals")
+    # nuke.tprint(pformat(shotglobals))
+    if 'frames' in shotglobals:
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + shotglobals['frames'] - 1
+        PS.knob("first_frame").setValue(first)
+        PS.knob("last_frame").setValue(last)
+        PS.knob('lock_range').setValue(True)
+        PS.knob('frame').setValue(first)
+        viewerNodes = nuke.allNodes('Viewer')
+        for n in viewerNodes:
+            n.redraw()
+            n.knob('frame_range_lock').setValue(True)
+            viewer_range = "%d-%d"%(first+shotglobals['handles'], (last-shotglobals['handles']))
+            QTimer.singleShot(100, lambda: setViewerRange(n, viewer_range))
+
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
+                                                                                   last-shotglobals['handles'])
+    if 'description' in shotglobals:
+        PS.knob('label').setValue(shotglobals['description'])
+        msg += "- Update script comment\n"
+
+
+
+    if msg:
+        msg = "The next changes have been apply in the script:\n\n" + msg
+        nuke.message(msg)
+    else:
+        nuke.message("Script not modified, couldn't find any global setting to modify")
+
+    return True
+
+
+
 #  Create Custom NIM Node :
 #===-----------------------------------
 

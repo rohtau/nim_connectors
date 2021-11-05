@@ -3279,6 +3279,16 @@ class GUI(QtGui.QMainWindow) :
 
         #  Refresh the Window :
         #self.win_save()
+
+        # Run globals to update scene for the potential new shpt/show
+        if self.app=='Houdini' :
+            from . import nim_houdini as Houdini
+            Houdini.set_globals()
+        elif self.app=='Nuke' :
+            from . import nim_nuke as N
+            N.set_globals()
+            pass
+
         
         #  Close the window :
         self.close()
