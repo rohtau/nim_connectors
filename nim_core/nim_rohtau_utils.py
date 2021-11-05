@@ -1497,8 +1497,8 @@ def splitName(filename, error=True):
     if len(basenameparts) < 3:
         if error:
             nimP.error("Filename not following name convention. Not enough fields: %s" % filename)
-        else:
-            nimP.warning("Filename not following name convention. Not enough fields: %s" % filename)
+        # else:
+            # nimP.warning("Filename not following name convention. Not enough fields: %s" % filename)
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = 0
@@ -1512,8 +1512,8 @@ def splitName(filename, error=True):
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
-            else:
-                nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
+            # else:
+                # nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
             return False
         fileparts['ver']  = int(ver)
         if len(basenameparts) > 3:

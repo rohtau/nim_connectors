@@ -693,6 +693,30 @@ def mk_proj( path='', renPath='' ) :
     
     return True
     
+def stash_frame_range():
+    '''
+    Stroe surrent frame and display range in envars for future restore using restore_range
+
+    Parameters
+    ----------
+
+
+    Returns
+    ---------
+    bool
+        True if everything went ok.
+
+    '''
+    framerange = hou.playbar.frameRange()
+    displayrange = hou.playbar.playbackRange()
+    hou.putenv('SHOTSTART_STASH',    str(int( framerange[0] )))
+    hou.putenv('SHOTEND_STASH',      str(int(framerange[1])))
+    hou.putenv('SHOTSTARTCUT_STASH', str(int(displayrange[0])))
+    hou.putenv('SHOTENDCUT_STASH',   str(int(displayrange[1])))
+
+    return True
+
+
 def set_globals():
     '''
     Get globals parameters for the show and shot and apply them to our scene
@@ -749,16 +773,28 @@ def set_globals():
     shotid = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
     shotglobals = Utl.getShotGlobals( shotid, entity_type=rootdict['nim_class'])
 
-    print("Shot Globals")
-    print(pformat(shotglobals))
+    # print("Shot Globals")
+    # print(pformat(shotglobals))
     if 'frames' in shotglobals:
         # Set frame range and display range. Move to first display frame. Disable cooking
         hou.setUpdateMode(hou.updateMode.Manual)
+        # Save current range
+        stash_frame_range()
         first = 1001 # We always start at 1001 by convention
         last = 1001 + shotglobals['frames'] - 1
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
         hou.setFrame(first+shotglobals['handles'])
+        hou.putenv('SHOTSTART', str(first))
+        hou.putenv('SHOTEND', str(last))
+        hou.putenv('SHOTSTARTCUT', str(first+shotglobals['handles']))
+        hou.putenv('SHOTENDCUT', str(last-shotglobals['handles']))
+        hou.putenv('SHOTFRAMES', str(shotglobals['frames']))
+        hou.putenv('SHOTHANDLES', str(shotglobals['handles']))
+        if not hou.getenv('SHOTPREROLL'):
+            hou.putenv('SHOTPREROLL', str(0))
+        hou.putenv('SHOTSIMSTART', str(first-int(hou.getenv('SHOTPREROLL'))))
+
 
         msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
                                                                                    last-shotglobals['handles'])
@@ -773,11 +809,186 @@ def set_globals():
 
     return True
 
-    
+def set_shot_range():
+    '''
+    Set scene time range to shot frames
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if frames:
+        hou.setUpdateMode(hou.updateMode.Manual)
+        stash_frame_range()
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + frames - 1
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(first+handles, (last-handles))
+        hou.setFrame(first+handles)
+        msg = "Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, last-handles)
+        hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set Shot Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
 
 
-    
+def set_preroll():
+    '''
+    Set scene simulation preroll
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if frames:
+        preroll = hou.getenv('SHOTPREROLL')
+        if not preroll:
+            preroll=0
+        res = hou.ui.readInput("Pre-Roll Frames", buttons=('OK', 'Cancel'), severity=hou.severityType.Message, default_choice=0, 
+                        close_choice=1, help="Preroll frames will be subtracted to the shot frame range", 
+                        title='Set Scene Pre-Roll for Simulation ...', initial_contents=str(preroll))
+        if not res[0] and res[1].isdigit():
+            hou.setUpdateMode(hou.updateMode.Manual)
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = 1001 + frames - 1
+            preroll = int(res[1])
+            first = first - preroll
+            hou.playbar.setFrameRange(first, last)
+            hou.playbar.setPlaybackRange(first, last)
+            hou.setFrame(first)
+            hou.putenv('SHOTPREROLL', str(preroll))
+            hou.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set SIM Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
+
+def set_sim_range():
+    '''
+    Set scene time range to simulation  range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if frames:
+        preroll = int(hou.getenv('SHOTPREROLL', "0"))
+        if preroll:
+            hou.setUpdateMode(hou.updateMode.Manual)
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = 1001 + frames - 1
+            first = first - preroll
+            hou.playbar.setFrameRange(first, last)
+            hou.playbar.setPlaybackRange(first, last)
+            hou.setFrame(first)
+            hou.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            hou.ui.setStatusMessage(msg)
+        else:
+            msg = "This scene doesnt have a Pre-Roll defined. Please use Set Sim Preroll first."
+            hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+            return False
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set SIM Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
 
 
+def restore_range():
+    '''
+    Restore previous stashed range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    # Set frame range using stached values in envvars.
+    first    = int(hou.getenv('SHOTSTART_STASH', "0"))
+    last     = int(hou.getenv('SHOTEND_STASH', "0"))
+    firstcut = int(hou.getenv('SHOTSTARTCUT_STASH', "0"))
+    lastcut  = int(hou.getenv('SHOTENDCUT_STASH', "0"))
+    if first or last or firstcut or lastcut:
+        hou.setUpdateMode(hou.updateMode.Manual)
+        stash_frame_range()
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(firstcut, lastcut)
+        hou.setFrame(firstcut)
+        msg = "Frame range restored to %d-%d "%(first, last)
+        hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find previous frame range state"
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        return False
+
+    return True
 
 #  End
