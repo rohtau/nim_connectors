@@ -700,16 +700,6 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
     if entity_type=='SHOT':
         shotglobals['frames'] = int(shotinfo['frames'])
         shotglobals['handles'] = int(shotinfo['handles'])
-    '''
-    for custom in jobinfo['customKeys']:
-        name = custom['keyName']
-        if name == 'Working Resolution':
-            res = custom['dropdownText'].encode('ascii')
-            res = res.replace(' ', '')
-            jobglobals['output_res'] = res
-        elif name == 'Working Frame Rate':
-            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
-    '''
 
     return shotglobals
 

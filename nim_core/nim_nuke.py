@@ -29,6 +29,7 @@ from . import nim_rohtau_utils as nimUtl
 
 from .import version 
 from .import winTitle 
+from .import default_frame_range 
 
 #  Nuke Imports :
 import nuke
@@ -970,8 +971,9 @@ def set_globals():
     # nuke.tprint("Shot Globals")
     # nuke.tprint(pformat(shotglobals))
     if 'frames' in shotglobals:
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + shotglobals['frames'] - 1
+        last = 1001 + frames - 1
         PS.knob("first_frame").setValue(first)
         PS.knob("last_frame").setValue(last)
         PS.knob('lock_range').setValue(True)
@@ -985,6 +987,9 @@ def set_globals():
 
         msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
                                                                                    last-shotglobals['handles'])
+    else:
+        msg += "- WARNING: No Frame Range information for this shot w "
+
     if 'description' in shotglobals:
         PS.knob('label').setValue(shotglobals['description'])
         msg += "- Update script comment\n"
