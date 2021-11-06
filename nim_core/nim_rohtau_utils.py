@@ -1613,16 +1613,22 @@ def getuserFullName( username ):
 # Templates for Rez packages
 
 
-def updateJobTemplateData(job, template):
+def updateJobTemplateData(job, template, default_requirements=['common', 'houdini', 'nuke', 'deadline']):
     """
     Get a template string, output from reading a template file and update it
     with job information from NIM using tags in the template
 
-    Parameters:
-        job(int): job ID or job number
-        template: string with contents of the template file
+    Parameters
+    ----------
+    job : int
+        job ID or job number
+    template : str 
+        String with contents of the template file
+    default_requirements : list
+        List of default tools for job in case is not provided by NIM. Usually passed from the tenmplate
 
-    Returns:
+    Returns
+    -------
         template string ready to be writing into destination file with data updated from NIM
         False if an error happens
     """
@@ -1648,6 +1654,7 @@ def updateJobTemplateData(job, template):
     if 'fps' in jobglobals:
         res = res.replace('<fps>', str(jobglobals['fps']))
     if 'tools' in jobglobals and jobglobals['tools']:
+        nimP.info("Job tools define by NIM: %s"%jobglobals['tools'])
         reqstr = "requires = [\"common\""
         for tool in jobglobals['tools']:
             reqstr += ", \"%s\""%tool
@@ -1660,6 +1667,19 @@ def updateJobTemplateData(job, template):
             if m:
                 oldrequire=m.group()
         res = res.replace(oldrequire, reqstr)
+    else:
+        nimP.warning("Job tools not defined in NIM. Using defaults: %s"%default_requirements)
+        reqstr = "requires = ["
+        for tool in default_requirements:
+            reqstr += ", \"%s\""%tool
+        reqstr += "]"
+        oldrequire = ""
+        for l in res.splitlines():
+            m = re.match(r"^requires.+$", l)
+            if m:
+                oldrequire=m.group()
+        res = res.replace(oldrequire, reqstr)
+
         pass
 
 
