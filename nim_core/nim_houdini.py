@@ -778,10 +778,11 @@ def set_globals():
     if 'frames' in shotglobals:
         # Set frame range and display range. Move to first display frame. Disable cooking
         hou.setUpdateMode(hou.updateMode.Manual)
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
         # Save current range
         stash_frame_range()
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + shotglobals['frames'] - 1
+        last = 1001 + frames - 1
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
         hou.setFrame(first+shotglobals['handles'])
@@ -789,7 +790,7 @@ def set_globals():
         hou.putenv('SHOTEND', str(last))
         hou.putenv('SHOTSTARTCUT', str(first+shotglobals['handles']))
         hou.putenv('SHOTENDCUT', str(last-shotglobals['handles']))
-        hou.putenv('SHOTFRAMES', str(shotglobals['frames']))
+        hou.putenv('SHOTFRAMES', str(frames))
         hou.putenv('SHOTHANDLES', str(shotglobals['handles']))
         if not hou.getenv('SHOTPREROLL'):
             hou.putenv('SHOTPREROLL', str(0))
@@ -798,6 +799,8 @@ def set_globals():
 
         msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
                                                                                    last-shotglobals['handles'])
+    else:
+        msg += "- WARNING: No Frame Range information for this shot w "
 
 
     if msg:
@@ -834,8 +837,9 @@ def set_shot_range():
     shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
     frames  = int(hou.getenv('SHOTFRAMES', "0"))
     handles = int(hou.getenv('SHOTHANDLES', "0"))
-    if frames:
+    if frames :
         hou.setUpdateMode(hou.updateMode.Manual)
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
         stash_frame_range()
         first = 1001 # We always start at 1001 by convention
         last = 1001 + frames - 1
@@ -887,6 +891,7 @@ def set_preroll():
                         title='Set Scene Pre-Roll for Simulation ...', initial_contents=str(preroll))
         if not res[0] and res[1].isdigit():
             hou.setUpdateMode(hou.updateMode.Manual)
+            frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
             last = 1001 + frames - 1
@@ -932,7 +937,7 @@ def set_sim_range():
     shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
     frames  = int(hou.getenv('SHOTFRAMES', "0"))
     handles = int(hou.getenv('SHOTHANDLES', "0"))
-    if frames:
+    if frames and shotglobals['frames']:
         preroll = int(hou.getenv('SHOTPREROLL', "0"))
         if preroll:
             hou.setUpdateMode(hou.updateMode.Manual)
