@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Friday, 05 November 2021 13:43:12 CUT
+Last Modified: Sunday, 07 November 2021 19:43:06 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -561,7 +561,7 @@ def getShowGlobals( job):
     # pprint(jobinfo)
     jobglobals['name'] = jobinfo['jobname'].encode('ascii')
     jobglobals['number'] = jobinfo['number'].encode('ascii')
-    jobglobals['description'] = jobinfo['description'].encode('ascii')
+    jobglobals['description'] = jobinfo['description'].encode('ascii') if jobinfo['description'] else ""
     jobglobals['id'] = int(jobinfo['ID'])
     for custom in jobinfo['customKeys']:
         name = custom['keyName']
@@ -572,7 +572,7 @@ def getShowGlobals( job):
         elif name == 'Working Frame Rate':
             jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
         elif name == 'Tools':
-            res = custom['value'].splitlines()
+            res = [line for line in  custom['value'].splitlines() if len(line)>0]
             jobglobals['tools'] = res
 
     return jobglobals
