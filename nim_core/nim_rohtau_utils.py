@@ -1612,7 +1612,6 @@ def getuserFullName( username ):
 #
 # Templates for Rez packages
 
-
 def updateJobTemplateData(job, template):
     """
     Get a template string, output from reading a template file and update it
@@ -1852,7 +1851,6 @@ def hasRezCtxShot( elmts, testshow=False ):
 
     return False
 
-
 def hasRezCtxAsset( assets ):
     '''
     Check if there is a resolved rez context that matches a list of available assets
@@ -1878,7 +1876,6 @@ def hasRezCtxAsset( assets ):
             return assetname
 
     return False
-
 
 def getRezCtxTab(  ):
     '''
