@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 02 November 2021 18:12:42 CUT
+Last Modified: Friday, 12 November 2021 03:27:08 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -586,9 +586,10 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     if frameslist[0] == frameslist[1]:
         isstillframe = True
     # Default studio Draft template, or use override from envvar or override from argument.
-    draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py"
+    # draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py"
+    draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateReview.py"
     if isstillframe:
-        draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateStill.py"
+        draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateStill.py"
 
     if 'RT_DRAFT_TEMPLATE' in os.environ:
         draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
@@ -618,7 +619,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 
         cmd += " show=%s "%entityinfo['showName'] if fileinfo['fileClass'] == 'SHOT' else ""
         cmd += " jobnumber=%s "%entityinfo['jobNumber']
-        cmd += " jobname=%s "%entityinfo['jobName']
+        cmd += " jobname=%s "%entityinfo['jobName'].replace(" ", "_")
         fullname   = nimUtl.getuserFullName(fileinfo['username'])
         fullname   = fullname.replace(" ", "_")
         cmd += " task=%s "%nimUtl.gettasksTypesIDDict()[int(fileinfo['task_type_ID'])]
@@ -627,13 +628,13 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         cmd += " username=%s "%username
         cmd += " fullname=%s "%fullname
         cmd += " fileid=%d "%int(fileinfo['fileID']) 
-        cmd += " entity=%s "%entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else entityinfo['assetName']
+        # cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else entityinfo['assetName'])
+        cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else nimUtl.getassetFullName(int(fileinfo['parentID'])))
         cmd += " version=v%s "%fileinfo['version'].zfill(3)
         cmd += " startFrame=%s "%start
         cmd += " taskStartFrame=%s "%start
         cmd += " endFrame=%s "%end
         cmd += " taskEndFrame=%s "%end
-
 
 
     cmd += " frameList=%s-%s"%(start, end)
@@ -674,7 +675,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         os.environ.update(thinkboclivenv)
-    if not runAsyncCommand( cmd, timeout = 5*60 ):
+    if not runAsyncCommand( cmd, timeout = 10*60 ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
         return False
     '''

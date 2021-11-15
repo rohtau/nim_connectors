@@ -803,6 +803,32 @@ def getassetcategory(assetid):
 
     return ""
 
+def getassetFullName(assetid, assetname="", cat=""):
+    """
+    Given an asset id, return it's full name.
+    An asset full name is the category path plus the asset name.
+
+    Parameters:
+        assetid(int): asset ID in case the asset name is not passed.
+        assetname(str): name of the asset, if not passed then assetid is used to retrieve from NIM
+        cat(str): asset category. If not passed will be retrieved from NIM using assetid
+
+    Example:
+        character/crag
+        vehicle/car/mercedesSLK
+
+    If asset doesn't exists, or category is not defined then return empty string
+    """
+    if not assetname:
+        assetinfo = nimAPI.get_assetInfo(assetid)[0]
+        if not assetinfo:
+            return ""
+        assetname = assetinfo['assetName']
+    if not cat:
+        cat = getassetcategory(assetid)
+        if not cat:
+            return ""
+    return cat + '/' + assetname
 
 def getassetPkgName(assetid, assetname="", cat=""):
     """
@@ -821,6 +847,7 @@ def getassetPkgName(assetid, assetname="", cat=""):
 
     If assets doesn't exists then return empty string
     """
+    # TODO: change this function to use getassetFullName() and then replace
     if not assetname:
         assetinfo = nimAPI.get_assetInfo(assetid)[0]
         if not assetinfo:
@@ -853,7 +880,6 @@ def gettasksTypesIDDict():
         tasksid[int(task['ID'])] = task['name']
     return tasksid
 
-
 def gettasksIDDict(jobid):
     '''
     Create a dictionary with ID as keys and task name as value
@@ -876,7 +902,6 @@ def gettasksIDDict(jobid):
         tasksid[int(task['ID'])] = task['name']
     return tasksid
 
-
 def gettaskTypesIdFromName(taskname):
     """
     From a task name returns it's ID
@@ -896,7 +921,6 @@ def gettaskTypesIdFromName(taskname):
             return int(task['ID'])
 
     return 0
-
 
 def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
     '''
@@ -937,7 +961,6 @@ def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
     result = nimAPI.connect(method='get', params=params, nimURL=custom_nim_url)
     return result
-
 
 def getuserTask(userid, tasktype, parent, parentID):
     '''
