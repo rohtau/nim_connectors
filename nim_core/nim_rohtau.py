@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Friday, 12 November 2021 03:27:08 CUT
+Last Modified: Tuesday, 16 November 2021 02:19:14 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -675,6 +675,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         os.environ.update(thinkboclivenv)
+    # print("Slate command:")
+    # print(cmd)
     if not runAsyncCommand( cmd, timeout = 10*60 ):
         nimP.error("Can't create Draft review movie: %s"%outdraft)
         return False
