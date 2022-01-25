@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 16 November 2021 02:19:14 CUT
+Last Modified: Tuesday, 25 January 2022 01:40:13 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -126,7 +126,7 @@ class reviewType:
     NOTYPE        = 0 # Disable review type
     DAILY         = 1 # Review for dailies
     EDIT          = 2 # Review for Editorial
-    REF           = 3 # Review used for referrencies
+    REF           = 3 # Review used for referencies
     MAKEOF        = 4 # Used for making offs
     name          = ('N/A', 'Daily', 'Edit', 'Reference', 'Making Of') # types names
 
@@ -150,6 +150,21 @@ class taskStatusID:
     APPROVED        = 19
     BLOCKED         = 20
 
+class elementTypeID:
+    '''
+    Enum for Element Type ID in NIM
+    '''
+    COMPS    = 1
+    RENDERS  = 2
+    ROTO     = 3
+    PLATES   = 4
+    DMP      = 5
+    CACHE    = 6
+    CAM      = 7
+    IBL      = 11
+    TEX      = 12
+    PRECOMP  = 13
+    FLIPBOOK = 14
 
 def toPosix( path, force=False ):
     '''
@@ -198,7 +213,7 @@ def openPath( path ):
 
     return True
 
-def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
+def elementTypeFolder( elementtype, parent=None, parentID=None):
     '''
     Based on an element type name or ID and a selected shot/asset return it's folder path.
     The path will be relative to the parent shot/asset
@@ -224,8 +239,18 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
     elementname=""
     folder = ""
     if len(elementtype) > 0:
-        elmtsTypes = nimAPI.get_elementTypes()
-        # pprint(elmtsTypes)
+        if elementtype.isdigit():
+            elmtsTypes = nimAPI.get_elementTypes()
+            # pprint(elmtsTypes)
+            elementid = int(elementtype)
+            for elm in elmtsTypes:
+                if elm['name'] == elementtype:
+                    elementname = elm['name']
+                    break
+        else:
+            elementname = elementtype
+
+        '''
         if not elementtype.isnumeric():
             elementname = elementtype
             for elm in elmtsTypes:
@@ -233,19 +258,25 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
                     elementid = elm['ID']
                     break
         else:
+            elmtsTypes = nimAPI.get_elementTypes()
+            # pprint(elmtsTypes)
             elementid = int(elementtype)
             for elm in elmtsTypes:
                 if elm['name'] == elementtype:
                     elementname = elm['name']
                     break
+        '''
     else:
         nimP.error("Element type is an empty string. Please set an element type name or ID")
         return ""
 
-    basepaths = nimAPI.get_paths( item=parent, ID=parentID )
-    basepath = basepaths['root']
     if elementname in ('plates', 'renders', 'comps'):
-       folder =  basepaths[elementname].replace(basepath + '/', '')
+        if not parent or not parentID:
+            nimP.error("plates,  renders or comps requires a parent (shot/asset) and parent ID in order to get the correct element folder location")
+            return ""
+        basepaths = nimAPI.get_paths( item=parent, ID=parentID )
+        basepath  = basepaths['root']
+        folder    = basepaths[elementname].replace(basepath + '/', '')
     else:
         # Put non special elements under the pub folder
         folder = "pub/%s"%elementname
@@ -530,7 +561,7 @@ def runAsyncCommand( cmd, timeout=120 ):
 
     return True
 
-def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', fileinfo=None, verbose=False):
+def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', fileinfo=None, isflipbook=False, verbose=False):
     '''
     Create a movie or image for review from a image sequence using Deadline's Draft
     
@@ -541,11 +572,13 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     Draft Template
     --------------
     The default Draft template is:
-        /studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py
     It can be override using the envar RT_DRAFT_TEMPLATE
     Or with the drafttemplate argument
     For still frames reviews this is the template:
-        /studio/pipeline/deadline/draft/standaloneDraftCreateStill.py
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateStill.py
+    For flipbooks:
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateFlipbook.py
 
     Parameters
     ----------
@@ -563,6 +596,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         Override OCIO color role, by default ''. For example: color_picking
     fileinfo: dict, optional
         Publish information for the render, needed to add information to slates and watermarks
+    isflipbook : bool, optional
+        Whether or not we are creating a movie for a flipbook, it uses a different template
     verbose : bool, optional
         Output extra information, by default False
 
@@ -590,6 +625,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateReview.py"
     if isstillframe:
         draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateStill.py"
+    if isflipbook:
+        draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateFlipbook.py"
 
     if 'RT_DRAFT_TEMPLATE' in os.environ:
         draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
@@ -1207,7 +1244,8 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
     '''
     nimFromFile = nim is None
     if not nim and filepath:
-        nim = Nim.NIM().ingest_filePath( filepath )
+        # Dent do extra checkfile, the point is to get a task from the filepath
+        nim = Nim.NIM().ingest_filePath( filepath, checkfile=False )
     task    = nim.name('task')
     if not task:
         msg = "Couldn't detect a task from provided %s"%("NIM object", "path: %s"%filepath)[nimFromFile]
@@ -1345,7 +1383,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
     The path needs to be under the project root folder.
-    Use pubimport() to move data from an arbitrary location into the project according to the publishing details
+    Use pubImport() to move data from an arbitrary location into the project according to the publishing details
     All publishing information will be extracted from the path, so it is suggested to use nim_rohtau.publishOutputPath()
     to correctly construct the path according with our name convention
 
@@ -1460,7 +1498,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     posixpath = toPosix( path )
     # Normalize padding format
     posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
-    osixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
+    posixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
 
@@ -1663,6 +1701,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     elm = nimAPI.find_elements( name=nim.name('file'), assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', \
         shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
     elm = elm[0]
+
+    # print("Pub structures")
+    # pprint(info)
+    # pprint(elm)
 
     if verbose and not plain and not jsonout and not profile:
         nimP.info("Publishing Details:")
@@ -2564,7 +2606,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     # Check availability:
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
-        nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
+        nimP.warning("File is not set as available. There could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
     elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=pid if parent.upper()=='ASSET' else '', shotID=pid if parent.upper()=='SHOT' else '')
     if elementInfo:
         elementInfo=elementInfo[0]

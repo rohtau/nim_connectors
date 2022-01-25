@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Sunday, 07 November 2021 19:43:06 CUT
+Last Modified: Tuesday, 25 January 2022 01:26:41 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -1450,6 +1450,8 @@ def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid
     if tasks:
         basenames = {key: value for ( key, value ) in basenames.items() if int(basenames[key][0]['task_type_ID']) in tasks}
     if elementid:
+        if isinstance(elementid, int) or elementid.isdigit():
+            elementid = getelementsIDDict()[int(elementid)]
         basenames = {key: value for ( key, value ) in basenames.items() if basenames[key][0]['customKeys']['Element Type'] == str(elementid)}
     if name:
         basenames = {key: value for ( key, value ) in basenames.items() if re.search(name, key) is not None}
@@ -1520,8 +1522,8 @@ def splitName(filename, error=True):
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = 0
-    # Version is always the 3rd or 4th element. assumin is the last is wrong, we
-    # can ad sufixes to the name, like in the render scene where we add  a time
+    # Version is always the 3rd or 4th element. Assuming is the last is wrong, we
+    # can ad suffixes to the name, like in the render scene where we add  a time
     # stamp.
     verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
     if verstr.startswith('v') or verstr.startswith('v'): 
@@ -1539,8 +1541,9 @@ def splitName(filename, error=True):
         else:
             fileparts['tag']  = '' # tag is not mandatory
     else:
-        # No version part
+        # No version part, get tag and fix basename
         fileparts['tag']  = basenameparts[2]
+        fileparts['base'] = '__'.join(basenameparts)  #Pure basename passed, with no ver string
     fileparts['shot'] = basenameparts[0]
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
@@ -1572,6 +1575,11 @@ def getuserID(username):
 def getuserName(userid):
     '''
     Get user name from ID
+
+    Parameters
+    ----------
+    userid : int
+        User ID
 
     Returns
     -------

@@ -176,7 +176,6 @@ def set_taskid_var( taskid ):
     return True
 
 
-
 def dump_vars( ):
     from pprint import pformat
 

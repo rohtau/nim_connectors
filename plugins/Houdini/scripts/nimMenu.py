@@ -35,6 +35,8 @@ import nim_core.nim_rohtau as nimRt
 import nim_core.nim_rohtau_utils as nimUtl
 from nim_core import padding
 
+from rt import pipe
+
 reload(nimUI)
 reload(nimAPI)
 reload(nimFile)
@@ -156,7 +158,6 @@ def rtSetShotRange( ):
 
     pass
 
-
 def rtSetPreRoll( ):
     '''
     Set pre roll frames for simulations
@@ -202,6 +203,40 @@ def rtRestoreRange( ):
 
     pass
 
+def rtPublishFlipbook( ):
+    '''
+    Publish current flipbook in MPlay
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Publish Flipbook' )
+    hou.ui.setStatusMessage( "NIM: Publish Flipbook")
+    pipe.publish_flipbook()
+
+    pass
+
+def rtMplaySetShotRange( ):
+    '''
+    Get globals parameters for the show and shot and apply them to our Mplay session.
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Mplay Shot Range' )
+    hou.ui.setStatusMessage( "NIM: Set Mplay Shot Range")
+    # TODO:
+    # nimHoudini.set_mplay_shot_range()
+
+    pass
+
+
+
 
 if action == 'open':
 	openFileAction()
@@ -239,4 +274,8 @@ elif action == 'setsimrange':
 	rtSimRange()
 elif action == 'restorerange':
 	rtRestoreRange()
+elif action == 'publish_flipbook':
+	rtPublishFlipbook()
+elif action == 'setshotrange_mplay':
+	rtMplaySetShotRange()
 
