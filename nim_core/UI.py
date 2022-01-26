@@ -1094,9 +1094,9 @@ class GUI(QtGui.QMainWindow) :
         
         #  Tag elements :
         # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
-        self.tagLabel.setvisible( False )
+        self.tagLabel.setVisible( False )
         self.nim.Input('tag').setVisible( False )
-        self.tagPresets.setvisible( False )
+        self.tagPresets.setVisible( False )
         
         #  Enable Versions :
         self.nim.Input('ver').setEnabled( True )
