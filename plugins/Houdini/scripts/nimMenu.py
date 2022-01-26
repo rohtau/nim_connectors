@@ -16,6 +16,7 @@
 
 import hou
 import os,sys
+import platform
 from imp import reload
 
 action = sys.argv[1]
@@ -36,6 +37,7 @@ import nim_core.nim_rohtau_utils as nimUtl
 from nim_core import padding
 
 from rt import pipe
+from rt import utils
 
 reload(nimUI)
 reload(nimAPI)
@@ -235,6 +237,35 @@ def rtMplaySetShotRange( ):
 
     pass
 
+def rtCopyHipPath( ):
+    '''
+    Copy Hip file path in the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Copy Hip File Path to Clipboard' )
+    hou.ui.setStatusMessage( "NIM: Copy Hip File Path to Clipboard")
+    # TODO:
+    # nimHoudini.set_mplay_shot_range()
+    from PySide2 import QtGui as QtGui2
+    path = hou.hipFile.path()
+    path = os.path.normpath(path)
+    if platform.system() == 'Windows':
+        if path.startswith('/') or path.startswith('\\'):
+            path = "C:" + path
+        path.replace('/', '\\')
+    else:
+        path = utils.getPosixPath(path)
+    cb = QtGui2.QGuiApplication.clipboard()
+    cb.clear(mode=cb.Clipboard )
+    cb.setText(path, mode=cb.Clipboard)
+    
+    hou.ui.setStatusMessage("Hip Path copied to the clipboard: %s"%path)
+
+    pass
 
 
 
@@ -278,4 +309,6 @@ elif action == 'publish_flipbook':
 	rtPublishFlipbook()
 elif action == 'setshotrange_mplay':
 	rtMplaySetShotRange()
+elif action == 'copypath':
+	rtCopyHipPath()
 
