@@ -2796,7 +2796,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             # pprint(latestver)
             if 'customKeys' in latestver and 'File Type' in latestver['customKeys']:
                 basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
-                if basenameapp != nim.app():
+                if basenameapp != nim.app() and basenameapp != 'Scene':
                     msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
                     Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
                     P.error(msg)
