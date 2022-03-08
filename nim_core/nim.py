@@ -853,7 +853,7 @@ class NIM( object ) :
                 self.nim[elem]['Dict']=['Work']
         
         elif elem=='element' :
-            # New key in teh NIM dictionary. The element key will have a dictionary with all elements and then an element type, ID and path.
+            # New key in the NIM dictionary. The element key will have a dictionary with all elements and then an element type, ID and path.
             self.nim[elem]['Dict']=Api.get_elementTypes()
             # To extract paths for special elements, plates, renders and comps, shot or asset must be discovered first and set in the NIM dict
             paths = {}
@@ -946,10 +946,16 @@ class NIM( object ) :
         elif elem=='ver' :
             if self.nim['filter']['name']=='Published' :
                 if self.nim['mode'] and self.nim['mode'].lower()=='load' :
+                    '''
                     if self.nim['class']=='SHOT' and self.nim['base']['name'] :
                         self.nim[elem]['Dict']=Api.get_basesPub( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], username=self.userInfo()['name'] )
                     elif self.nim['class']=='ASSET' and self.nim['base']['name'] :
                         self.nim[elem]['Dict']=Api.get_basesPub( assetID=self.nim['asset']['ID'], basename=self.nim['base']['name'], username=self.userInfo()['name'] )
+                    '''
+                    if self.nim['class']=='SHOT' and self.nim['base']['name']  :
+                        self.nim[elem]['Dict']=Api.get_vers( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )
+                    elif self.nim['class']=='ASSET' and self.nim['base']['name'] :
+                        self.nim[elem]['Dict']=Api.get_vers( assetID=self.nim['asset']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )
                 elif self.nim['mode'] and self.nim['mode'].lower() in ['open', 'file'] :
                     if self.nim['class']=='SHOT' and self.nim['base']['name']  :
                         self.nim[elem]['Dict']=Api.get_vers( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )

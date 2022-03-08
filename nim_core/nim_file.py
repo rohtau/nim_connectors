@@ -574,7 +574,7 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         os.chmod( pub_filePath, stat.S_IREAD )
 
     # Change file permissions for others.
-    # This implement our policy fo protecting user's scene files from being
+    # This implement our policy for protecting user's scene files from being
     # overwritten by others and force a Version Up.
     if Utl.set_file_as_ro_others( filepath ):
         P.info("Scene file overwrite protection setup.")
@@ -633,7 +633,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #P.info("SERVER ID: %s" % str(nim.server(get='ID')))
     # Get Server OS Path from server ID
     serverOsPathInfo = Api.get_serverOSPath( nim.server(get='ID'), platform.system() )
-    P.info("Server OS Path: %s" % serverOsPathInfo)
+    # P.info("Server OS Path: %s" % serverOsPathInfo)
     serverOSPath = serverOsPathInfo[0]['serverOSPath']
     nim.set_server( path=serverOSPath )
 
@@ -645,7 +645,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         cur_fileName=nim.fileName()
     
     #  Basename :
-    print("New basename: %s"%Api.to_basename( nim=nim ))
+    # print("New basename: %s"%Api.to_basename( nim=nim ))
     nim.set_name( elem='base', name=Api.to_basename( nim=nim ) )
     basename=nim.name('base')
     
@@ -677,7 +677,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( 'File Directory = %s' %  fileDir )
     projDir=os_filePath( path=projDir, nim=nim )
     P.info( 'Project Directory = %s' %  projDir )
-    
+
     #  Version Number :
     baseInfo=''
     if nim.tab()=='SHOT' :
@@ -689,6 +689,13 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         verNum=int(ver_baseInfo)+1
     else :
         verNum=1
+
+    if pub:
+        print("Basename for publish: %s"%nim.name('base'))
+        print("Base info for latest version:")
+        print(baseInfo)
+        print("Version to publish: %d"%verNum)
+
     # Double check if there is a file with a greater version than the published
     # one
     try :
@@ -700,6 +707,8 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
                     if int(numSrch.group()) >verNum :
                         verNum=int(numSrch.group())
     except : pass
+
+    print("Version to publish: %d"%verNum)
 
     if version and version > verNum:
         verNum = version # Increment to explicit version
@@ -743,7 +752,9 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         new_fileName='%s__v%s%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     elif pub :
         verNum -=1
-        new_fileName='%s__v%s__PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
+        nim.set_version( version=str(verNum) )
+        # Add _PUB suffix to version string
+        new_fileName='%s__v%s_PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     
     
     #  Construct new File Path :

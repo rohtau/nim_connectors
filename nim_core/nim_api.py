@@ -2447,7 +2447,7 @@ def get_bases( shotID=None, assetID=None, showID=None, task='', taskType=None, t
 def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
     '''
     Retrieves the dictionary of the published file for a given basename.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 
@@ -2480,7 +2480,7 @@ def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
 def get_basesAllPub( shotID=None, assetID=None, task=None, taskID=None, username=None ) :
     '''
     Retrieves the dictionary of all available published basenames for a given asset or shot.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 

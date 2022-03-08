@@ -267,6 +267,31 @@ def rtCopyHipPath( ):
 
     pass
 
+def rtCopyHipFileID( ):
+    '''
+    Copy Hip file NIM's FilE ID to the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    print ( 'NIM: Copy Hip File ID to Clipboard' )
+    hou.ui.setStatusMessage( "NIM: Copy Hip File ID to Clipboard")
+    fileid  = str(int(rootdict['nim_fileID']))
+    from PySide2 import QtGui as QtGui2
+    cb = QtGui2.QGuiApplication.clipboard()
+    cb.clear(mode=cb.Clipboard )
+    cb.setText(fileid, mode=cb.Clipboard)
+    
+    hou.ui.setStatusMessage("Hip File ID copied to the clipboard: %s"%fileid)
+
+    pass
 
 
 if action == 'open':
@@ -311,4 +336,6 @@ elif action == 'setshotrange_mplay':
 	rtMplaySetShotRange()
 elif action == 'copypath':
 	rtCopyHipPath()
+elif action == 'copyfileid':
+	rtCopyHipFileID()
 

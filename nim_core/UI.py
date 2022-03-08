@@ -1330,7 +1330,16 @@ class GUI(QtGui.QMainWindow) :
     
     #  Update :
     def populate_elem( self, elem='job', _print=False ) :
-        'Populates a given GUI element'
+        '''
+        Populates a given GUI element
+        Clear and Set Nim dictionary element and update element UI 
+
+        Initialize dictionary for selected element, in other words query NIM about all the 
+        available options for the selected element, job. show, asset, shot, task, basename or version.
+        This function does all the heavy lifting about updating the UI using data from the NIM data base.
+
+        It is usually called from update_elem() after this one has set the ID/name for the selected element.
+        '''
         P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
         userinfo = self.nim.userInfo()
 
@@ -1367,13 +1376,16 @@ class GUI(QtGui.QMainWindow) :
                     self.verPath.setText('<path>')
                     self.verUser.setText('<user>')
                     self.verDate.setText('<date>')
+                    self.verVer.setText('<ver>')
                     self.verNote.setText('<comment>')
             #  Print Time :
+            '''
             try :
                 P.debug( 'Text = "%s"' % self.nim.Input( elem ).currentText() )
                 P.debug( '%.3f => %s finished' % ((time.time()-startTime), elem.upper() ) )
             except : pass
             return
+            '''
         #  Clear tasks, if necessary :
         if elem=='task' :
             if self.nim.name('filter')=='Asset Master' : clear=True
@@ -1389,9 +1401,11 @@ class GUI(QtGui.QMainWindow) :
                 return
         
         #  Print Population Start :
-        if _print : P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
-        else : P.debug( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
+        P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
         
+        # print("NIM Object before populate:")
+        # pprint(self.nim.get_nim())
+
         #  Combo Boxes :
         #===-------------------
         
@@ -1406,11 +1420,20 @@ class GUI(QtGui.QMainWindow) :
             userJobs = None
             if elem == 'job':
                 userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
-            #  Make List of Element Items :
-            if self.mode =='FILE' and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
+            # Get Available tasks for given shot/asset
+            if self.mode in ('FILE', 'LOAD') and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
                 availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
                                                   shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
                                                   onlyWithFiles=1)
+                if self.nim.name('filter') == 'Published':
+                    # Test availableTasks to only include the ones with some
+                    # basename including a published file
+                    availableTasks = [task for task in availableTasks if len(Api.get_basesAllPub( 
+                        shotID = self.nim.ID('shot') if self.nim.tab() == 'SHOT' else None,
+                        assetID = self.nim.ID('asset') if self.nim.tab() == 'ASSET' else None,
+                        taskID = int(task['ID'])
+                    ))>0]
+            #  Make List of Element Items :
             for option in self.nim.Dict( elem ) :
                 #  Assets, Shots and Tasks :
                 if elem in ['asset', 'shot', 'task'] :
@@ -1490,8 +1513,8 @@ class GUI(QtGui.QMainWindow) :
                     self.nim.set_name( elem='job', name=rezjob )
                     self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
                     P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
-                else:
-                    P.warning("Couldn't find a valid Rez context for any available job")
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available job")
                 self.populate_server()
                 #  Set tab from Rez :
                 rezTab = nimUtl.getRezCtxTab()
@@ -1515,8 +1538,8 @@ class GUI(QtGui.QMainWindow) :
                     self.nim.set_name( elem='asset', name=rezasset )
                     self.nim.set_ID( elem='asset', ID=self.nim.Dict( 'asset' )[idx-1]['ID'] )
                     P.info("Valid Rez context detected: %s. Setting it as asset for NIM dialogues."%rezasset)
-                else:
-                    P.warning("Couldn't find a valid Rez context for any available asset")
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available asset")
             # Select Show and Shot if available in Rez context
             if elem=='show' and not self.showOverride.isChecked() :
                 widget = self.nim.Input( elem )
@@ -1535,8 +1558,8 @@ class GUI(QtGui.QMainWindow) :
                     self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
                     P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
                     self.update_elem(elem='show') # Populate shots
-                else:
-                    P.warning("Couldn't find a valid Rez context for any available show")
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available show")
             if elem=='shot' and not self.showOverride.isChecked()  :
                 widget = self.nim.Input( elem )
                 # Get shots
@@ -1550,8 +1573,8 @@ class GUI(QtGui.QMainWindow) :
                     self.nim.set_name( elem='shot', name=rezshot )
                     self.nim.set_ID( elem='shot', ID=self.nim.Dict( 'shot' )[idx-1]['ID'] )
                     P.info("Valid Rez context detected: %s. Setting it as shot for NIM dialogues."%rezshot)
-                else:
-                    P.warning("Couldn't find a valid Rez context for any available shot")
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available shot")
 
 
 
@@ -1568,11 +1591,18 @@ class GUI(QtGui.QMainWindow) :
             if elem=='base' :
                 initbasefound = False
                 tags = standardTags
+                # print("Basenames for populate:")
+                # pprint(self.nim.Dict( elem ) )
                 for option in self.nim.Dict( elem ) :
                     if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
                         latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
                                                   shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
-                                                  basename=option['basename'])
+                                                  basename=option['basename'], pub=self.nim.name('filter') == 'Published')
+                        # latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  # shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  # basename=option['basename'])
+                        # print("For basename: %s, got these versions:"%option['basename'])
+                        # pprint(latestver)
                         if latestver:
                             latestver = latestver[0]
                             # pprint(latestver)
@@ -1581,6 +1611,8 @@ class GUI(QtGui.QMainWindow) :
                         sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script', 'Maya Scene')
                         if latestver['customKeys']['File Type'] not in sceneTypes:
                             continue
+                    else:
+                        continue
 
                     #  Populate :
                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1591,13 +1623,12 @@ class GUI(QtGui.QMainWindow) :
                         basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
                         if basenameapp in self.appsIcons:
                             item.setIcon( self.appsIcons[basenameapp] )
-                        # Only enable basenames for the current host app
-                        # TODO: support Nuke scenes called as Scene and Nuke
-                        # Script. Hiero creates scripts without the custom key
-                        # File Type, and we need to detect it and assign these
-                        # scenes to Nuke
-                        # if 'File Type' not in latestver['customKeys'] or latestver['customKeys']['File Type'].split()[0] != self.app:
-                            # item.setFlags( QtCore.Qt.NoItemFlags )
+                        # Only enable basenames for the current host app if file
+                        # type info is available. Always enable generic 'Scene'
+                        # name.
+                        if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'].split()[0] != self.app \
+                                and latestver['customKeys']['File Type'].split()[0] != 'Scene':
+                            item.setFlags( QtCore.Qt.NoItemFlags )
                         # Ownership color
                         if latestver['userID'].encode('ascii') == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
@@ -1637,6 +1668,9 @@ class GUI(QtGui.QMainWindow) :
             elif elem=='ver' :
                 for option in self.nim.Dict( elem ) :
                     #  Populate "Load" Publish File :
+                    # XXX: This looks more like a legacy thing, the
+                    # self.nim.pub() is always false now, so this section
+                    # is not used and we jump to the next.
                     if self.nim.pub() and self.nim.mode().lower() in ['load'] :
                         nimDir=Api.to_nimDir( nim=self.nim )
                         basename=Api.to_basename( nim=self.nim )
@@ -1679,8 +1713,10 @@ class GUI(QtGui.QMainWindow) :
                             break
                     
                     #  Add normal versions :
+                    #  Here is where actually all versions are loaded
                     else :
                         if self.nim.name('filter')=='Asset Master' :
+                            # XXX: Is asset master used?
                             
                             assetInfo=Api.get_assetInfo( assetID=self.nim.ID('asset') )
 
@@ -1754,6 +1790,13 @@ class GUI(QtGui.QMainWindow) :
                         #  Add Published version :
                         elif self.nim.name('filter')=='Published' :
                             if self.nim.mode().lower()=='load' :
+                                # XXX: We have remove this part of the code,
+                                # looks old and wasn't working. We just copied
+                                # the same code used for open mode. Eventually
+                                # this is can be removed and use the same code
+                                # for both modes, there is no difference in how
+                                # versions are loaded for Open or Import.
+                                '''
                                 #self.del_connections()
                                 fileDir=os.path.normpath( option['filepath'] )
                                 if os.path.basename( os.path.normpath( fileDir ) )=='scenes' :
@@ -1761,6 +1804,8 @@ class GUI(QtGui.QMainWindow) :
                                 nimDir=os.path.dirname( fileDir )
                                 fileName=option['basename']+option['ext']
                                 filePath=os.path.normpath( os.path.join( nimDir, fileName ) )
+                                # Finish show  versions  for publish scene
+                                print("Add file path in import Published scene: %s"%filePath)
                                 if os.path.isfile( filePath ) :
                                     #  Add item to list view :
                                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1791,9 +1836,14 @@ class GUI(QtGui.QMainWindow) :
                                     self.verVer.setText( '<version>' )
                                     self.verNote.setText( '<note>' )
                                 #self.mk_connections()
-                            elif self.nim.mode().lower() in ['open', 'file'] :
+                                '''
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                                 item.setText( option['filename']+' - '+option['note'] )
+                                if option['userID'].encode('ascii') == userinfo['ID']:
+                                    item.setBackground(self.backClrs['Green'])
+                                else:
+                                    item.setBackground(self.backClrs['Red'])
+
                                 if self.nim.mode().lower() in ['save', 'saveas'] :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
                                 else :
@@ -1820,9 +1870,70 @@ class GUI(QtGui.QMainWindow) :
                                     ext=F.get_ext( filePath=option['filename'] )
                                     if ext !='.hip' :
                                         item.setFlags( QtCore.Qt.ItemIsEditable )
+
+                                tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                            option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                            option['username'] )
+                                item.setToolTip( tooltip )
+                                item.setStatusTip( tooltip )
+                                item.setWhatsThis( tooltip )
+
                                 #  Set from preferences :
-                                if option['filename']+' - '+option['note']==self.pref_version and \
-                                    self.nim.mode() is not 'publish' :
+                                if option['filename']+' - '+option['note']==self.pref_version:
+                                    self.nim.Input( elem ).setCurrentItem( item )
+                                    #  Set variables :
+                                    self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
+                                    self.nim.set_ID( elem=elem, ID=option['fileID'] )
+                                    #  Set notes section :
+                                    self.verPath.setText( option['filepath'] )
+                                    self.verUser.setText( option['username'] )
+                                    self.verDate.setText( option['date'] )
+                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verNote.setText( option['note'] )
+                            elif self.nim.mode().lower() in ['open', 'file'] :
+                                item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
+                                item.setText( option['filename']+' - '+option['note'] )
+                                if option['userID'].encode('ascii') == userinfo['ID']:
+                                    item.setBackground(self.backClrs['Green'])
+                                else:
+                                    item.setBackground(self.backClrs['Red'])
+
+                                if self.nim.mode().lower() in ['save', 'saveas'] :
+                                    item.setFlags( QtCore.Qt.ItemIsEditable )
+                                else :
+                                    item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
+                                        | QtCore.Qt.ItemIsEnabled )
+                                #  Filter file types :
+                                if self.app=='Maya' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext not in ['.ma', '.mb'] :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='Nuke' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext not in ['.nk', '.nknc'] :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='C4D' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.c4d' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='3dsMax' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.max' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='Houdini' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.hip' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+
+                                tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                            option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                            option['username'] )
+                                item.setToolTip( tooltip )
+                                item.setStatusTip( tooltip )
+                                item.setWhatsThis( tooltip )
+
+                                #  Set from preferences :
+                                if option['filename']+' - '+option['note']==self.pref_version:
                                     self.nim.Input( elem ).setCurrentItem( item )
                                     #  Set variables :
                                     self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
@@ -1868,12 +1979,14 @@ class GUI(QtGui.QMainWindow) :
                                 ext=F.get_ext( filePath=option['filename'] )
                                 if ext !='.hip' :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
+
                             tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
                                                                                         option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
                                                                                          option['username'] )
                             item.setToolTip( tooltip )
                             item.setStatusTip( tooltip )
                             item.setWhatsThis( tooltip )
+
                             #  Set from preferences :
                             if option['filename']+' - '+option['note']==self.pref_version and \
                                 self.nim.mode() is not 'publish' :
@@ -1953,11 +2066,18 @@ class GUI(QtGui.QMainWindow) :
     
     
     def update_elem( self, elem='job' ) :
-        'Updates a given GUI element, along with its dependent fields'
+        '''
+        Updates a given GUI element, along with its dependent fields
+
+        Set name/Id for the selected element in the NIM dict and call populate to update the dependent fields.
+        '''
         
         
         #  Combo Boxes :
         #===-------------------
+        P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
+
+
         
         if elem in self.nim.comboBoxes :
             #  Update Name and ID in NIM dictionary :
@@ -1987,10 +2107,12 @@ class GUI(QtGui.QMainWindow) :
                             self.nim.set_ID( elem=elem, ID=self.nim.Dict( elem )[str(self.nim.name( elem ))] )
                             break
                 #  Print :
+                '''
                 if not self.nim.ID( elem ) :
                     P.info( '%s = "%s"' % (elem.upper(), self.nim.name( elem )) )
                 else :
                     P.info( '%s = "%s" (ID #%s)' % (elem.upper(), self.nim.name( elem ), self.nim.ID( elem )) )
+                '''
             #  Clear variables, if field not set :
             else :
                 self.nim.set_name( elem=elem, name='' )
@@ -2118,6 +2240,7 @@ class GUI(QtGui.QMainWindow) :
                     #  Add Published version :
                     elif self.nim.name('filter')=='Published' :
                         if self.nim.mode().lower()=='load' :
+                            '''
                             fileDir=os.path.normpath( option['filepath'] )
                             if os.path.basename( os.path.normpath( fileDir ) )=='scenes' :
                                 fileDir=os.path.dirname( fileDir )
@@ -2147,6 +2270,18 @@ class GUI(QtGui.QMainWindow) :
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
                                 self.verNote.setText( '<note>' )
+                            '''
+                            if self.nim.Input( elem ).currentItem() :
+                                if option['filename']+' - '+option['note']==self.nim.Input( elem ).currentItem().text() :
+                                    #  Set variables :
+                                    self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
+                                    self.nim.set_ID( elem=elem, ID=option['fileID'] )
+                                    #  Set notes section :
+                                    self.verPath.setText( option['filepath'] )
+                                    self.verUser.setText( option['username'] )
+                                    self.verDate.setText( option['date'] )
+                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verNote.setText( option['note'] )
                         elif self.nim.mode().lower() in ['open', 'file'] :
                             if self.nim.Input( elem ).currentItem() :
                                 if option['filename']+' - '+option['note']==self.nim.Input( elem ).currentItem().text() :
@@ -2157,6 +2292,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
                                     self.verNote.setText( option['note'] )
                     #  Work Filter :
                     elif self.nim.name('filter')=='Work' :
@@ -2205,6 +2341,9 @@ class GUI(QtGui.QMainWindow) :
         index=self.nim.elements.index( elem )+1
         if elem=='asset' :
             index=4
+
+        # print("NIM Object after update:")
+        # pprint(self.nim.get_nim())
         while index<len(self.nim.elements) :
             self.populate_elem( elem=self.nim.elements[index] )
             if self.nim.elements[index]=='ver' :
@@ -3383,6 +3522,7 @@ class GUI(QtGui.QMainWindow) :
             #  Publish :
             P.info('\nPublishing Step #3 - Publishing work file and sym-link...\n')
             symLink=self.checkBox.isChecked()
+            symLink=False
 
             # Stop Maya Undo Queue
             if self.app=='Maya' :

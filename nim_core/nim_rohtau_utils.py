@@ -1528,7 +1528,10 @@ def splitName(filename, error=True):
     verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
     if verstr.startswith('v') or verstr.startswith('v'): 
         # There is version part
-        ver = verstr[1:]  # Get ver part and remove the initial v
+        # Get ver part and remove the initial v. Do a split('_')  in case there
+        # is a suffix for the version number. This is used for instance for
+        # published: v005_PUB
+        ver = verstr.split('_')[0][1:]  
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
