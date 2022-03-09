@@ -39,6 +39,8 @@ except :
 from pprint import pprint
 from pprint import pformat
 
+
+
 #  NIM Imports :
 if sys.version_info >= (3,0):
     from . import nim as Nim
@@ -95,6 +97,8 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
     startTime=time.time()
     app=F.get_app()
     success=False
+
+    print("DEBUG: Paso")
     
     if not WIN :
         P.info( '\nCreating the NIM GUI...' )
@@ -160,7 +164,9 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
         elif app=='Houdini' :
             try :
                 import hou
-                WIN=GUI( mode=mode )
+                # WIN=GUI( mode=mode )
+                win_parent=hou.qt.mainWindow()
+                WIN=GUI( mode=mode, parent=win_parent )
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
@@ -265,10 +271,14 @@ class GUI(QtGui.QMainWindow) :
         #  Construct the window :
         self.mk_win()
         
-        #  Populate Fields :
+        #  Populate Servers ?, Not at the moment
+        #  Populate Job :
+        '''
         for elem in self.nim.elements :
             self.populate_elem( elem )
         P.debug(' ')
+        '''
+        self.populate_elem( 'job' )
         
         #  Print :
         #self.nim.Print( debug=True )
@@ -710,8 +720,9 @@ class GUI(QtGui.QMainWindow) :
 
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        if self.app !='Houdini' :
-            self.menuBar().addMenu( userMenu )
+        # if self.app !='Houdini' :
+            # self.menuBar().addMenu( userMenu )
+        self.menuBar().addMenu( userMenu )
 
         #  Make Connections :
         self.changeUserAction.triggered.connect( self.update_user )
@@ -742,8 +753,9 @@ class GUI(QtGui.QMainWindow) :
         
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        if self.app !='Houdini' :
-            self.menuBar().addMenu( modeMenu )
+        # if self.app !='Houdini' :
+            # self.menuBar().addMenu( modeMenu )
+        self.menuBar().addMenu( modeMenu )
         
         #  Make Connections :
         self.openWin.triggered.connect( self.win_open )
@@ -1419,7 +1431,8 @@ class GUI(QtGui.QMainWindow) :
             availableTasks = None
             userJobs = None
             if elem == 'job':
-                userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
+                # userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
+                userJobs = self.nim.Dict('job')
             # Get Available tasks for given shot/asset
             if self.mode in ('FILE', 'LOAD') and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
                 availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
@@ -1463,11 +1476,13 @@ class GUI(QtGui.QMainWindow) :
                         # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID(elem)) )
                 #  Jobs, Tasks and Filters :
                 else :
+                    '''
                     if elem == 'job' and userJobs:
                         # Don't include those jobs were our user is not assigned
                         # to
                         if option not in userJobs:
                             continue
+                    '''
                     elemList.append( option )
                     #  Store Name and ID :
                     if option==self.nimPrefs.name( elem ) :
@@ -1506,16 +1521,20 @@ class GUI(QtGui.QMainWindow) :
                 jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 rezjob = nimUtl.hasRezCtxJob( jobs )
                 if rezjob:
-                    # Set job according to Rez context
-                    idx =  jobs.index(rezjob) 
+                    # Set job according to Rez context if needed
+                    curjob = self.nim.name('job').split()[0]
+                    print("Current job: %s"%curjob)
+                    print("Rez Job: %s"%rezjob)
+                    if curjob != rezjob:
+                        idx =  jobs.index(rezjob) 
+                        widget.setCurrentIndex( idx )
+                        self.populate_server()
                     widget.setEnabled( False )
-                    widget.setCurrentIndex( idx )
-                    self.nim.set_name( elem='job', name=rezjob )
-                    self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                    # self.nim.set_name( elem='job', name=rezjob )
+                    # self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
                     P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
                 # else:
                     # P.warning("Couldn't find a valid Rez context for any available job")
-                self.populate_server()
                 #  Set tab from Rez :
                 rezTab = nimUtl.getRezCtxTab()
                 if rezTab:
@@ -2842,6 +2861,11 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Print( debug=True )
             P.debug(' ')
 
+            # Serialize NIM object so we can reuse it again later to populate
+            # the UI quickly
+            # Prefs.serializeNIMObject(self.nim, 'open')
+
+
         # Return focus to Main Window for 3dsMax
         '''
         if self.app=='3dsMax' :
@@ -3714,6 +3738,8 @@ class GUI(QtGui.QMainWindow) :
         if self.app=='Houdini' :
             import hou
             try :
+                # Grab style sheet from Houdini 
+                '''
                 #self.pref_styleSheetDir = self.pref_styleSheetDir.rstrip('/')
                 nimScriptPath = os.path.dirname(os.path.realpath(__file__))
                 nimScriptPath = nimScriptPath.replace('\\','/')
@@ -3726,6 +3752,9 @@ class GUI(QtGui.QMainWindow) :
                 self.setStyleSheet(darkStyleSheet)
                 #self.setStyleSheet(hou.ui.qtStyleSheet())
                 #self.setStyleSheet(QtGui.QApplication.instance().styleSheet())
+                '''
+                style = hou.qt.styleSheet()
+                self.setStyleSheet(style)
             except:
                 P.info('NIM: Unable to set stylesheet')
         return

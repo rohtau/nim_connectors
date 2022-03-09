@@ -667,7 +667,10 @@ class NIM( object ) :
     
     def Input( self, elem='job' ) :
         'Retrieves the input widget for a given element'
-        return self.nim[elem]['input']
+        if isinstance(self.nim[elem], dict) and 'input' in self.nim[elem]:
+            return self.nim[elem]['input']
+        else:
+            return None
     
     def Dict( self, elem='job' ) :
         'Gets the dictionary associated with a given element'
@@ -809,7 +812,8 @@ class NIM( object ) :
     
     def set_input( self, elem='job', widget=None ) :
         'Sets the input widget for a given element'
-        self.nim[elem]['input']=widget
+        if isinstance(self.nim[elem], dict) and 'input' in self.nim[elem]:
+            self.nim[elem]['input']=widget
         return
     
     def set_baseDict( self, Dict={} ) :
