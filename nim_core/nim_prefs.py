@@ -26,11 +26,6 @@ except:
 # from future.standard_library import install_aliases
 # install_aliases()
 # from urllib.parse import urlparse
-try:
-    import cPickle as pickle
-except ModuleNotFoundError:
-    import pickle
-import copy
 from pprint import pprint
 from pprint import pformat
 
@@ -669,106 +664,6 @@ def Dbug_toggle() :
         P.info( '  D-bug mode has been turned on!' )
     
     return
-
-def serializeNIMObject( nim, name="" ):
-    '''
-    Serialize NIM object into a file in NIM prefs location
-
-    This can be used as cache for operation like init some NIM UI elements.
-
-    Serialization
-    -------------
-    The object will be stored in a file in the NIM user's prefs.
-    The name will be nim.pkl.
-    If name is used it will be called nim_[NAME].pkl
-
-    Attributes in the NIM object referencing to QT objects must be reset to None,
-    otherwise pickle will fail with serializaton
-
-    Parameters
-    ----------
-    nim : NIM Object
-        NIM object to serialize
-    name : str
-        Name for the serialization, optional
-
-    Returns
-    -------
-    str
-        path to serialized object file
-    '''
-    nim_home = get_home()
-    if not os.path.isdir( nim_home ) :
-        mk_default()
-    filename = 'nim'
-    if name:
-        filename += "_%s"%name
-    filename += '.pkl'
-    filepath = os.path.join(nim_home, filename)
-    # Make deepcopy to avoid modifying original object
-    # nimcpy = copy.deepcopy(nim)
-    # Remove references to Qt, pickle  fails with Qt objects
-    for elem in nim.get_nim(): nim.set_input( elem=elem, widget=None )
-    #  Reset image attributes :
-    for elem in ['asset', 'shot'] :
-        nim.get_nim()[elem]['img_pix']=''
-        nim.get_nim()[elem]['img_label']=''
-
-    pickle.dump(nim, file = open(filepath, "wb"))
-
-    return filepath
-
-
-def deSerializeNIMObject( name="", nim=None ):
-    '''
-    De-serialize NIM object into a file in NIM prefs location
-
-    This can be used to init some NIM UI elements from a cache
-
-    Serialization
-    -------------
-    The object will be stored in a file in the NIM user's prefs.
-    The name will be nim.pkl.
-    If name is used it will be called nim_[NAME].pkl
-
-    An optional NIM object can be passed to init QT attributes.
-    Remember these attributes cant be serialised by pickel so we
-    need to reset them in the serialization process.
-    Usually you want to init a just created NIM object with a
-    serialised one, so you pass your target nim object as arguments here in
-    order to retrieve everything from the cached NIM object and init QT attributes
-    with the target own UI initialization.
-
-    Parameters
-    ----------
-    name : str
-        Name for the serialization, optional
-    nim : NIM Object
-        Optional NIM object that can be used to initialise QT attributes
-
-    Returns
-    -------
-    NIM Object
-        Deserialize NIM object or None if error
-    '''
-    nim_home = get_home()
-    if not os.path.isdir( nim_home ) :
-        mk_default()
-        return None
-    filename = 'nim'
-    if name:
-        filename += "_%s"%name
-    filename += '.pkl'
-    filepath = os.path.join(nim_home, filename)
-    nimobject = pickle.load(open(filepath, "rb"))
-    if nim:
-        for elem in nimobject.get_nim(): nimobject.set_input( elem=elem, widget=nim.Input(elem) )
-        #  Init image attributes :
-        for elem in ['asset', 'shot'] :
-            nimobject.get_nim()[elem]['img_pix']=nim.get_nim()[elem]['img_pix']
-            nimobject.get_nim()[elem]['img_label']=nim.get_nim()[elem]['img_label']
-
-    return nim
 
 
 #  End

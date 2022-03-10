@@ -43,27 +43,29 @@ from pprint import pformat
 
 #  NIM Imports :
 if sys.version_info >= (3,0):
-    from . import nim as Nim
-    from . import nim_api as Api
-    from . import nim_file as F
-    from . import nim_prefs as Prefs
-    from . import nim_print as P
-    from . import nim_win as Win
-    from . import nim_rohtau as nimRt
+    from . import nim              as Nim
+    from . import nim_api          as Api
+    from . import nim_file         as F
+    from . import nim_prefs        as Prefs
+    from . import nim_cache        as Cache
+    from . import nim_print        as P
+    from . import nim_win          as Win
+    from . import nim_rohtau       as nimRt
     from . import nim_rohtau_utils as nimUtl
 else:
-    import nim as Nim
-    import nim_api as Api
-    import nim_file as F
-    import nim_prefs as Prefs
-    import nim_print as P
-    import nim_win as Win
-    import nim_rohtau as nimRt
+    import nim              as Nim
+    import nim_api          as Api
+    import nim_file         as F
+    import nim_prefs        as Prefs
+    import nim_cache        as Cache
+    import nim_print        as P
+    import nim_win          as Win
+    import nim_rohtau       as nimRt
     import nim_rohtau_utils as nimUtl
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
-    from PySide2 import QtGui as QtGui2
+    from PySide2 import QtGui     as QtGui2
     from PySide2 import QtCore
 except ImportError :
     try : from PySide import QtCore, QtGui
@@ -2860,10 +2862,6 @@ class GUI(QtGui.QMainWindow) :
             P.debug(' ')
             self.nim.Print( debug=True )
             P.debug(' ')
-
-            # Serialize NIM object so we can reuse it again later to populate
-            # the UI quickly
-            # Prefs.serializeNIMObject(self.nim, 'open')
 
 
         # Return focus to Main Window for 3dsMax
