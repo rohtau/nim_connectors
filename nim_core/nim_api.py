@@ -511,7 +511,7 @@ if sys.version_info >= (3,0):
         _actionURL = re.sub('[?]', '', nimURL)
 
 
-        P.info("API URL: %s" % _actionURL)
+        # P.info("API URL: %s" % _actionURL)
         
         # Test for SSL Redirection
         isRedirected = False
@@ -536,7 +536,7 @@ if sys.version_info >= (3,0):
             if nimURL.startswith('http:') and finalurl.startswith('https'):
                 isRedirected = True
                 _actionURL = _actionURL.replace("http:","https:")
-                P.info("Redirect: %s" % _actionURL)
+                # P.info("Redirect: %s" % _actionURL)
         except Exception as e:
             P.error("Failed to test for redirect: %s"%e)
 
@@ -578,7 +578,7 @@ if sys.version_info >= (3,0):
             data = urllib.parse.urlencode(filterparams).encode("ascii")
             result = opener.open(_actionURL, data).read()
 
-            P.info( "Result: %s" % result )
+            # P.info( "Result: %s" % result )
 
             # Test for failed API Validation
             if type(result)==type(list()) and len(result)==1 :
@@ -734,7 +734,7 @@ else:
 
         _actionURL = nimURL.encode('ascii')
 
-        P.info("API URL: %s" % _actionURL)
+        # P.info("API URL: %s" % _actionURL)
         
         # Test for SSL Redirection
         isRedirected = False
@@ -758,7 +758,7 @@ else:
             if nimURL.startswith('http:') and finalurl.startswith('https'):
                 isRedirected = True
                 _actionURL = _actionURL.replace("http:","https:")
-                P.info("Redirect: %s" % _actionURL)
+                # P.info("Redirect: %s" % _actionURL)
         except:
             P.error("Failed to test for redirect.")
 
@@ -783,7 +783,7 @@ else:
 
         try:
             result = opener.open(_actionURL, params).read()
-            P.info( "Result: %s" % result )
+            # P.info( "Result: %s" % result )
 
             # Test for failed API Validation
             if type(result)==type(list()) and len(result)==1 :
@@ -883,10 +883,6 @@ else:
         
         def https_request(self, request):
             return self.http_request(request)
-
-    
-   
-    
 
 
 #  API Functions  #

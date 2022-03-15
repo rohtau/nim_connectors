@@ -2295,6 +2295,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         - ID: string with renderID number
         - reviewID: render review ID
     '''
+    # nimP.info(pformat(locals())) # Debug arguments
     ver = 0
     parentname = ""
     jobid, jobnumber = 0, ""
@@ -2383,6 +2384,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
                     break
     else:
         # Grab just published info
+        nimP.info("File ID= %d"%fileID)
         info = nimAPI.get_verInfo( fileID )
         fileInfo = info[0]
 
@@ -2505,7 +2507,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             nimP.info("Create render review ......")
         draft    = createDraftMovie( path, str(frange), fileinfo=fileInfo)
         if not draft:
-            return False
+            msg = "Error creating Review movie for render publishing. Please check output terminal for more details"
+            # nimP.error(msg, showwindow=False)
+            res['success'] = False
+            res['msg']     = msg
+            return res
 
         # Create review
         draftPosix = toPosix(draft)
@@ -2527,7 +2533,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
                 m = p.search(res_review)
                 if m:
                     res['reviewID'] = int(m.group(1))
-                    nimP.info("Review created #%s. Media type: %s"%(m.group(1), m.group(2)))
+                    # nimP.info("Review created #%s. Media type: %s"%(m.group(1), m.group(2)))
+                    nimP.info("Review created: %s"%draft)
 
     if not res:
         res['success'] = False

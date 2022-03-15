@@ -25,6 +25,13 @@ try:
 except ImportError:
     pass
 
+# Try to import hou, if Houdini is available
+isHoudini = False
+try:
+    import hou
+    isHoudini = True
+except ImportError:
+    pass
 
 
 def debug( msg='' ) :
@@ -46,7 +53,7 @@ def debug( msg='' ) :
     return
 
 
-def info( msg='' ) :
+def info( msg='', showwindow=False  ) :
     'Custom info printer'
     if isinstance(msg, list):
         msg = ''.join(msg)
@@ -56,6 +63,11 @@ def info( msg='' ) :
             nuke.tprint('NIM ~> %s' % toke)
         else:
             print('NIM ~> %s' % toke)
+    if showwindow:
+        if isNuke and nuke.GUI:
+            nuke.message(msg)
+        elif isHoudini and hou.isUIAvailable():
+            hou.ui.displayMessage(msg, title='NIM Error')
     if msg[-1:]=='\n' :
         if isNuke:
             nuke.tprint('NIM ~>')
@@ -82,7 +94,7 @@ def log( msg='' ) :
     return
 
 
-def warning( msg='' ) :
+def warning( msg='', showwindow=False ) :
     'Custom warning printer'
     if isinstance(msg, list):
         msg = ''.join(msg)
@@ -90,17 +102,24 @@ def warning( msg='' ) :
     for toke in tokens :
         if isNuke:
             nuke.tprint('NIM.Warning ~> %s' % toke)
+            nuke.warning('NIM.Warning ~> %s' % toke)
         else:
             print('NIM.Warning ~> %s' % toke)
+    if showwindow:
+        if isNuke and nuke.GUI:
+            nuke.alert(msg)
+        elif isHoudini and hou.isUIAvailable():
+            hou.ui.displayMessage(msg, title='NIM Error', severity=hou.severityType.Warning)
     if msg[-1:]=='\n' :
         if isNuke:
             nuke.tprint('NIM.Warning ~>')
+            nuke.warning('NIM.Warning ~>')
         else:
             print('NIM.Warning ~>')
     return
 
 
-def error( msg='' ) :
+def error( msg='', showwindow=False ) :
     'Custom error printer'
     if msg :
         if isinstance(msg, list):
@@ -109,13 +128,20 @@ def error( msg='' ) :
         for toke in tokens :
             if isNuke:
                 nuke.tprint('NIM.Error ~> %s' % toke)
+                nuke.error('NIM.Error ~> %s' % toke )
             else:
                 print('NIM.Error ~> %s' % toke)
         if msg[-1:]=='\n' :
             if isNuke:
                 nuke.tprint('NIM.Error ~>')
+                nuke.error('NIM.Error ~>')
             else:
                 print('NIM.Error ~>')
+        if showwindow:
+            if isNuke and nuke.GUI:
+                nuke.alert(msg)
+            elif isHoudini and hou.isUIAvailable():
+                hou.ui.displayMessage(msg, title='NIM Error', severity=hou.severityType.Error)
     else : 
         if isNuke:
             nuke.tprint('NIM.Error ~> An error was logged but no message was received.')
