@@ -81,13 +81,22 @@ import stat
 # #from . import nim as Nim
 # from . import nim_api as Api
 if sys.version_info >= (3,0):
-    from . import nim          as Nim
-    from . import nim_file     as F
-    from . import nim_prefs    as Prefs
-    from . import nim_print    as P
-    from . import nim_tools
-    from . import nim_win      as Win
-    from . import nim_rohtau   as Rt
+    try:
+        from . import nim          as Nim
+        from . import nim_file     as F
+        from . import nim_prefs    as Prefs
+        from . import nim_print    as P
+        from . import nim_tools
+        from . import nim_win      as Win
+        from . import nim_rohtau   as Rt
+    except ImportError as e:
+        import nim          as Nim
+        import nim_file     as F
+        import nim_prefs    as Prefs
+        import nim_print    as P
+        import nim_tools
+        import nim_win      as Win
+        import nim_rohtau   as Rt
 else:
     import nim          as Nim
     import nim_file     as F

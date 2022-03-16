@@ -43,21 +43,33 @@ from pprint import pformat
 
 #  NIM Imports :
 if sys.version_info >= (3,0):
-    from . import nim              as Nim
-    from . import nim_api          as Api
-    from . import nim_file         as F
-    from . import nim_prefs        as Prefs
-    from . import nim_cache        as Cache
-    from . import nim_print        as P
-    from . import nim_win          as Win
-    from . import nim_rohtau       as nimRt
-    from . import nim_rohtau_utils as nimUtl
+    try:
+        from . import nim              as Nim
+        from . import nim_api          as Api
+        from . import nim_file         as F
+        from . import nim_prefs        as Prefs
+        # from . import nim_cache        as Cache
+        from . import nim_print        as P
+        from . import nim_win          as Win
+        from . import nim_rohtau       as nimRt
+        from . import nim_rohtau_utils as nimUtl
+    except ImportError as e:
+        import nim              as Nim
+        import nim_api          as Api
+        import nim_file         as F
+        import nim_prefs        as Prefs
+        # from . import nim_cache        as Cache
+        import nim_print        as P
+        import nim_win          as Win
+        import nim_rohtau       as nimRt
+        import nim_rohtau_utils as nimUtl
+
 else:
     import nim              as Nim
     import nim_api          as Api
     import nim_file         as F
     import nim_prefs        as Prefs
-    import nim_cache        as Cache
+    # import nim_cache        as Cache
     import nim_print        as P
     import nim_win          as Win
     import nim_rohtau       as nimRt
