@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 25 January 2022 01:26:41 CUT
+Last Modified: Thursday, 17 March 2022 2:04:57 PM CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -1632,7 +1632,8 @@ def getuserFullName( username ):
     fullname = username
     if platform.system() == 'Windows':
         username = getpass.getuser()
-        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             universal_newlines=True)
         info, err = p.stdout.read(), p.stderr.read()
         fullname = re.findall(r'Full Name\s+(.*\S)', info)
         if not fullname:

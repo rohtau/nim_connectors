@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 25 January 2022 01:40:13 CUT
+Last Modified: Thursday, 17 March 2022 5:33:57 PM CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -2173,7 +2173,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             try:
                 # Test ISO format
                 endtimedate = datetime.fromisoformat(endtimedate)
-                endtime = end.strftime("%Y-%m-%d %H:%M:%S")
+                endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError as e:
                 nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
                 endtimedate = ''

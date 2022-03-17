@@ -142,7 +142,6 @@ def set_vars( nim=None ) :
         knob.setFlag(nuke.READ_ONLY)
 
     # Set file version owner
-    nuke.tprint("Look version: %s"%nim.version())
     if nim.Dict('ver') and nim.name('base') == nim.Dict('ver')[0]['basename']:
         for ver in nim.Dict('ver'):
             if ver['version'] == nim.version():

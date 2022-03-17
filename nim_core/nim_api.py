@@ -2872,7 +2872,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             # Update nim dictionary with version info from API
             nim.set_ID('ver', result_addFile)
 
-            # TODO: create funciton in nim_nuke and nim_houdini
+            # TODO: create function in nim_nuke and nim_houdini
             # ,set_fileid_var() to update fileID info in scene pub info
             if nim.app()=='Nuke' :
                 from . import nim_nuke as N
@@ -2883,7 +2883,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             else:
                 nimP.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
             
-            # Update published file with File Type denpending on the app
+            # Update published file with File Type depending on the app
             customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}
             updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
 

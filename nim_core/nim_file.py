@@ -467,7 +467,10 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_nuke as N
+            try:
+                import nim_nuke as N
+            except ImportError as e:
+                from . import nim_nuke as N
             N.set_vars( nim=nim )
             P.info( 'Saving file as %s \n' % filepath )
             nuke.scriptSaveAs( filepath )
