@@ -418,7 +418,11 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
 
     #  Make Houdini Project directory :
     if os.path.isdir( projpath ) and nim.app()=='Houdini' :
-        import nim_houdini as Houdini
+        try:
+            import nim_houdini as Houdini
+        except ImportError as e:
+            from . import nim_houdini as Houdini
+
         if Houdini.mk_proj( path=projpath, renPath=renDir ) :
             P.info( 'Created Houdini project directories within...\n    %s' % projpath )
         else :
@@ -539,7 +543,11 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_houdini as Houdini
+            try:
+                import nim_houdini as Houdini
+            except ImportError as e:
+                from . import nim_houdini as Houdini
+
             Houdini.set_vars( nim=nim )
             #Save File
             if _os.lower() in ['windows', 'win32'] :

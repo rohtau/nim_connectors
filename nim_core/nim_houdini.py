@@ -16,13 +16,22 @@
 
 #  General Imports :
 import os, sys, traceback
-import nim as Nim
-import nim_file as F
-import nim_print as P
-import nim_api as Api
-import nim_rohtau as Rt
-import nim_rohtau_utils as Utl
 from pprint import pprint, pformat
+# NIM imports
+try:
+    import nim as Nim
+    import nim_file as F
+    import nim_print as P
+    import nim_api as Api
+    import nim_rohtau as Rt
+    import nim_rohtau_utils as Utl
+except ImportError as e:
+    from . import nim as Nim
+    from . import nim_file as F
+    from . import nim_print as P
+    from . import nim_api as Api
+    from . import nim_rohtau as Rt
+    from . import nim_rohtau_utils as Utl
 #  Houdini Imports :
 import hou
 import toolutils

@@ -839,6 +839,10 @@ class NIM( object ) :
                 if self.nim[elem]['Dict'] == False :
                     P.error("Failed to Set NIM Dictionary")
                     return False
+                else:
+                    # Convert Job Ids to int
+                    for job in self.nim[elem]['Dict']:
+                        self.nim[elem]['Dict'][job] = int(self.nim[elem]['Dict'][job].decode('utf-8'))
         elif elem=='asset' :
             if self.nim['job']['ID'] :
                 self.nim[elem]['Dict']=Api.get_assets( self.nim['job']['ID'] )

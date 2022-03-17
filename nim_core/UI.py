@@ -1431,6 +1431,8 @@ class GUI(QtGui.QMainWindow) :
         
         # print("NIM Object before populate:")
         # pprint(self.nim.get_nim())
+        print("Element %s dictionary before populating"%elem)
+        pprint(self.nim.Dict(elem))
 
         #  Combo Boxes :
         #===-------------------
@@ -1443,10 +1445,10 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).clear()
             self.nim.Input( elem ).addItem( 'Select...' )
             availableTasks = None
-            userJobs = None
-            if elem == 'job':
+            # userJobs = None
+            # if elem == 'job':
                 # userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
-                userJobs = self.nim.Dict('job')
+                # userJobs = self.nim.Dict('job')
             # Get Available tasks for given shot/asset
             if self.mode in ('FILE', 'LOAD') and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
                 availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
@@ -1497,7 +1499,10 @@ class GUI(QtGui.QMainWindow) :
                         if option not in userJobs:
                             continue
                     '''
-                    elemList.append( option )
+                    if isinstance(option, str):
+                        elemList.append( option )
+                    else:
+                        elemList.append( option.decode('utf-8') )
                     #  Store Name and ID :
                     if option==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option )
@@ -1508,6 +1513,8 @@ class GUI(QtGui.QMainWindow) :
                 num +=1
             
             #  Sort Combo Box Item Names :
+            print("List of elements for widget")
+            pprint(elemList)
             elemList=sorted(elemList)
             if elem=='job' :
                 elemList=sorted(elemList, reverse=True)
@@ -1516,6 +1523,7 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).addItems( elemList )
             
             #  Set Combo Box :
+            print("Current elem %s: %s"%(elem, self.nim.name( elem )))
             if self.nim.name( elem ) :
                 for num in range(len(elemList)) :
                     if elemList[num]==self.nim.name( elem ) :
@@ -1532,11 +1540,15 @@ class GUI(QtGui.QMainWindow) :
             if elem=='job' and not self.jobOverride.isChecked():
                 widget = self.nim.Input( elem )
                 # Get jobs in combo box
-                jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
+                # jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
+                jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
                 rezjob = nimUtl.hasRezCtxJob( jobs )
+                print("Job list for Rez")
+                print(jobs)
+                print("Rez Job from Env: %s"%rezjob)
                 if rezjob:
                     # Set job according to Rez context if needed
-                    curjob = self.nim.name('job').split()[0]
+                    curjob = self.nim.name('job').split()[0] if self.nim.name('job') else ''
                     print("Current job: %s"%curjob)
                     print("Rez Job: %s"%rezjob)
                     if curjob != rezjob:
@@ -1544,8 +1556,8 @@ class GUI(QtGui.QMainWindow) :
                         widget.setCurrentIndex( idx )
                         self.populate_server()
                     widget.setEnabled( False )
-                    # self.nim.set_name( elem='job', name=rezjob )
-                    # self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                    self.nim.set_name( elem='job', name=rezjob )
+                    self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx).encode('utf-8')] )
                     P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
                 # else:
                     # P.warning("Couldn't find a valid Rez context for any available job")
@@ -2031,7 +2043,8 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( option['filepath'] )
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
-                                self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                self.verVer.setText( option['version'].zfill(padding) )
                                 self.verNote.setText( option['note'] )
         
         
@@ -2325,7 +2338,8 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verVer.setText( option['version'].zfill(padding) )
                                     self.verNote.setText( option['note'] )
                     #  Work Filter :
                     elif self.nim.name('filter')=='Work' :
@@ -2356,7 +2370,8 @@ class GUI(QtGui.QMainWindow) :
                                         self.verPath.setText( option['filepath'] )
                                         self.verUser.setText( option['username'] )
                                         self.verDate.setText( option['date'] )
-                                        self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                        # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                        self.verVer.setText( option['version'].zfill(padding) )
                                         self.verNote.setText( option['note'] )
         
         
