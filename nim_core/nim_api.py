@@ -3147,7 +3147,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if not projPath :
         app=F.get_app()
         prefs=Prefs.read()
-        ''' DEPREICATED - REMOVING DEFAULT SERVER PATH FROM PREFS
+        ''' DEPRECATED - REMOVING DEFAULT SERVER PATH FROM PREFS
         if prefs and app+'_DefaultServerPath' in prefs.keys() :
             projPath=prefs[app+'_DefaultServerPath']
         '''

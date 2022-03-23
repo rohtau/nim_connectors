@@ -345,7 +345,7 @@ class GUI(QtGui.QMainWindow) :
             self.pref_version=self.prefs[self.app+'_Version']
             # self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
             self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo_fixed.png'
-            print("Path to default NIM image: %s"%self.pref_imgDefault)
+            # print("Path to default NIM image: %s"%self.pref_imgDefault)
         except : return False
         P.debug( '%.3f =>     Preferences stored' % (time.time()-startTime) )
         
@@ -1427,12 +1427,12 @@ class GUI(QtGui.QMainWindow) :
                 return
         
         #  Print Population Start :
-        P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
+        # P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
         
         # print("NIM Object before populate:")
         # pprint(self.nim.get_nim())
-        print("Element %s dictionary before populating"%elem)
-        pprint(self.nim.Dict(elem))
+        # print("Element %s dictionary before populating"%elem)
+        # pprint(self.nim.Dict(elem))
 
         #  Combo Boxes :
         #===-------------------
@@ -1513,8 +1513,8 @@ class GUI(QtGui.QMainWindow) :
                 num +=1
             
             #  Sort Combo Box Item Names :
-            print("List of elements for widget")
-            pprint(elemList)
+            # print("List of elements for widget")
+            # pprint(elemList)
             elemList=sorted(elemList)
             if elem=='job' :
                 elemList=sorted(elemList, reverse=True)
@@ -1523,7 +1523,7 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).addItems( elemList )
             
             #  Set Combo Box :
-            print("Current elem %s: %s"%(elem, self.nim.name( elem )))
+            # print("Current elem %s: %s"%(elem, self.nim.name( elem )))
             if self.nim.name( elem ) :
                 for num in range(len(elemList)) :
                     if elemList[num]==self.nim.name( elem ) :
@@ -1543,14 +1543,9 @@ class GUI(QtGui.QMainWindow) :
                 # jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
                 jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
                 rezjob = nimUtl.hasRezCtxJob( jobs )
-                print("Job list for Rez")
-                print(jobs)
-                print("Rez Job from Env: %s"%rezjob)
                 if rezjob:
                     # Set job according to Rez context if needed
                     curjob = self.nim.name('job').split()[0] if self.nim.name('job') else ''
-                    print("Current job: %s"%curjob)
-                    print("Rez Job: %s"%rezjob)
                     if curjob != rezjob:
                         idx =  jobs.index(rezjob) 
                         widget.setCurrentIndex( idx )
@@ -2121,7 +2116,7 @@ class GUI(QtGui.QMainWindow) :
         
         #  Combo Boxes :
         #===-------------------
-        P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
+        # P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
 
 
         
