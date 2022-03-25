@@ -1165,17 +1165,26 @@ def createRenderIcon( elementInfo ):
     # Modify environment to force execution using python2.Deadline's dpython
     # only uses python 2.7 .
     env = copy.deepcopy(os.environ)
-    env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
+    py2path = "\opt\python\python27"
+    if os.path.exists(py2path):
+        env['PYTHONHOME'] = os.path.normpath(py2path)
+        nimP.info("PYTHONHOME set to \opt\python\python27 needed for Draft's dpython.")
+    else:
+        nimP.warning("Couldn't find py27 install (%s), assume default python in the system is 2.7")
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         env.update(thinkboclivenv)
     try:
-        ret = subprocess.check_output(cmd, shell=True, env=env)
+        ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
     except subprocess.CalledProcessError as e:
         nimP.error("Draft command for render icon generation: %s "%cmd)
         nimP.error("Command: %s"%e.cmd)
-        nimP.error("Outut: %s"%e.output)
+        if e.output:
+            nimP.error("Output: %s"%e.output)
+        if sys.version_info >= (3,0):
+            if e.stderr:
+                nimP.error("Stderr: %s"%e.stderr)
         nimP.error("Error code: %d"%e.returncode)
         return False
     except FileNotFoundError:
@@ -2604,7 +2613,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     # print("File Info:")
     # pprint(info)
     path = fileInfo['filepath']
-    name =  fileInfo['filename'] 
+    name =  fileInfo['filename']
     # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
     fileparts = nimUtl.splitName(name)
     rendername = fileparts['base'] + "__" + "v%s"%str(fileparts['ver']).zfill(padding)
@@ -2633,7 +2642,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
         res['msg'] = "Couldn't find an element for the render: %s"%name
         return res
     if elementInfo['taskID']:
-        taskid = int(elementInfo['taskID']) 
+        taskid = int(elementInfo['taskID'])
         if not taskID:
             taskid = taskid
     else:
@@ -2641,12 +2650,15 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
 
     keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
     if renderID:
-        res_review = nimAPI.upload_reviewItem( itemID=renderID, itemType='render', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=renderID, itemType='render', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
     elif taskID:
-        res_review = nimAPI.upload_reviewItem( itemID=taskID, itemType='task', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=taskID, itemType='task', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
 
     else:
-        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
+
+    if sys.version_info >= (3,0):
+        res_review = res_review.decode('utf-8')
 
     # Return review ID
     # print("Review result:")
