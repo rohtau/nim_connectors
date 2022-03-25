@@ -24,6 +24,7 @@ import json
 import shutil
 import stat
 import getpass
+import copy
 from glob import glob
 from subprocess import Popen
 from datetime   import datetime
@@ -504,7 +505,7 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="",
 
     return attrs
 
-def runAsyncCommand( cmd, timeout=120 ):
+def runAsyncCommand( cmd, env=None, timeout=120 ):
     '''
     Run a command asynchronously.
 
@@ -512,19 +513,25 @@ def runAsyncCommand( cmd, timeout=120 ):
     ----------
         cmd : str
             command string
+        env : str
+            Dictionary providing a different execution environment
         timeout : int
             Number of second to wait for command to be executed
 
     Returns:
-        bool -- True if the command finished with errorcode 0, False other wise
+        bool
+            True if the command finished with errorcode 0, False other wise
     '''
     args = shlex.split(cmd, posix=platform.system() != 'Windows')
     # print(args)
     # timeout = 60*2 #some amount of seconds
     delay = 1.0
+
+
         
     try:
-        proc = Popen(args, shell=True, stderr=subprocess.STDOUT)
+        # proc = Popen(args, shell=True, stderr=subprocess.STDOUT)
+        proc = Popen(args, shell=True, stderr=subprocess.STDOUT, env=env)
     except subprocess.CalledProcessError as e:
         nimP.error( "Command Failed (Error Code: %d): %s "%(e.returncode, cmd))
         nimP.error( "Failed command Output:\n%s"%e.output)
@@ -703,30 +710,28 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
             outdraft = outfile
     if not os.path.exists( outdraft ):
         try:
-            os.makedirs( outdraft ) 
+            os.makedirs( outdraft )
         except:
             raise
     outdraft = os.path.join(outdraft, draftname)
     cmd += " outFile=%s "%outdraft
+    # Modify environment to force execution using python2.Deadline's dpython
+    # only uses python 2.7 .
+    env = copy.deepcopy(os.environ)
+    # env['PYTHONHOME'] = "C:\opt\python\python27"
+    env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        os.environ.update(thinkboclivenv)
+        env.update(thinkboclivenv)
     # print("Slate command:")
     # print(cmd)
-    if not runAsyncCommand( cmd, timeout = 10*60 ):
-        nimP.error("Can't create Draft review movie: %s"%outdraft)
+    if not runAsyncCommand( cmd, env=env, timeout=10*60 ):
+        if isstillframe:
+            nimP.error("Can't create review image: %s"%outdraft)
+        else:
+            nimP.error("Can't create review movie: %s"%outdraft)
         return False
-    '''
-    try:
-        ret = subprocess.check_output(cmd, shell=True)
-    except subprocess.CalledProcessError as e:
-        nimP.error( "Command (ErrorCode: %d): %s "%(e.returncode,cmd))
-        nimP.error("Output:")
-        print(e.output)
-    except FileNotFoundError:
-        nimP.error( "Command is not available in PATH")
-    '''
     
     return outdraft
 
@@ -1157,12 +1162,16 @@ def createRenderIcon( elementInfo ):
     cmd += " inFile=%s "%middlepath
     # Out render icon path
     cmd += " outFile=%s "%iconpath
+    # Modify environment to force execution using python2.Deadline's dpython
+    # only uses python 2.7 .
+    env = copy.deepcopy(os.environ)
+    env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        os.environ.update(thinkboclivenv)
+        env.update(thinkboclivenv)
     try:
-        ret = subprocess.check_output(cmd, shell=True)
+        ret = subprocess.check_output(cmd, shell=True, env=env)
     except subprocess.CalledProcessError as e:
         nimP.error("Draft command for render icon generation: %s "%cmd)
         nimP.error("Command: %s"%e.cmd)
