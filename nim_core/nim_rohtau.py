@@ -980,9 +980,12 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     # Fix shot name so assets full names (category + asset) is correct. This
     # will convert and asset name like vehicles/mercedes -> vehicles_mercedes
     # Shot names never have a / so they won't be modified by this
-    assetshot = shot.replace('/', '_') 
+    assetshot = shot.replace('/', '_')
     basename = buildBasename( assetshot, task, name, elemtype=elem, layer=layer)
-    loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
+    if elem in ('plates', 'comps', 'renders'):
+        loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
+    else:
+        loc = os.path.normpath( os.path.join(baseloc, elem, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 
