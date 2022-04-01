@@ -1085,8 +1085,20 @@ class NIM( object ) :
             filetype = 'Maya Scene'
         elif myext == 'nk':
             filetype = 'Nuke Script'
-        elif myext in ('exr', 'jpg', 'jpeg', 'dpx', 'png'):
+        elif myext == 'batch':
+            filetype = 'Flame'
+        elif myext == 'psd':
+            filetype = 'Photoshop'
+        elif myext in ('exr', 'jpg', 'jpeg', 'dpx', 'png', 'tif'):
             filetype = 'Image'
+        elif myext in ('geo', 'bgeo', 'bgeo.sc', 'vdb', 'obj'):
+            filetype = 'Geometry'
+        elif myext in ('vdb'):
+            filetype = 'VDB'
+        elif myext in ('fbx'):
+            filetype = 'FBX'
+        elif myext in ('usd', 'usdc', 'usda'):
+            filetype = 'USD'
         elif myext in ('mov', 'mp4'):
             filetype = 'Movie'
         elif myext in ('abc'):
@@ -1095,7 +1107,6 @@ class NIM( object ) :
             self.nim['fileExt']['fileType']=filetype
         else:
             P.warning("File extension not recognized as file type: %s"%ext)            
-            
         if filetype:
             self.nim['fileExt']['fileType']=filetype
         return

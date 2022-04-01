@@ -52,7 +52,8 @@ from .import version
 from .import winTitle
 _os=platform.system().lower()
 #  Compiled REGEX Searches :
-ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
+# ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
+ext_srch=re.compile( '(?:\.bgeo)?\.[a-zA-Z0-9]+$' ) # Use non capturing group to optionally match extensions like .bgeo.sc
 end_srch=re.compile( '_[vV]?[0-9]+(_PUB)?\.[a-zA-Z0-9]+$' )
 num_srch=re.compile( '[0-9]+' )
 
