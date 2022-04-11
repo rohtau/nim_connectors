@@ -2,17 +2,15 @@
 #******************************************************************************
 #
 # Filename: nim.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
-
-# rohtau v0.2
 
 import ntpath, os, traceback
 import sys
@@ -44,12 +42,13 @@ from .import winTitle
 from .import version 
 from .import winTitle 
 
+pythonVersion = sys.version_info.major
 
 class NIM( object ) :
     
     def __init__(self) :
         'Initializes the NIM attributes'
-        super( NIM, self ).__init__()
+        # super( NIM, self ).__init__()
         self.nim={}
         
         #  Store preferences :
@@ -290,7 +289,7 @@ class NIM( object ) :
         if not os.path.isfile( os.path.normpath( filePath ) ) and os.path.isfile( \
                 os.path.normpath( filePath ) ) :
             filePath=os.path.normpath( filePath )
-        if checkfile and  not os.path.isfile( filePath ) :
+       if checkfile and  not os.path.isfile( filePath ) :
             P.error( 'Sorry, the given file path doesn\'t appear to exist...' )
             P.error( '    %s' % filePath )
             return None
@@ -355,13 +354,11 @@ class NIM( object ) :
                 if not assetFound and not showFound :
                     if not assetFound and self.tab()=='ASSET' :
                         for asset in self.Dict('asset') :
-                            # print("Check tok: %s with asset name: %s"%(tok, asset['name']))
                             if tok==asset['name'] :
                                 self.set_name( elem='asset', name=asset['name'] )
                                 self.set_ID( elem='asset', ID=asset['ID'] )
                                 self.set_tab( _type='ASSET' )
                                 assetFound=True
-                                # print("ASSET FOUND !!!!!")
                                 self.set_dict('filter')
                                 if pub :
                                     self.set_name( elem='filter', name='Published' )
@@ -496,6 +493,7 @@ class NIM( object ) :
                             ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
                             if tok==version['filename'] or tok==ver_abbrev :
+                                # self.set_name( elem='ver', name=version['filename'] )
                                 self.set_name( elem='ver', name=version['version'] )
                                 self.set_ID( elem='ver', ID=version['fileID'] )
                                 self.set_version( version['version'])
@@ -684,11 +682,6 @@ class NIM( object ) :
     
     def name( self, elem='job' ) :
         'Gets the name of the item that an element is set to'
-        # if elem == 'job' and self.nim[elem]['name']:
-            # Job name is an exception since it is in the form of 'jobnumber jobshortname'. We only care about the first jobnumber.
-            # XXX:This can break the UI
-            # return self.nim[elem]['name'].split()[0]
-        # else:
         return self.nim[elem]['name']
     
     def menuID( self, elem='job' ) :

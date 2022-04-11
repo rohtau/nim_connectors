@@ -1,9 +1,9 @@
 #****************************************************************************
 #
 # Filename: Houdini/nimMenu.py
-# Version:  2.5.0.161013
+# Version:  5.0.15.210922
 #
-# Copyright (c) 2014-2020 NIM Labs LLC
+# Copyright (c) 2014-2021 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -38,6 +38,14 @@ from nim_core import padding
 
 from rt import pipe
 from rt import utils
+
+try:
+    reload  # Python 2.7
+except NameError:
+    try:
+        from importlib import reload  # Python 3.4+
+    except ImportError:
+        from imp import reload  # Python 3.0 - 3.3
 
 reload(nimUI)
 reload(nimAPI)

@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_prefs.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -12,7 +12,6 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.2
 
 #  General Imports :
 import os, sys, re, traceback
@@ -26,8 +25,7 @@ except:
 # from future.standard_library import install_aliases
 # install_aliases()
 # from urllib.parse import urlparse
-from pprint import pprint
-from pprint import pformat
+from pprint import pprint, pformat
 
 # Hack to use urllib in Python 2 and 3
 if sys.version_info >= (3,0):
@@ -71,13 +69,9 @@ try :
 except :
     pass
 
-#print "isGUI: %s" % isGUI
-
 #  Variables :
 prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
-# version='v4.0.61'
-# winTitle='NIM_'+version
 from .import version 
 from .import winTitle 
 nim_URL='http://nim.rohtau.com/nimAPI.php'
@@ -542,7 +536,6 @@ def read() :
     'Reads and stores preferences'
 
     #P.info('nim_prefs.read')
-    # TODO: detect if we are in a Rez environment, in that case init job and shot according
 
     prefsFile=get_path()
     _prefs={}

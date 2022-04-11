@@ -2,17 +2,15 @@
 #******************************************************************************
 #
 # Filename: nim_win.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
-
-# rohtau v0.2
 
 import os, sys
 builtin_mod_available = True
@@ -49,29 +47,6 @@ from .import winTitle
 
 qt_import=True
 
-
-'''
-isGUI = True
-try :
-    #Validate Against Terminal
-    if sys.stdin.isatty():
-        isGUI = False
-except :
-    pass
-'''
-'''
-# Moved to inline functions
-isGUI = False
-try :
-    #Validate Against DCC Environment
-    if F.get_app() is not None :
-        isGUI = True
-except :
-    pass
-'''
-#print "isGUI: %s" % isGUI
-
-
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -81,10 +56,16 @@ except :
     try : 
         from PySide import QtCore, QtGui
     except :
-        try : from PyQt4 import QtCore, QtGui
+        try : 
+            from PyQt4 import QtCore, QtGui
         except : 
-            # print "NIM UI: Failed to UI Modules"
-            qt_import=False
+            try : 
+                from PyQt5 import QtWidgets as QtGui
+                from PyQt5 import QtGui as QtGui2
+                from PyQt5 import QtCore
+            except :
+                # print "NIM UI: Failed to UI Modules"
+                qt_import=False
 
 
 def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[], selNum=0, winPrnt=None ) :
@@ -182,9 +163,6 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
     
     #  3dsMax :
     elif app=='3dsMax' :
-        import MaxPlus
-        #maxWin=MaxPlus.Win32_GetMAXHWnd()
-
         if type=='ok' :
             dialog=QtGui.QMessageBox.information( None, title, msg, \
                 QtGui.QMessageBox.Ok)
@@ -238,6 +216,28 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
 
     #  Flame :
     elif app=='Flame' :
+        if type=='ok' :
+            dialog=QtGui.QMessageBox.information( None, title, msg, \
+                QtGui.QMessageBox.Ok)
+            if dialog==QtGui.QMessageBox.Ok :
+                userInput='OK'
+        elif type=='okCancel' :
+            dialog=QtGui.QMessageBox.question( None, title, msg, \
+                QtGui.QMessageBox.Cancel, QtGui.QMessageBox.Ok )
+            if dialog==QtGui.QMessageBox.Ok :
+                userInput='OK'
+            elif dialog==QtGui.QMessageBox.Cancel :
+                userInput='Cancel'
+        elif type=='input' :
+            dialog=QtGui.QInputDialog.getText( QtGui.QInputDialog(), title, msg, \
+                QtGui.QLineEdit.Normal )
+            if dialog[1] :
+                userInput=dialog[0]
+            else :
+                userInput=None
+
+    #  Deadline :
+    elif app=='Deadline' :
         if type=='ok' :
             dialog=QtGui.QMessageBox.information( None, title, msg, \
                 QtGui.QMessageBox.Ok)

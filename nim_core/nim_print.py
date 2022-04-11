@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_print.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -12,7 +12,6 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-#rohtau v0.2, python3 port
 
 
 
@@ -33,6 +32,9 @@ try:
 except ImportError:
     pass
 
+if pythonVersion == 3 :
+    # Import nim_core for Python3
+    from .py3.nim_print import *
 
 def debug( msg='' ) :
     'Custom info printer'

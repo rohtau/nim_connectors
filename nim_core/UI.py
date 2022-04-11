@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: UI.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -12,20 +12,11 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.2
-
-
 
 #  General Imports :
 import glob, os, platform, re, sys, traceback, time
 from datetime   import datetime
 from datetime   import timedelta
-# from future.standard_library import install_aliases
-# install_aliases()
-
-# from urllib.parse import urlparse, urlencode
-# from urllib.request import urlopen, Request
-
 if sys.version_info >= (3,0):
     import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 else:
@@ -80,19 +71,22 @@ try :
     from PySide2 import QtGui     as QtGui2
     from PySide2 import QtCore
 except ImportError :
-    try : from PySide import QtCore, QtGui
+    try : 
+        from PySide import QtCore, QtGui
     except ImportError :
-        try : from PyQt4 import QtCore, QtGui
+        try : 
+            from PyQt4 import QtCore, QtGui
         except ImportError : 
-            print("NIM UI: Failed to UI Modules")
-
-
+            try :
+                from PyQt5 import QtWidgets as QtGui
+                from PyQt5 import QtGui as QtGui2
+                from PyQt5 import QtCore
+            except ImportError :
+                print("NIM UI: Failed to UI Modules")
 
 #  Variables :
 WIN=''
 startTime=''
-# version='v4.0.61'
-# winTitle='NIM_'+version
 from .import version 
 from .import winTitle
 from .import padding
@@ -111,8 +105,6 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
     startTime=time.time()
     app=F.get_app()
     success=False
-
-    print("DEBUG: Paso")
     
     if not WIN :
         P.info( '\nCreating the NIM GUI...' )
@@ -166,9 +158,10 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
         # 3dsMax :
         elif app=='3dsMax' :
             try :
-                import MaxPlus
+                from pymxs import runtime as maxRT
                 WIN=GUI( mode=mode )
-                MaxPlus.CUI.DisableAccelerators()
+                # Commenting out DisableAccelerators() for 3dsMax2022
+                # maxRT.CUI.DisableAccelerators()
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
@@ -345,7 +338,6 @@ class GUI(QtGui.QMainWindow) :
             self.pref_version=self.prefs[self.app+'_Version']
             # self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
             self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo_fixed.png'
-            # print("Path to default NIM image: %s"%self.pref_imgDefault)
         except : return False
         P.debug( '%.3f =>     Preferences stored' % (time.time()-startTime) )
         
@@ -498,9 +490,6 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('job').setMinimumSize(240,20)
         self.jobOverride = QtGui.QPushButton("Override Job")
         self.jobOverride.setCheckable(True)
-        # self.jobOverride = QtGui.QCheckBox("Override Job")
-        # self.jobOverride.setCheckState(QtCore.Qt.CheckState.Unchecked)
-        # self.jobForm.addRow( 'Job:', self.nim.Input('job') )
         self.jobHLayout=QtGui.QHBoxLayout()
         self.jobHLayout.addWidget(self.jobLabel)
         self.jobHLayout.addWidget(self.nim.Input('job'))
@@ -639,12 +628,10 @@ class GUI(QtGui.QMainWindow) :
         self.tagPresets = QtGui.QComboBox()
         self.tagPresets.addItems(standardTags)
         self.tagPresets.setToolTip("Presets and avaliable tags")
-        # self.tagPresets.setSizePolicy( QtGui.QSizePolicy.Minimum )
         #  Create layout :
         self.tagHLayout=QtGui.QHBoxLayout()
         #  Add to layout :
         self.taskForm.addRow(self.tagHLayout)
-        # self.taskForm.addRow( 'Tag:', self.nim.Input('tag') )
         self.tagHLayout.addWidget(self.tagLabel)
         self.tagHLayout.addWidget(self.nim.Input('tag'))
         self.tagHLayout.addWidget(self.tagPresets)
@@ -1301,7 +1288,7 @@ class GUI(QtGui.QMainWindow) :
         self.checkBox.setText('Pub SymLink')
         self.checkBox.setMaximumWidth(90)
         self.checkBox.setCheckState( QtCore.Qt.Checked )
-        self.checkBox.setVisible( True )
+        self.checkBox.setVisible( False )
         
         #  Button elements :
         self.btn_1.setText('Publish')
@@ -1513,8 +1500,6 @@ class GUI(QtGui.QMainWindow) :
                 num +=1
             
             #  Sort Combo Box Item Names :
-            # print("List of elements for widget")
-            # pprint(elemList)
             elemList=sorted(elemList)
             if elem=='job' :
                 elemList=sorted(elemList, reverse=True)
@@ -1523,7 +1508,6 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).addItems( elemList )
             
             #  Set Combo Box :
-            # print("Current elem %s: %s"%(elem, self.nim.name( elem )))
             if self.nim.name( elem ) :
                 for num in range(len(elemList)) :
                     if elemList[num]==self.nim.name( elem ) :
@@ -2918,8 +2902,8 @@ class GUI(QtGui.QMainWindow) :
             projects=hiero.core.projects()
             filePath=projects[0].path()
         elif self.app=='3dsMax' :
-            import MaxPlus
-            filePath=MaxPlus.FileManager.GetFileNameAndPath()
+            from pymxs import runtime as maxRT
+            filePath = maxRT.maxFilePath + maxRT.maxFileName
         elif self.app=='Houdini' :
             import hou
             filePath=hou.hipFile.name()
@@ -3185,11 +3169,12 @@ class GUI(QtGui.QMainWindow) :
         if self.app=='3dsMax' :
             #  Open :
             try :
-                import MaxPlus
-                mpFM = MaxPlus.FileManager
-                mpPM = MaxPlus.PathManager
+                # import MaxPlus
+                from pymxs import runtime as maxRT
+                mpPM = maxRT.pathConfig
                 from . import nim_3dsmax as Max
-                mpFM.Open(filePath)
+                maxRT.checkForSave()
+                maxRT.loadMaxFile(filePath)
             except Exception as e :
                 P.error( 'Failed reading the file: %s' % filePath )
                 P.debug( '    %s' % traceback.print_exc() )
@@ -3200,7 +3185,7 @@ class GUI(QtGui.QMainWindow) :
             if _os=='windows' :
                 projPath=projPath.replace( '\\', '/' )
             if os.path.isdir( projPath ) :
-                mpPM.SetProjectFolderDir( projPath )
+                mpPM.setCurrentProjectFolder ( projPath )
                 P.info( '\nUI - Project set to...\n    %s\n' % projPath )
             else :
                 P.warning('\nProject was not set!\n')
@@ -3220,13 +3205,6 @@ class GUI(QtGui.QMainWindow) :
             try :
                 import hou
                 from . import nim_houdini as Houdini
-                #TODO: check for unsaved file change RuntimeError
-                #if hou.hipFile.hasUnsavedChanges():
-                #    raise RuntimeError
-                #hou.hipFile.load(file_name=str(filePath), suppress_save_prompt=True)
-                # P.error('Loading file in UI-2451')
-                # P.info("NIM Dictionary for opened file")
-                # self.nim.Print()
                 filePath=filePath.replace( '\\', '/' )
                 hou.hipFile.load(file_name=str(filePath))
             except Exception as e :
@@ -3317,8 +3295,9 @@ class GUI(QtGui.QMainWindow) :
         
         #  3dsMax Merge :
         if self.app=='3dsMax' :
-            import MaxPlus
-            mpFM = MaxPlus.FileManager
+            # import MaxPlus
+            from pymxs import runtime as maxRT
+
             #  Derive file name to use for namespace :
             index=self.nim.Input('ver').currentItem().text().find(' - ')
             fileName=self.nim.Input('ver').currentItem().text()[0:index]
@@ -3329,13 +3308,12 @@ class GUI(QtGui.QMainWindow) :
                 P.info('File found, importing the following file...')
                 P.info( '    %s' % filePath )
                 if self.checkBox.checkState() :
-                    #  Import file as a group :
-                    #TODO: Group on Import
-                    mpFM.Merge( filePath, True )
+                    #  Group on Import
+                    #  Updated to use application dialog for merge
+                    maxRT.mergeMAXFile( filePath, maxRT.readvalue(maxRT.StringStream('#prompt')) )
                 else :
                     #  Import file :
-                    #mc.file( filePath, i=True, force=True )
-                    mpFM.Merge( filePath, True )
+                    maxRT.mergeMAXFile( filePath, maxRT.readvalue(maxRT.StringStream('#prompt')) )
             else :
                 msg='Sorry, file to import doesn\'t exist...\n    %s' % filePath
                 P.error( msg )
@@ -3445,9 +3423,7 @@ class GUI(QtGui.QMainWindow) :
         '''
 
         #  Version up file and add to API :
-        # Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         try : 
-            # Padding changed from default 2 to 3
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
             P.error(traceback.format_stack())

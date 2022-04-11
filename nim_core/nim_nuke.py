@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_nuke.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -12,12 +12,11 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.2
 
 #  General Imports :
 # from nim_core.nim_api import get_elementTypes
 import os, re, sys
-from pprint import pformat
+from pprint import pprint,pformat
 
 #  NIM Imports :
 from . import nim_api as Api
@@ -32,7 +31,26 @@ from .import winTitle
 from .import default_frame_range 
 
 #  Nuke Imports :
-import nuke
+import nuke, nukescripts
+
+#  Import Python GUI packages :
+try : 
+    from PySide2 import QtWidgets as QtGui
+    from PySide2 import QtGui as QtGui2
+    from PySide2 import QtCore
+except ImportError :
+    try : 
+        from PySide import QtCore, QtGui
+    except ImportError :
+        try : 
+            from PyQt4 import QtCore, QtGui
+        except ImportError : 
+            try :
+                from PyQt5 import QtWidgets as QtGui
+                from PyQt5 import QtGui as QtGui2
+                from PyQt5 import QtCore
+            except :
+                print("NIM: Failed to UI Modules - UI")
 
 topbuttonsKnobs = ('pubcheckvars', 'pubresetdata')
 
@@ -474,7 +492,6 @@ def get_vars( nim=None ) :
                 elif knobNames[x]=='nim_job' :
                     nim.set_name( elem='job', name=knob.value() )
                 elif knobNames[x]=='nim_jobID' :
-                    # nuke.tprint( "Job Id Param: %s"%str(int(knob.value())))
                     nim.set_ID( elem='job', ID=str(int(knob.value())) )
                 #  Asset :
                 elif knobNames[x]=='nim_asset' :

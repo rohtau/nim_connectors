@@ -2,17 +2,15 @@
 #******************************************************************************
 #
 # Filename: nim_tools.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
-
-# rohtau v0.2
 
 import os
 
@@ -27,8 +25,12 @@ except :
         try : 
             from PyQt4 import QtCore, QtGui
         except :
-            # print "NIM: Failed to load UI Modules - Tools"
-            qt_import=False
+            try :
+                from PyQt5 import QtWidgets as QtGui
+                from PyQt5 import QtCore
+            except :
+                # print "NIM: Failed to load UI Modules - Tools"
+                qt_import=False
 
 from . import nim_print
 from . import nim_win
@@ -169,4 +171,3 @@ if qt_import :
 
 
 #  End
-
