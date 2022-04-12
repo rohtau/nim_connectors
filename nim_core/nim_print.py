@@ -32,10 +32,6 @@ try:
 except ImportError:
     pass
 
-if pythonVersion == 3 :
-    # Import nim_core for Python3
-    from .py3.nim_print import *
-
 def debug( msg='' ) :
     'Custom info printer'
     debug = False

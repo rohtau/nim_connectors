@@ -289,7 +289,7 @@ class NIM( object ) :
         if not os.path.isfile( os.path.normpath( filePath ) ) and os.path.isfile( \
                 os.path.normpath( filePath ) ) :
             filePath=os.path.normpath( filePath )
-       if checkfile and  not os.path.isfile( filePath ) :
+        if checkfile and  not os.path.isfile( filePath ) :
             P.error( 'Sorry, the given file path doesn\'t appear to exist...' )
             P.error( '    %s' % filePath )
             return None
