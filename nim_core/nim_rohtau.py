@@ -84,6 +84,8 @@ pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 
 pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'precomp', 'roto', 'dmp']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
+# Geo filetypes
+geo_filetypes = ('Geometry', 'Alembic', 'USD', 'VDB', 'FBX')
 
 class pubOverwritePolicy:
     '''
@@ -1057,9 +1059,15 @@ def checkFileAlreadyPublished( nim ):
         fileinfo = vers[0]
         customkeys = fileinfo['customKeys']
         if 'File Type' in customkeys and customkeys['File Type'] != mycustomkeys['File Type']:
-            res['success'] = False
-            res['type'] = customkeys['File Type']
-            return res
+            # There are several geometry formats and we want to use different
+            # formats in different versions. So compare all geometry formats as
+            # one entity.
+            if customkeys['File Type'] in geo_filetypes and mycustomkeys['File Type'] in geo_filetypes:
+                return res
+            else:
+                res['success'] = False
+                res['type'] = customkeys['File Type']
+                return res
 
     return res
 
