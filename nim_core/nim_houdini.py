@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_houdini.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -12,7 +12,6 @@
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
 
-# rohtau v0.2
 
 #  General Imports :
 import os, sys, traceback
@@ -38,12 +37,16 @@ import toolutils
 #  Import Python GUI packages :
 try : from PySide import QtCore, QtGui
 except :
-    try : from PyQt4 import QtCore, QtGui
-    except : pass
+    try : 
+        from PyQt4 import QtCore, QtGui
+    except :
+        try :
+            from PyQt5 import QtWidgets as QtGui
+            from PyQt5 import QtCore
+        except : 
+            pass
 
 #  Variables :
-# version='v4.0.61'
-# winTitle='NIM_'+version
 from .import version 
 from .import winTitle 
 
@@ -614,21 +617,6 @@ def mk_workspace( proj_folder='', renPath='' ) :
     workspace +='Scenes=./scenes\n'
     workspace +='Sounds=./sceneassets/sound\n'
     workspace +='VideoPost=./vpost\n'
-    workspace +='[XReferenceDirs]\n'
-    workspace +='Dir1=./scenes\n'
-
-    #TODO: UPDATE WITH ACTIVE BITMAP DIRS
-    workspace +='[BitmapDirs]\n'
-    workspace +='Dir1=C:/Program Files/Autodesk/3ds Max 2016/Maps\n'
-    workspace +='Dir2=C:/Program Files/Autodesk/3ds Max 2016/Maps/glare\n'
-    workspace +='Dir3=C:/Program Files/Autodesk/3ds Max 2016/Maps/adskMtl\n'
-    workspace +='Dir4=C:/Program Files/Autodesk/3ds Max 2016/Maps/Noise\n'
-    workspace +='Dir5=C:/Program Files/Autodesk/3ds Max 2016/Maps/Substance\noises\n'
-    workspace +='Dir6=C:/Program Files/Autodesk/3ds Max 2016/Maps/Substance\textures\n'
-    workspace +='Dir7=C:/Program Files/Autodesk/3ds Max 2016/Maps/mental_mill\n'
-    workspace +='Dir8=C:/Program Files/Autodesk/3ds Max 2016/Maps/fx\n'
-    workspace +='Dir9=C:/Program Files/Autodesk/3ds Max 2016/Maps/Particle Flow Presets\n'
-    workspace +='Dir10=./downloads\n'
 
     return workspace
     
@@ -655,7 +643,7 @@ def mk_proj( path='', renPath='' ) :
             if not os.path.isdir( _dir ) :
                 P.info("DIR: %s" % _dir)
                 try : os.mkdir( _dir )
-                except Exception, e :
+                except Exception as e :
                     P.error( 'Failed creating the directory: %s' % _dir )
                     P.error( '    %s' % traceback.print_exc() )
                     return False
@@ -703,7 +691,7 @@ def mk_proj( path='', renPath='' ) :
     
 def stash_frame_range():
     '''
-    Stroe surrent frame and display range in envars for future restore using restore_range
+    Store current frame and display range in envars for future restore using restore_range
 
     Parameters
     ----------

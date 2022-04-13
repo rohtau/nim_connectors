@@ -2,15 +2,16 @@
 #******************************************************************************
 #
 # Filename: nim_api.py
-# Version:  v4.0.61.210104
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
+
 
 # EXAMPLE:
 #   Adding a render to a task
@@ -29,7 +30,6 @@
 #                           startFrame=1, endFrame=128, handles=12, isPublished=False )
 #
 
-# rohtau v0.2
 
 
 #  General Imports :
@@ -66,13 +66,14 @@ except :
     print("NIM API: Failed to load SSL")
     pass
 
-# import mimetools, mimetypes
 if sys.version_info >= (3,0):
     import mimetypes
 else:
     import mimetools, mimetypes
     
 import email.generator as email_gen
+if sys.version_info >= (3,0):
+    from email.generator import _make_boundary as choose_boundary
 import io
 import stat
 
@@ -112,15 +113,6 @@ from .import version
 from .import winTitle 
 from .import nimAPIConnectInfoFile 
 
-'''
-isGUI = True
-try :
-    #Validate Against Terminal
-    if sys.stdin.isatty():
-        isGUI = False
-except :
-    pass
-'''
 
 isGUI = False
 try :
@@ -130,7 +122,7 @@ try :
 except :
     pass
 
-#print "isGUI: %s" % isGUI
+
 
 def testAPI(nimURL=None, nim_apiUser='', nim_apiKey='') :
     sqlCmd={'q': 'testAPI'}
@@ -366,8 +358,11 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
                 cmd=urllib.urlencode(params)
             _actionURL = re.sub('[?]', '', nimURL)
         else :
-            P.error('Connection method not defined in request.')
-            Win.popup( title='NIM Connection Error', msg='NIM Connection Error:\n\n Connection method not defined in request.')
+            if isGUI :
+                Win.popup( title='NIM Connection Error', msg='NIM Connection Error:\n\n Connection method not defined in request.')
+            else :
+                P.error('Connection method not defined in request.')
+            
             return False
 
         try :
@@ -916,7 +911,8 @@ def get_app() :
         return 'Hiero'
     except : pass
     try :
-        import MaxPlus
+        # import MaxPlus
+        import pymxs
         return '3dsMax'
     except : pass
     try :
@@ -936,7 +932,6 @@ def get_app() :
 
 
 #  Users  #
-# getpass is multiplatform
 
 def get_user() :
     'Retrieves the current user\'s username'
@@ -997,11 +992,9 @@ def get_jobs( userID=None, folders=False ) :
         for job in _jobs :
             if not folders :
                 #jobDict[str(job['number'])+'_'+str(job['jobname'])]=str(job['ID'])
-                #jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
                 jobDict[ ' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
             else :
                 #jobDict[str(job['number'])+'_'+str(job['folder'])]=str(job['ID'])
-                #jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
                 jobDict[ ' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
         return jobDict
     except :
@@ -1362,13 +1355,13 @@ def can_bringOnline( item='shot', jobID=0, assetID=0, showID=0, shotID=0 ) :
     params = {}
     params["q"] = 'canBringOnline'
     params["type"] = str(item)
-    if jobID > 0 :
+    if int(jobID) > 0 :
         params["jobID"] = str(jobID)
-    if assetID > 0 :
+    if int(assetID) > 0 :
         params["assetID"] = str(assetID)
-    if showID > 0 :
+    if int(showID) > 0 :
         params["showID"] = str(showID)
-    if shotID > 0 :
+    if int(shotID) > 0 :
         params["shotID"] = str(shotID)
     result = connect( method='get', params=params )
     return result
@@ -1382,9 +1375,9 @@ def bring_online( item='shot', assetID=0, shotID=0 ) :
     params = {}
     params["q"] = 'bringOnline'
     params["type"] = str(item)
-    if assetID > 0 :
+    if int(assetID) > 0 :
         params["assetID"] = str(assetID)
-    if shotID > 0 :
+    if int(shotID) > 0 :
         params["shotID"] = str(shotID)
     result = connect( method='get', params=params )
     return result
@@ -1854,7 +1847,7 @@ def get_tasks( app='all', userType='artist', assetID=None, shotID=None, onlyWith
     result = connect( method='get', params=params )
     return result
 
-def get_taskTypes( app='all', userType='artist', assetID=None, shotID=None, onlyWithFiles=None ) :
+def get_taskTypes( app='all', userType='artist', assetID=None, shotID=None, onlyWithFiles=None, pub=None ) :
     '''
     Retrieves the dictionary of available tasks types.
 
@@ -1889,6 +1882,10 @@ def get_taskTypes( app='all', userType='artist', assetID=None, shotID=None, only
         if onlyWithFiles == True : onlyWithFiles = 1
         else : onlyWithFiles = 0
         params['onlyWithFiles'] = onlyWithFiles
+    if pub is not None : 
+        if pub == True : pub = 1
+        else : pub = 0
+        params['pub'] = pub
 
     result = connect( method='get', params=params )
     return result
@@ -2677,8 +2674,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
 
-        
-
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2736,22 +2731,10 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         int(nim.ID('asset'))
         assetCheck=True
     except : pass
-
-    #  Derive file extension :
-    if F.get_ext( nim.filePath() ) :
-        nim.set_name( elem='fileExt', name=F.get_ext( nim.filePath() ) )
-        nim.set_fileTypeByExt( F.get_ext( nim.filePath() ) )
-
-    # nuke.tprint("================================")
-    # nuke.tprint("Target NIM settings")
-    # nuke.tprint(pformat(nim.get_nim()))
-    # print("Target NIM settings")
-    # print(pformat(nim.get_nim()))
-
     if not shotCheck and not assetCheck :
         msg='Sorry, unable to retrieve Shot/Asset IDs from the current file.'
         if not win_launch :
-            msg +='\n  Please try saving from the NIM GUI'
+            msg +='\n  Please try saving from the NIM > Save As menu.'
         P.error( '\n'+msg )
         P.error( '    File Path = %s' % nim.filePath() )
         nim.Print()
@@ -2872,8 +2855,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             # Update nim dictionary with version info from API
             nim.set_ID('ver', result_addFile)
 
-            # TODO: create function in nim_nuke and nim_houdini
-            # ,set_fileid_var() to update fileID info in scene pub info
             if nim.app()=='Nuke' :
                 from . import nim_nuke as N
                 N.set_fileid_var( result_addFile )
@@ -3020,10 +3001,9 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
                             return False
                     
                     elif nim.app()=='3dsMax' :
-                        import MaxPlus
-                        maxFM = MaxPlus.FileManager
+                        from pymxs import runtime as maxRT
                         try :
-                            maxFM.Open(filePath)
+                            maxRT.loadMaxFile(filePath)
                             #  Set env vars brought over from nim_file
                             P.info('Setting Environment Variables')
                             P.info('NIM: %s \n' % verUpNim.name(elem='base'))
@@ -3264,13 +3244,14 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'File saved, but there was a problem writing to the NIM database.' )
         P.error( '    Database has not been populated with your file.' )
         P.error( str(result) )
-
-    # This function must return the new file ID or empty string
-    P.info( 'NIM API updated with new file.' )
-    P.info( '      File ID = %s' % result )
-    
-    # return True
-    return result['ID']
+        return False
+    else :
+        # This function must return the new file ID or empty string
+        P.info( 'NIM API updated with new file.' )
+        P.info( '      File ID = %s' % result )
+        
+        # return True
+        return result['ID']
 
 def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID=0, basename='', filename='', \
     path='', ext='', version='', comment='', serverID=0, pub=False, forceLink=1, work=True, metadata=None, customKeys=None ) :
@@ -3665,7 +3646,7 @@ def upload_edit( showID=None, path=None, nimURL=None, apiKey=None ) :
 
     params["q"] = "uploadEdit"
     params["showID"] = showID
-    
+
     if path is not None :
         path = os.path.normpath( path )
         if os.path.isfile(path) :
@@ -3773,7 +3754,7 @@ def upload_dailiesNote( dailiesID=None, name='', img=None, note='', frame=0, tim
         result['error'] = "Image file not defined"
         return result
 
-    params["note"] = note.encode('ascii')
+    params["note"] = note
     params["frame"] = frame
     params["time"] = time
     params["userID"] = userID
