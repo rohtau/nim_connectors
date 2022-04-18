@@ -1086,16 +1086,21 @@ class NIM( object ) :
             filetype = 'Image'
         elif myext in ('geo', 'bgeo', 'bgeo.sc', 'vdb', 'obj'):
             filetype = 'Geometry'
-        elif myext in ('vdb'):
+        elif myext == 'vdb':
             filetype = 'VDB'
-        elif myext in ('fbx'):
+        elif myext == 'fbx':
             filetype = 'FBX'
         elif myext in ('usd', 'usdc', 'usda'):
             filetype = 'USD'
         elif myext in ('mov', 'mp4'):
             filetype = 'Movie'
-        elif myext in ('abc'):
+        elif myext == 'abc':
             filetype = 'Alembic'
+        elif myext == 'ass':
+            filetype = 'Arnold Archive'
+        elif myext == 'rs':
+            filetype = 'Redshift Proxy'
+
         if filetype:
             self.nim['fileExt']['fileType']=filetype
         else:

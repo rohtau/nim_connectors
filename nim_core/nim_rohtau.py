@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Thursday, 17 March 2022 5:33:57 PM CUT
+Last Modified: Wednesday, 13 April 2022 18:55:13 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -85,7 +85,7 @@ pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 # Geo filetypes
-geo_filetypes = ('Geometry', 'Alembic', 'USD', 'VDB', 'FBX')
+geo_filetypes = ('Geometry', 'Alembic', 'USD', 'VDB', 'FBX', 'Arnold Archive', 'Redshift Proxy')
 
 class pubOverwritePolicy:
     '''
@@ -1680,8 +1680,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     if comment.strip("''"):
         pubcomment += ". " + comment.strip("'")
     metadata = {
-        'elementID'      : res['elementID'],
-        'extraElementsID': res['extraElementsID']
+        'elementID':       res['elementID'],
+        'extraElementsID': res['extraElementsID'],
+        'startFrame':      start,
+        'endFrame':        end
     }
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
