@@ -81,13 +81,22 @@ import stat
 # #from . import nim as Nim
 # from . import nim_api as Api
 if sys.version_info >= (3,0):
-    from . import nim          as Nim
-    from . import nim_file     as F
-    from . import nim_prefs    as Prefs
-    from . import nim_print    as P
-    from . import nim_tools
-    from . import nim_win      as Win
-    from . import nim_rohtau   as Rt
+    try:
+        from . import nim          as Nim
+        from . import nim_file     as F
+        from . import nim_prefs    as Prefs
+        from . import nim_print    as P
+        from . import nim_tools
+        from . import nim_win      as Win
+        from . import nim_rohtau   as Rt
+    except ImportError as e:
+        import nim          as Nim
+        import nim_file     as F
+        import nim_prefs    as Prefs
+        import nim_print    as P
+        import nim_tools
+        import nim_win      as Win
+        import nim_rohtau   as Rt
 else:
     import nim          as Nim
     import nim_file     as F
@@ -511,7 +520,7 @@ if sys.version_info >= (3,0):
         _actionURL = re.sub('[?]', '', nimURL)
 
 
-        P.info("API URL: %s" % _actionURL)
+        # P.info("API URL: %s" % _actionURL)
         
         # Test for SSL Redirection
         isRedirected = False
@@ -536,7 +545,7 @@ if sys.version_info >= (3,0):
             if nimURL.startswith('http:') and finalurl.startswith('https'):
                 isRedirected = True
                 _actionURL = _actionURL.replace("http:","https:")
-                P.info("Redirect: %s" % _actionURL)
+                # P.info("Redirect: %s" % _actionURL)
         except Exception as e:
             P.error("Failed to test for redirect: %s"%e)
 
@@ -578,7 +587,7 @@ if sys.version_info >= (3,0):
             data = urllib.parse.urlencode(filterparams).encode("ascii")
             result = opener.open(_actionURL, data).read()
 
-            P.info( "Result: %s" % result )
+            # P.info( "Result: %s" % result )
 
             # Test for failed API Validation
             if type(result)==type(list()) and len(result)==1 :
@@ -734,7 +743,7 @@ else:
 
         _actionURL = nimURL.encode('ascii')
 
-        P.info("API URL: %s" % _actionURL)
+        # P.info("API URL: %s" % _actionURL)
         
         # Test for SSL Redirection
         isRedirected = False
@@ -758,7 +767,7 @@ else:
             if nimURL.startswith('http:') and finalurl.startswith('https'):
                 isRedirected = True
                 _actionURL = _actionURL.replace("http:","https:")
-                P.info("Redirect: %s" % _actionURL)
+                # P.info("Redirect: %s" % _actionURL)
         except:
             P.error("Failed to test for redirect.")
 
@@ -783,7 +792,7 @@ else:
 
         try:
             result = opener.open(_actionURL, params).read()
-            P.info( "Result: %s" % result )
+            # P.info( "Result: %s" % result )
 
             # Test for failed API Validation
             if type(result)==type(list()) and len(result)==1 :
@@ -883,10 +892,6 @@ else:
         
         def https_request(self, request):
             return self.http_request(request)
-
-    
-   
-    
 
 
 #  API Functions  #
@@ -2447,7 +2452,7 @@ def get_bases( shotID=None, assetID=None, showID=None, task='', taskType=None, t
 def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
     '''
     Retrieves the dictionary of the published file for a given basename.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 
@@ -2480,7 +2485,7 @@ def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
 def get_basesAllPub( shotID=None, assetID=None, task=None, taskID=None, username=None ) :
     '''
     Retrieves the dictionary of all available published basenames for a given asset or shot.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 
@@ -2796,7 +2801,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             # pprint(latestver)
             if 'customKeys' in latestver and 'File Type' in latestver['customKeys']:
                 basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
-                if basenameapp != nim.app():
+                if basenameapp != nim.app() and basenameapp != 'Scene':
                     msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
                     Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
                     P.error(msg)
@@ -2867,7 +2872,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             # Update nim dictionary with version info from API
             nim.set_ID('ver', result_addFile)
 
-            # TODO: create funciton in nim_nuke and nim_houdini
+            # TODO: create function in nim_nuke and nim_houdini
             # ,set_fileid_var() to update fileID info in scene pub info
             if nim.app()=='Nuke' :
                 from . import nim_nuke as N
@@ -2878,7 +2883,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             else:
                 nimP.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
             
-            # Update published file with File Type denpending on the app
+            # Update published file with File Type depending on the app
             customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}
             updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
 
@@ -3142,7 +3147,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if not projPath :
         app=F.get_app()
         prefs=Prefs.read()
-        ''' DEPREICATED - REMOVING DEFAULT SERVER PATH FROM PREFS
+        ''' DEPRECATED - REMOVING DEFAULT SERVER PATH FROM PREFS
         if prefs and app+'_DefaultServerPath' in prefs.keys() :
             projPath=prefs[app+'_DefaultServerPath']
         '''

@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 02 November 2021 18:12:42 CUT
+Last Modified: Thursday, 17 March 2022 5:33:57 PM CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -24,6 +24,7 @@ import json
 import shutil
 import stat
 import getpass
+import copy
 from glob import glob
 from subprocess import Popen
 from datetime   import datetime
@@ -126,7 +127,7 @@ class reviewType:
     NOTYPE        = 0 # Disable review type
     DAILY         = 1 # Review for dailies
     EDIT          = 2 # Review for Editorial
-    REF           = 3 # Review used for referrencies
+    REF           = 3 # Review used for referencies
     MAKEOF        = 4 # Used for making offs
     name          = ('N/A', 'Daily', 'Edit', 'Reference', 'Making Of') # types names
 
@@ -150,6 +151,21 @@ class taskStatusID:
     APPROVED        = 19
     BLOCKED         = 20
 
+class elementTypeID:
+    '''
+    Enum for Element Type ID in NIM
+    '''
+    COMPS    = 1
+    RENDERS  = 2
+    ROTO     = 3
+    PLATES   = 4
+    DMP      = 5
+    CACHE    = 6
+    CAM      = 7
+    IBL      = 11
+    TEX      = 12
+    PRECOMP  = 13
+    FLIPBOOK = 14
 
 def toPosix( path, force=False ):
     '''
@@ -198,7 +214,7 @@ def openPath( path ):
 
     return True
 
-def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
+def elementTypeFolder( elementtype, parent=None, parentID=None):
     '''
     Based on an element type name or ID and a selected shot/asset return it's folder path.
     The path will be relative to the parent shot/asset
@@ -224,8 +240,18 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
     elementname=""
     folder = ""
     if len(elementtype) > 0:
-        elmtsTypes = nimAPI.get_elementTypes()
-        # pprint(elmtsTypes)
+        if elementtype.isdigit():
+            elmtsTypes = nimAPI.get_elementTypes()
+            # pprint(elmtsTypes)
+            elementid = int(elementtype)
+            for elm in elmtsTypes:
+                if elm['name'] == elementtype:
+                    elementname = elm['name']
+                    break
+        else:
+            elementname = elementtype
+
+        '''
         if not elementtype.isnumeric():
             elementname = elementtype
             for elm in elmtsTypes:
@@ -233,19 +259,25 @@ def elementTypeFolder( elementtype, parent, parentID, outFullPath=False ):
                     elementid = elm['ID']
                     break
         else:
+            elmtsTypes = nimAPI.get_elementTypes()
+            # pprint(elmtsTypes)
             elementid = int(elementtype)
             for elm in elmtsTypes:
                 if elm['name'] == elementtype:
                     elementname = elm['name']
                     break
+        '''
     else:
         nimP.error("Element type is an empty string. Please set an element type name or ID")
         return ""
 
-    basepaths = nimAPI.get_paths( item=parent, ID=parentID )
-    basepath = basepaths['root']
     if elementname in ('plates', 'renders', 'comps'):
-       folder =  basepaths[elementname].replace(basepath + '/', '')
+        if not parent or not parentID:
+            nimP.error("plates,  renders or comps requires a parent (shot/asset) and parent ID in order to get the correct element folder location")
+            return ""
+        basepaths = nimAPI.get_paths( item=parent, ID=parentID )
+        basepath  = basepaths['root']
+        folder    = basepaths[elementname].replace(basepath + '/', '')
     else:
         # Put non special elements under the pub folder
         folder = "pub/%s"%elementname
@@ -473,7 +505,7 @@ def getEXRMetadataAttrsDict(  renderscene, outputpath, job="", jobid=0, show="",
 
     return attrs
 
-def runAsyncCommand( cmd, timeout=120 ):
+def runAsyncCommand( cmd, env=None, timeout=120 ):
     '''
     Run a command asynchronously.
 
@@ -481,19 +513,25 @@ def runAsyncCommand( cmd, timeout=120 ):
     ----------
         cmd : str
             command string
+        env : str
+            Dictionary providing a different execution environment
         timeout : int
             Number of second to wait for command to be executed
 
     Returns:
-        bool -- True if the command finished with errorcode 0, False other wise
+        bool
+            True if the command finished with errorcode 0, False other wise
     '''
     args = shlex.split(cmd, posix=platform.system() != 'Windows')
     # print(args)
     # timeout = 60*2 #some amount of seconds
     delay = 1.0
+
+
         
     try:
-        proc = Popen(args, shell=True, stderr=subprocess.STDOUT)
+        # proc = Popen(args, shell=True, stderr=subprocess.STDOUT)
+        proc = Popen(args, shell=True, stderr=subprocess.STDOUT, env=env)
     except subprocess.CalledProcessError as e:
         nimP.error( "Command Failed (Error Code: %d): %s "%(e.returncode, cmd))
         nimP.error( "Failed command Output:\n%s"%e.output)
@@ -530,7 +568,7 @@ def runAsyncCommand( cmd, timeout=120 ):
 
     return True
 
-def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', fileinfo=None, verbose=False):
+def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', fileinfo=None, isflipbook=False, verbose=False):
     '''
     Create a movie or image for review from a image sequence using Deadline's Draft
     
@@ -541,11 +579,13 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     Draft Template
     --------------
     The default Draft template is:
-        /studio/pipeline/deadline/draft/standaloneDraftCreateSimpleMovie.py
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py
     It can be override using the envar RT_DRAFT_TEMPLATE
     Or with the drafttemplate argument
     For still frames reviews this is the template:
-        /studio/pipeline/deadline/draft/standaloneDraftCreateStill.py
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateStill.py
+    For flipbooks:
+        /studio/pipeline/deadline/draft/standaloneRohtauDraftCreateFlipbook.py
 
     Parameters
     ----------
@@ -563,6 +603,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         Override OCIO color role, by default ''. For example: color_picking
     fileinfo: dict, optional
         Publish information for the render, needed to add information to slates and watermarks
+    isflipbook : bool, optional
+        Whether or not we are creating a movie for a flipbook, it uses a different template
     verbose : bool, optional
         Output extra information, by default False
 
@@ -586,9 +628,12 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     if frameslist[0] == frameslist[1]:
         isstillframe = True
     # Default studio Draft template, or use override from envvar or override from argument.
-    draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py"
+    # draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateReview.py"
+    draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateReview.py"
     if isstillframe:
-        draftTemplate="/studio/pipeline/deadline/draft/standaloneRohtauDraftCreateStill.py"
+        draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateStill.py"
+    if isflipbook:
+        draftTemplate="\studio\pipeline\deadline\draft\standaloneRohtauDraftCreateFlipbook.py"
 
     if 'RT_DRAFT_TEMPLATE' in os.environ:
         draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
@@ -618,7 +663,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 
         cmd += " show=%s "%entityinfo['showName'] if fileinfo['fileClass'] == 'SHOT' else ""
         cmd += " jobnumber=%s "%entityinfo['jobNumber']
-        cmd += " jobname=%s "%entityinfo['jobName']
+        cmd += " jobname=%s "%entityinfo['jobName'].replace(" ", "_")
         fullname   = nimUtl.getuserFullName(fileinfo['username'])
         fullname   = fullname.replace(" ", "_")
         cmd += " task=%s "%nimUtl.gettasksTypesIDDict()[int(fileinfo['task_type_ID'])]
@@ -627,13 +672,13 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         cmd += " username=%s "%username
         cmd += " fullname=%s "%fullname
         cmd += " fileid=%d "%int(fileinfo['fileID']) 
-        cmd += " entity=%s "%entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else entityinfo['assetName']
+        # cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else entityinfo['assetName'])
+        cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else nimUtl.getassetFullName(int(fileinfo['parentID'])))
         cmd += " version=v%s "%fileinfo['version'].zfill(3)
         cmd += " startFrame=%s "%start
         cmd += " taskStartFrame=%s "%start
         cmd += " endFrame=%s "%end
         cmd += " taskEndFrame=%s "%end
-
 
 
     cmd += " frameList=%s-%s"%(start, end)
@@ -665,28 +710,28 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
             outdraft = outfile
     if not os.path.exists( outdraft ):
         try:
-            os.makedirs( outdraft ) 
+            os.makedirs( outdraft )
         except:
             raise
     outdraft = os.path.join(outdraft, draftname)
     cmd += " outFile=%s "%outdraft
+    # Modify environment to force execution using python2.Deadline's dpython
+    # only uses python 2.7 .
+    env = copy.deepcopy(os.environ)
+    # env['PYTHONHOME'] = "C:\opt\python\python27"
+    env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        os.environ.update(thinkboclivenv)
-    if not runAsyncCommand( cmd, timeout = 5*60 ):
-        nimP.error("Can't create Draft review movie: %s"%outdraft)
+        env.update(thinkboclivenv)
+    # print("Slate command:")
+    # print(cmd)
+    if not runAsyncCommand( cmd, env=env, timeout=10*60 ):
+        if isstillframe:
+            nimP.error("Can't create review image: %s"%outdraft)
+        else:
+            nimP.error("Can't create review movie: %s"%outdraft)
         return False
-    '''
-    try:
-        ret = subprocess.check_output(cmd, shell=True)
-    except subprocess.CalledProcessError as e:
-        nimP.error( "Command (ErrorCode: %d): %s "%(e.returncode,cmd))
-        nimP.error("Output:")
-        print(e.output)
-    except FileNotFoundError:
-        nimP.error( "Command is not available in PATH")
-    '''
     
     return outdraft
 
@@ -935,9 +980,12 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     # Fix shot name so assets full names (category + asset) is correct. This
     # will convert and asset name like vehicles/mercedes -> vehicles_mercedes
     # Shot names never have a / so they won't be modified by this
-    assetshot = shot.replace('/', '_') 
+    assetshot = shot.replace('/', '_')
     basename = buildBasename( assetshot, task, name, elemtype=elem, layer=layer)
-    loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
+    if elem in ('plates', 'comps', 'renders'):
+        loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
+    else:
+        loc = os.path.normpath( os.path.join(baseloc, elem, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 
@@ -1117,16 +1165,29 @@ def createRenderIcon( elementInfo ):
     cmd += " inFile=%s "%middlepath
     # Out render icon path
     cmd += " outFile=%s "%iconpath
+    # Modify environment to force execution using python2.Deadline's dpython
+    # only uses python 2.7 .
+    env = copy.deepcopy(os.environ)
+    py2path = "\opt\python\python27"
+    if os.path.exists(py2path):
+        env['PYTHONHOME'] = os.path.normpath(py2path)
+        nimP.info("PYTHONHOME set to \opt\python\python27 needed for Draft's dpython.")
+    else:
+        nimP.warning("Couldn't find py27 install (%s), assume default python in the system is 2.7")
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        os.environ.update(thinkboclivenv)
+        env.update(thinkboclivenv)
     try:
-        ret = subprocess.check_output(cmd, shell=True)
+        ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
     except subprocess.CalledProcessError as e:
         nimP.error("Draft command for render icon generation: %s "%cmd)
         nimP.error("Command: %s"%e.cmd)
-        nimP.error("Outut: %s"%e.output)
+        if e.output:
+            nimP.error("Output: %s"%e.output)
+        if sys.version_info >= (3,0):
+            if e.stderr:
+                nimP.error("Stderr: %s"%e.stderr)
         nimP.error("Error code: %d"%e.returncode)
         return False
     except FileNotFoundError:
@@ -1204,7 +1265,8 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
     '''
     nimFromFile = nim is None
     if not nim and filepath:
-        nim = Nim.NIM().ingest_filePath( filepath )
+        # Dent do extra checkfile, the point is to get a task from the filepath
+        nim = Nim.NIM().ingest_filePath( filepath, checkfile=False )
     task    = nim.name('task')
     if not task:
         msg = "Couldn't detect a task from provided %s"%("NIM object", "path: %s"%filepath)[nimFromFile]
@@ -1342,7 +1404,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
     The path needs to be under the project root folder.
-    Use pubimport() to move data from an arbitrary location into the project according to the publishing details
+    Use pubImport() to move data from an arbitrary location into the project according to the publishing details
     All publishing information will be extracted from the path, so it is suggested to use nim_rohtau.publishOutputPath()
     to correctly construct the path according with our name convention
 
@@ -1457,7 +1519,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     posixpath = toPosix( path )
     # Normalize padding format
     posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
-    osixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
+    posixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
     posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
 
@@ -1660,6 +1722,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     elm = nimAPI.find_elements( name=nim.name('file'), assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', \
         shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
     elm = elm[0]
+
+    # print("Pub structures")
+    # pprint(info)
+    # pprint(elm)
 
     if verbose and not plain and not jsonout and not profile:
         nimP.info("Publishing Details:")
@@ -2128,7 +2194,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             try:
                 # Test ISO format
                 endtimedate = datetime.fromisoformat(endtimedate)
-                endtime = end.strftime("%Y-%m-%d %H:%M:%S")
+                endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError as e:
                 nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
                 endtimedate = ''
@@ -2250,6 +2316,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         - ID: string with renderID number
         - reviewID: render review ID
     '''
+    # nimP.info(pformat(locals())) # Debug arguments
     ver = 0
     parentname = ""
     jobid, jobnumber = 0, ""
@@ -2338,6 +2405,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
                     break
     else:
         # Grab just published info
+        nimP.info("File ID= %d"%fileID)
         info = nimAPI.get_verInfo( fileID )
         fileInfo = info[0]
 
@@ -2460,7 +2528,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             nimP.info("Create render review ......")
         draft    = createDraftMovie( path, str(frange), fileinfo=fileInfo)
         if not draft:
-            return False
+            msg = "Error creating Review movie for render publishing. Please check output terminal for more details"
+            # nimP.error(msg, showwindow=False)
+            res['success'] = False
+            res['msg']     = msg
+            return res
 
         # Create review
         draftPosix = toPosix(draft)
@@ -2482,7 +2554,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
                 m = p.search(res_review)
                 if m:
                     res['reviewID'] = int(m.group(1))
-                    nimP.info("Review created #%s. Media type: %s"%(m.group(1), m.group(2)))
+                    # nimP.info("Review created #%s. Media type: %s"%(m.group(1), m.group(2)))
+                    nimP.info("Review created: %s"%draft)
 
     if not res:
         res['success'] = False
@@ -2543,7 +2616,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     # print("File Info:")
     # pprint(info)
     path = fileInfo['filepath']
-    name =  fileInfo['filename'] 
+    name =  fileInfo['filename']
     # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
     fileparts = nimUtl.splitName(name)
     rendername = fileparts['base'] + "__" + "v%s"%str(fileparts['ver']).zfill(padding)
@@ -2561,7 +2634,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     # Check availability:
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
-        nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
+        nimP.warning("File is not set as available. There could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
     elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=pid if parent.upper()=='ASSET' else '', shotID=pid if parent.upper()=='SHOT' else '')
     if elementInfo:
         elementInfo=elementInfo[0]
@@ -2572,7 +2645,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
         res['msg'] = "Couldn't find an element for the render: %s"%name
         return res
     if elementInfo['taskID']:
-        taskid = int(elementInfo['taskID']) 
+        taskid = int(elementInfo['taskID'])
         if not taskID:
             taskid = taskid
     else:
@@ -2580,12 +2653,15 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
 
     keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
     if renderID:
-        res_review = nimAPI.upload_reviewItem( itemID=renderID, itemType='render', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=renderID, itemType='render', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
     elif taskID:
-        res_review = nimAPI.upload_reviewItem( itemID=taskID, itemType='task', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=taskID, itemType='task', renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
 
     else:
-        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords) 
+        res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
+
+    if sys.version_info >= (3,0):
+        res_review = res_review.decode('utf-8')
 
     # Return review ID
     # print("Review result:")
@@ -2806,6 +2882,19 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
 # UI
 #
 if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtGui' in sys.modules:
+
+    def getNukeMainWindow():
+        """Get the Nuke main window.
+        Returns:
+        PySide2.QtWidgets.QMainWindow: 'DockMainWindow' Nuke 
+            main window.
+        """
+        for w in QtGui.QApplication.topLevelWidgets():
+            if w.inherits('QMainWindow') and w.metaObject().className() == \
+                    'Foundry::UI::DockMainWindow':
+                return w
+        raise RuntimeError('Could not find DockMainWindow instance')
+
     class DisplayMessage( QtGui.QDialog ) :
 
         def __init__(self, msg, title="Display Message", buttons=("Ok",), default_button=0, details="", parent=None) :
@@ -2927,3 +3016,135 @@ if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtG
             return value
 
         pass
+
+
+    # class DisplayPublishOutput( QtGui.QMainWindow ) :
+    class DisplayPublishOutput( QtGui.QDialog ) :
+
+        def __init__(self, stream, title="NIM Publishing", buttons=("Ok", "Cancel"), default_button=0, details="", parent=None) :
+            '''
+            Modal dialog that show the output of a publishing process using createRender(), pubImport() or pubPath().
+
+            Parameters
+            ----------
+            stream : Pipe
+                Pipe to get output from
+            title : str
+                Window title.
+            buttons : tuple
+                Buttons labels
+            default_button : int
+                Index for default button in dialog. This button will be assumed in case dialog is closed.
+            details : str
+                Some optional extra info
+            parent : QTWindow
+                Parent window. Look & Feel will be inherited from this parent window.
+            '''
+            if not parent:
+                parent = getNukeMainWindow()
+            super( DisplayPublishOutput, self ).__init__(parent)
+            self.value          = default_button
+            self.stream            = stream
+            self.title          = title
+            self.labels         = buttons
+            self.default_button = default_button
+            self.details        = details
+            self.buttons        = []
+            self.Info           = 0
+            self.Warning        = 1
+            self.Error          = 2
+            
+            #  Layouts :
+            self.layout=QtGui.QVBoxLayout()
+            self.setLayout( self.layout )
+            
+            #  Text :
+            self.textLayout = QtGui.QHBoxLayout()
+            # self.icon = QtGui.QLabel() 
+            # TODO: add severity parameter and change icon accordantly 
+            # https://joekuan.files.wordpress.com/2015/09/screen3.png
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxInformation))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxQuestion))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxWarning))
+            # self.icon.setPixmap(self.style().standardPixmap(self.style().SP_MessageBoxCritical))
+            self.text=QtGui.QLabel(self.stream)
+            # self.textLayout.addWidget(self.icon)
+            self.textLayout.addWidget(self.text)
+            self.layout.addLayout( self.textLayout )
+            # Details
+            self.detail=QtGui.QTextEdit(self.details)
+            if self.details:
+                self.detail.setReadOnly( True )
+                self.detail.hide()
+                self.layout.addWidget( self.detail )
+            
+            #  Button Layout :
+            self.btn_layout=QtGui.QHBoxLayout()
+            self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+            self.btn_layout.addStretch()
+
+            #  Create Buttons :
+            if builtin_mod_available:
+                buttons_labels_idx = zip(self.labels, list(range(len(self.labels))))
+            else:
+                buttons_labels_idx = zip(self.labels, range(len(self.labels)))
+                
+            for label, idx in buttons_labels_idx:
+                button = QtGui.QPushButton( label )
+                button.my_own_data = str(idx)  # <<< set your own property
+                button.clicked.connect( self.click_handler )
+                sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,QtGui.QSizePolicy.Preferred)
+                button.setSizePolicy( sizePolicy )
+                self.btn_layout.addWidget( button )
+            if self.details:
+                button = QtGui.QPushButton( "Show Details ..." )
+                button.clicked.connect( self.click_details )
+                self.btn_layout.addWidget( button )
+                
+
+            # Title
+            self.setWindowTitle(title)
+
+            # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)    
+            self.setWindowFlags(self.windowFlags() | QtCore.Qt.Tool)    
+            self.setModal( False )
+            self.show()
+            
+            return
+        
+        def click_handler( self ) :
+            'Sets the value to be returned, when a button is pushed'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            data = target.my_own_data  # <<< get your own property
+            self.value = int(data)
+            self.close()
+            return
+
+        def click_details( self ) :
+            'Show details text'
+            target = self.sender()  # <<< get the event target, i.e. the button widget
+            self.detail.show()
+            # data = target.my_own_data  # <<< get your own property
+            # self.value = int(data)
+            # self.close()
+            return
+        
+        def btn(self) :
+            'Returns the button that was pushed'
+            return self.value
+
+        def CloseEvent( self, event):
+            print("Closing ....")
+        
+        @staticmethod
+        def get_btn( stream, buttons=("Ok","Cancel"), default_button=0, details='', parent=None )  :
+            'Returns the name of the button that was pushed'
+            dialog=DisplayPublishOutput( stream, buttons=buttons, default_button=default_button, details=details, parent=parent)
+            # mainapp = QtGui.QApplication.activeWindow()
+            # dialog=DisplayMessage( stream, title=title, buttons=buttons, default_button=default_button, parent=mainapp)
+            result=dialog.exec_()
+            value=dialog.btn()
+            return value
+
+        pass
+

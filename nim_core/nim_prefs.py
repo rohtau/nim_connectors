@@ -26,6 +26,8 @@ except:
 # from future.standard_library import install_aliases
 # install_aliases()
 # from urllib.parse import urlparse
+from pprint import pprint
+from pprint import pformat
 
 # Hack to use urllib in Python 2 and 3
 if sys.version_info >= (3,0):
@@ -35,10 +37,16 @@ else:
 
 #  NIM Imports :
 if sys.version_info >= (3,0):
-    from . import nim_api as Api
-    from . import nim_file as F
-    from . import nim_print as P
-    from . import nim_win as Win
+    try:
+        from . import nim_api as Api
+        from . import nim_file as F
+        from . import nim_print as P
+        from . import nim_win as Win
+    except ImportError as e:
+        import nim_api as Api
+        import nim_file as F
+        import nim_print as P
+        import nim_win as Win
 else:
     import nim_api as Api
     import nim_file as F

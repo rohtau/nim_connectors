@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 28 January 2021 12:34:53 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Sunday, 07 November 2021 19:43:06 CUT
+Last Modified: Thursday, 17 March 2022 2:04:57 PM CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2021, rohtau
@@ -810,6 +810,32 @@ def getassetcategory(assetid):
 
     return ""
 
+def getassetFullName(assetid, assetname="", cat=""):
+    """
+    Given an asset id, return it's full name.
+    An asset full name is the category path plus the asset name.
+
+    Parameters:
+        assetid(int): asset ID in case the asset name is not passed.
+        assetname(str): name of the asset, if not passed then assetid is used to retrieve from NIM
+        cat(str): asset category. If not passed will be retrieved from NIM using assetid
+
+    Example:
+        character/crag
+        vehicle/car/mercedesSLK
+
+    If asset doesn't exists, or category is not defined then return empty string
+    """
+    if not assetname:
+        assetinfo = nimAPI.get_assetInfo(assetid)[0]
+        if not assetinfo:
+            return ""
+        assetname = assetinfo['assetName']
+    if not cat:
+        cat = getassetcategory(assetid)
+        if not cat:
+            return ""
+    return cat + '/' + assetname
 
 def getassetPkgName(assetid, assetname="", cat=""):
     """
@@ -828,6 +854,7 @@ def getassetPkgName(assetid, assetname="", cat=""):
 
     If assets doesn't exists then return empty string
     """
+    # TODO: change this function to use getassetFullName() and then replace
     if not assetname:
         assetinfo = nimAPI.get_assetInfo(assetid)[0]
         if not assetinfo:
@@ -860,7 +887,6 @@ def gettasksTypesIDDict():
         tasksid[int(task['ID'])] = task['name']
     return tasksid
 
-
 def gettasksIDDict(jobid):
     '''
     Create a dictionary with ID as keys and task name as value
@@ -883,7 +909,6 @@ def gettasksIDDict(jobid):
         tasksid[int(task['ID'])] = task['name']
     return tasksid
 
-
 def gettaskTypesIdFromName(taskname):
     """
     From a task name returns it's ID
@@ -903,7 +928,6 @@ def gettaskTypesIdFromName(taskname):
             return int(task['ID'])
 
     return 0
-
 
 def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
     '''
@@ -944,7 +968,6 @@ def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
     result = nimAPI.connect(method='get', params=params, nimURL=custom_nim_url)
     return result
-
 
 def getuserTask(userid, tasktype, parent, parentID):
     '''
@@ -1434,6 +1457,8 @@ def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid
     if tasks:
         basenames = {key: value for ( key, value ) in basenames.items() if int(basenames[key][0]['task_type_ID']) in tasks}
     if elementid:
+        if isinstance(elementid, int) or elementid.isdigit():
+            elementid = getelementsIDDict()[int(elementid)]
         basenames = {key: value for ( key, value ) in basenames.items() if basenames[key][0]['customKeys']['Element Type'] == str(elementid)}
     if name:
         basenames = {key: value for ( key, value ) in basenames.items() if re.search(name, key) is not None}
@@ -1504,13 +1529,16 @@ def splitName(filename, error=True):
         return False
     fileparts['base'] = '__'.join(basenameparts[:-1])  # Exclude ver part
     ver = 0
-    # Version is always the 3rd or 4th element. assumin is the last is wrong, we
-    # can ad sufixes to the name, like in the render scene where we add  a time
+    # Version is always the 3rd or 4th element. Assuming is the last is wrong, we
+    # can ad suffixes to the name, like in the render scene where we add  a time
     # stamp.
     verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
     if verstr.startswith('v') or verstr.startswith('v'): 
         # There is version part
-        ver = verstr[1:]  # Get ver part and remove the initial v
+        # Get ver part and remove the initial v. Do a split('_')  in case there
+        # is a suffix for the version number. This is used for instance for
+        # published: v005_PUB
+        ver = verstr.split('_')[0][1:]  
         if ver is not None and not ver.isdigit():
             if error:
                 nimP.error("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
@@ -1523,8 +1551,9 @@ def splitName(filename, error=True):
         else:
             fileparts['tag']  = '' # tag is not mandatory
     else:
-        # No version part
+        # No version part, get tag and fix basename
         fileparts['tag']  = basenameparts[2]
+        fileparts['base'] = '__'.join(basenameparts)  #Pure basename passed, with no ver string
     fileparts['shot'] = basenameparts[0]
     task              = basenameparts[1]
     fileparts['task'] = task.split('_')[0] if task.count('_') else task
@@ -1556,6 +1585,11 @@ def getuserID(username):
 def getuserName(userid):
     '''
     Get user name from ID
+
+    Parameters
+    ----------
+    userid : int
+        User ID
 
     Returns
     -------
@@ -1605,7 +1639,8 @@ def getuserFullName( username ):
     fullname = username
     if platform.system() == 'Windows':
         username = getpass.getuser()
-        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             universal_newlines=True)
         info, err = p.stdout.read(), p.stderr.read()
         fullname = re.findall(r'Full Name\s+(.*\S)', info)
         if not fullname:

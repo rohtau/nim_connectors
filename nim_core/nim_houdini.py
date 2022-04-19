@@ -16,13 +16,22 @@
 
 #  General Imports :
 import os, sys, traceback
-import nim as Nim
-import nim_file as F
-import nim_print as P
-import nim_api as Api
-import nim_rohtau as Rt
-import nim_rohtau_utils as Utl
 from pprint import pprint, pformat
+# NIM imports
+try:
+    import nim as Nim
+    import nim_file as F
+    import nim_print as P
+    import nim_api as Api
+    import nim_rohtau as Rt
+    import nim_rohtau_utils as Utl
+except ImportError as e:
+    from . import nim as Nim
+    from . import nim_file as F
+    from . import nim_print as P
+    from . import nim_api as Api
+    from . import nim_rohtau as Rt
+    from . import nim_rohtau_utils as Utl
 #  Houdini Imports :
 import hou
 import toolutils
@@ -176,7 +185,6 @@ def set_taskid_var( taskid ):
     return True
 
 
-
 def dump_vars( ):
     from pprint import pformat
 
@@ -278,7 +286,7 @@ def check_vars():
             errors += "HIP data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimpubdata.name('task')
             iserror = True
         elif (pubtask['taskID'] != nimhipdata['nim_taskID']) or (pubtask['taskName'] != nimhipdata['nim_task']):
-            errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(task['taskName'], task['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
+            errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(pubtask['taskName'], pubtask['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
             iserror = True
         
     if not pubtask and hou.isUIAvailable():
@@ -800,7 +808,7 @@ def set_globals():
         msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
                                                                                    last-shotglobals['handles'])
     else:
-        msg += "- WARNING: No Frame Range information for this shot w "
+        msg += "- WARNING: No Frame Range information for this shot"
 
 
     if msg:
@@ -891,7 +899,7 @@ def set_preroll():
                         title='Set Scene Pre-Roll for Simulation ...', initial_contents=str(preroll))
         if not res[0] and res[1].isdigit():
             hou.setUpdateMode(hou.updateMode.Manual)
-            frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
+            frames = frames
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
             last = 1001 + frames - 1

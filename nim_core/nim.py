@@ -21,10 +21,16 @@ from pprint import pprint
 from pprint import pformat
 
 if sys.version_info >= (3,0):
-    from . import nim_api as Api
-    from . import nim_file as F
-    from . import nim_prefs as Prefs
-    from . import nim_print as P
+    try:
+        from . import nim_api as Api
+        from . import nim_file as F
+        from . import nim_prefs as Prefs
+        from . import nim_print as P
+    except ImportError as e:
+        import nim_api as Api
+        import nim_file as F
+        import nim_prefs as Prefs
+        import nim_print as P
 else:
     import nim_api as Api
     import nim_file as F
@@ -667,7 +673,10 @@ class NIM( object ) :
     
     def Input( self, elem='job' ) :
         'Retrieves the input widget for a given element'
-        return self.nim[elem]['input']
+        if isinstance(self.nim[elem], dict) and 'input' in self.nim[elem]:
+            return self.nim[elem]['input']
+        else:
+            return None
     
     def Dict( self, elem='job' ) :
         'Gets the dictionary associated with a given element'
@@ -809,7 +818,8 @@ class NIM( object ) :
     
     def set_input( self, elem='job', widget=None ) :
         'Sets the input widget for a given element'
-        self.nim[elem]['input']=widget
+        if isinstance(self.nim[elem], dict) and 'input' in self.nim[elem]:
+            self.nim[elem]['input']=widget
         return
     
     def set_baseDict( self, Dict={} ) :
@@ -829,6 +839,10 @@ class NIM( object ) :
                 if self.nim[elem]['Dict'] == False :
                     P.error("Failed to Set NIM Dictionary")
                     return False
+                else:
+                    # Convert Job Ids to int
+                    for job in self.nim[elem]['Dict']:
+                        self.nim[elem]['Dict'][job] = int(self.nim[elem]['Dict'][job].decode('utf-8'))
         elif elem=='asset' :
             if self.nim['job']['ID'] :
                 self.nim[elem]['Dict']=Api.get_assets( self.nim['job']['ID'] )
@@ -853,7 +867,7 @@ class NIM( object ) :
                 self.nim[elem]['Dict']=['Work']
         
         elif elem=='element' :
-            # New key in teh NIM dictionary. The element key will have a dictionary with all elements and then an element type, ID and path.
+            # New key in the NIM dictionary. The element key will have a dictionary with all elements and then an element type, ID and path.
             self.nim[elem]['Dict']=Api.get_elementTypes()
             # To extract paths for special elements, plates, renders and comps, shot or asset must be discovered first and set in the NIM dict
             paths = {}
@@ -946,10 +960,16 @@ class NIM( object ) :
         elif elem=='ver' :
             if self.nim['filter']['name']=='Published' :
                 if self.nim['mode'] and self.nim['mode'].lower()=='load' :
+                    '''
                     if self.nim['class']=='SHOT' and self.nim['base']['name'] :
                         self.nim[elem]['Dict']=Api.get_basesPub( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], username=self.userInfo()['name'] )
                     elif self.nim['class']=='ASSET' and self.nim['base']['name'] :
                         self.nim[elem]['Dict']=Api.get_basesPub( assetID=self.nim['asset']['ID'], basename=self.nim['base']['name'], username=self.userInfo()['name'] )
+                    '''
+                    if self.nim['class']=='SHOT' and self.nim['base']['name']  :
+                        self.nim[elem]['Dict']=Api.get_vers( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )
+                    elif self.nim['class']=='ASSET' and self.nim['base']['name'] :
+                        self.nim[elem]['Dict']=Api.get_vers( assetID=self.nim['asset']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )
                 elif self.nim['mode'] and self.nim['mode'].lower() in ['open', 'file'] :
                     if self.nim['class']=='SHOT' and self.nim['base']['name']  :
                         self.nim[elem]['Dict']=Api.get_vers( shotID=self.nim['shot']['ID'], basename=self.nim['base']['name'], pub=True, username=self.userInfo()['name'] )
@@ -1065,8 +1085,20 @@ class NIM( object ) :
             filetype = 'Maya Scene'
         elif myext == 'nk':
             filetype = 'Nuke Script'
-        elif myext in ('exr', 'jpg', 'jpeg', 'dpx', 'png'):
+        elif myext == 'batch':
+            filetype = 'Flame'
+        elif myext == 'psd':
+            filetype = 'Photoshop'
+        elif myext in ('exr', 'jpg', 'jpeg', 'dpx', 'png', 'tif'):
             filetype = 'Image'
+        elif myext in ('geo', 'bgeo', 'bgeo.sc', 'vdb', 'obj'):
+            filetype = 'Geometry'
+        elif myext in ('vdb'):
+            filetype = 'VDB'
+        elif myext in ('fbx'):
+            filetype = 'FBX'
+        elif myext in ('usd', 'usdc', 'usda'):
+            filetype = 'USD'
         elif myext in ('mov', 'mp4'):
             filetype = 'Movie'
         elif myext in ('abc'):
@@ -1075,7 +1107,6 @@ class NIM( object ) :
             self.nim['fileExt']['fileType']=filetype
         else:
             P.warning("File extension not recognized as file type: %s"%ext)            
-            
         if filetype:
             self.nim['fileExt']['fileType']=filetype
         return

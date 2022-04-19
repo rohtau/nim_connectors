@@ -16,6 +16,7 @@
 
 import hou
 import os,sys
+import platform
 from imp import reload
 
 action = sys.argv[1]
@@ -34,6 +35,9 @@ import nim_core.nim_houdini as nimHoudini
 import nim_core.nim_rohtau as nimRt
 import nim_core.nim_rohtau_utils as nimUtl
 from nim_core import padding
+
+from rt import pipe
+from rt import utils
 
 reload(nimUI)
 reload(nimAPI)
@@ -99,7 +103,7 @@ def rtCreateTaskForScript():
     bool
         True if task was created correctly or if it already exists. False if task creation failed
     '''
-    task = nimRt.pubTask( filepath=hou.hipFile().path(), user=getpass.getuser())
+    task = nimRt.pubTask( filepath=hou.hipFile.path(), user=nimAPI.get_user())
     if task:
         h_root = hou.node("/")
         h_root.setUserData("nim_taskID", str(task['taskID']))
@@ -156,7 +160,6 @@ def rtSetShotRange( ):
 
     pass
 
-
 def rtSetPreRoll( ):
     '''
     Set pre roll frames for simulations
@@ -202,6 +205,94 @@ def rtRestoreRange( ):
 
     pass
 
+def rtPublishFlipbook( ):
+    '''
+    Publish current flipbook in MPlay
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Publish Flipbook' )
+    hou.ui.setStatusMessage( "NIM: Publish Flipbook")
+    pipe.publish_flipbook()
+
+    pass
+
+def rtMplaySetShotRange( ):
+    '''
+    Get globals parameters for the show and shot and apply them to our Mplay session.
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Set Mplay Shot Range' )
+    hou.ui.setStatusMessage( "NIM: Set Mplay Shot Range")
+    # TODO:
+    # nimHoudini.set_mplay_shot_range()
+
+    pass
+
+def rtCopyHipPath( ):
+    '''
+    Copy Hip file path in the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    print ( 'NIM: Copy Hip File Path to Clipboard' )
+    hou.ui.setStatusMessage( "NIM: Copy Hip File Path to Clipboard")
+    # TODO:
+    # nimHoudini.set_mplay_shot_range()
+    from PySide2 import QtGui as QtGui2
+    path = hou.hipFile.path()
+    path = os.path.normpath(path)
+    if platform.system() == 'Windows':
+        if path.startswith('/') or path.startswith('\\'):
+            path = "C:" + path
+        path.replace('/', '\\')
+    else:
+        path = utils.getPosixPath(path)
+    cb = QtGui2.QGuiApplication.clipboard()
+    cb.clear(mode=cb.Clipboard )
+    cb.setText(path, mode=cb.Clipboard)
+    
+    hou.ui.setStatusMessage("Hip Path copied to the clipboard: %s"%path)
+
+    pass
+
+def rtCopyHipFileID( ):
+    '''
+    Copy Hip file NIM's FilE ID to the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    print ( 'NIM: Copy Hip File ID to Clipboard' )
+    hou.ui.setStatusMessage( "NIM: Copy Hip File ID to Clipboard")
+    fileid  = str(int(rootdict['nim_fileID']))
+    from PySide2 import QtGui as QtGui2
+    cb = QtGui2.QGuiApplication.clipboard()
+    cb.clear(mode=cb.Clipboard )
+    cb.setText(fileid, mode=cb.Clipboard)
+    
+    hou.ui.setStatusMessage("Hip File ID copied to the clipboard: %s"%fileid)
+
+    pass
+
 
 if action == 'open':
 	openFileAction()
@@ -239,4 +330,12 @@ elif action == 'setsimrange':
 	rtSimRange()
 elif action == 'restorerange':
 	rtRestoreRange()
+elif action == 'publish_flipbook':
+	rtPublishFlipbook()
+elif action == 'setshotrange_mplay':
+	rtMplaySetShotRange()
+elif action == 'copypath':
+	rtCopyHipPath()
+elif action == 'copyfileid':
+	rtCopyHipFileID()
 
