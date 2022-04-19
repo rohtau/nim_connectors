@@ -567,10 +567,17 @@ def getShowGlobals( job):
         name = custom['keyName']
         if name == 'Working Resolution':
             res = custom['dropdownText']
-            res = res.replace(' ', '')
-            jobglobals['output_res'] = res
+            if res:
+                res = res.replace(' ', '')
+                jobglobals['output_res'] = res
+            else:
+                jobglobals['output_res'] = '1920x1080' # Default resolution to HD if not provided
         elif name == 'Working Frame Rate':
-            jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+            fps = custom['dropdownText']
+            if fps and fps.endswith('fps'):
+                jobglobals['fps'] = int(custom['dropdownText'][0:-3]) # Remove fps suffix and convert to int
+            else:
+                jobglobals['fps'] = 25 # Set FPS to 25  by default if no FPS information if provided
         elif name == 'Tools':
             res = [line for line in  custom['value'].splitlines() if len(line)>0]
             jobglobals['tools'] = res
