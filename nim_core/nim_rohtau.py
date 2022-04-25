@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Wednesday, 13 April 2022 18:55:13 CUT
+Last Modified: Wednesday, 20 April 2022 18:51:33 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -43,8 +43,9 @@ except:
 if sys.version_info >= (3,0):
     from . import nim                as Nim
     from . import nim_api            as nimAPI
-    from . import nim_rohtau_utils   as nimUtl
     from . import nim_print          as nimP
+    from . import nim_file          as nimF
+    from . import nim_rohtau_utils   as nimUtl
     from . import nim_win as Win
 else:
     import nim                as Nim
@@ -983,11 +984,12 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     # will convert and asset name like vehicles/mercedes -> vehicles_mercedes
     # Shot names never have a / so they won't be modified by this
     assetshot = shot.replace('/', '_')
-    basename = buildBasename( assetshot, task, name, elemtype=elem, layer=layer)
+    shortelem = nimF.elementType_toAbbrev(elem)
+    basename = buildBasename( assetshot, task, name, elemtype=shortelem, layer=layer)
     if elem in ('plates', 'comps', 'renders'):
         loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     else:
-        loc = os.path.normpath( os.path.join(baseloc, elem, pathtask, basename, pathver))
+        loc = os.path.normpath( os.path.join(baseloc, shortelem, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 

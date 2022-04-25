@@ -1912,7 +1912,8 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verVer.setText( option['version'].zfill(padding) )
                                     self.verNote.setText( option['note'] )
                             elif self.nim.mode().lower() in ['open', 'file'] :
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1966,7 +1967,8 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verVer.setText( option['version'].zfill(padding) )
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :

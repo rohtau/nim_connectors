@@ -507,7 +507,6 @@ def getshowIdFromName(jobid, showname):
 
     return 0
 
-
 def getshowsIDDict(jobid):
     '''
     Create a dictionary with ID as keys and show name as value
