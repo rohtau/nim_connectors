@@ -40,6 +40,7 @@ tracking a scene into a time card. Is measure in minutes and the default is 10.
 # Imports
 #
 import os
+import sys
 import platform
 import tempfile
 import getpass
@@ -52,14 +53,14 @@ from datetime   import timedelta
 # NIM imports
 if sys.version_info >= (3,0):
     # from . import nim                as Nim
-    # from . import nim_api            as nimAPI
+    from . import nim_api            as nimAPI
     from . import nim_print          as nimP
     # from . import nim_file          as nimF
     # from . import nim_rohtau_utils   as nimUtl
     # from . import nim_win as Win
 else:
     # import nim                as Nim
-    # import nim_api            as nimAPI
+    import nim_api            as nimAPI
     # import nim_rohtau_utils   as nimUtl
     import nim_print          as nimP
     # import nim_win as Win
@@ -69,12 +70,12 @@ from .import version
 from .import winTitle 
 from .import padding 
 from .import imgpadding 
+from .import mwtt 
 
 
 #
 # Globals
 #
-mwtt = 10 # Minimum working time for task (MWTT). In minutes
 
 #
 # Timecards Logging
@@ -114,9 +115,11 @@ def getTCLogsLoc():
 
 
 
-def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tcid=0):
+def logTC(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tcid=0, tcpath=''):
     '''
-    Check if there is already a timecard for the task.
+    Main timecards logging function, we always call to this function from any DCC
+    Check if the scene is already being racked by a timecard log, tcid and tcpath will have info.
+    If not check if there is already a timecard for the task.
     If not, create the log file.
     If it already exists then check close time for the card, if it is less then MWTT then reuse task and update close time.
     If the card is old enough then create a new one.
@@ -127,7 +130,7 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tc
         PARENT__TASK__TCID.json
     For instance, for a shot named SHL_030, task comp and a timecard id 1234:
         SHL_030__comp__1234.json
-    So just extracting the pasrts of the file name we can know the parent, task and the id of the timecard, this is very handy to
+    So just extracting the parts of the file name we can know the parent, task and the id of the timecard, this is very handy to
     quickly find potential usable timecards before doing any more complicated processing.
 
     Parameters
@@ -146,7 +149,8 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tc
         Current userid.
     tcid : int
         Current Time Card in use id. 0 if there is no Time Card in use for current scene.
-    
+    tcpath : str
+        Path to current Time Card Log. Empty if there is no Time Card in use for current scene.
 
     Returns
     ---------
@@ -154,6 +158,15 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tc
         Path to timecard log file.
 
     '''
+    nimP.info("In logTC")
+    # First if a current TC path is provided go straight to update it
+    if tcpath:
+        if not os.path.exists(tcpath):
+            nimP.error("Can't log TC, path to current log file doesn't exists: %s"%tcpath)
+            return False
+        return updateTCLog(tcpath)
+
+    # Try to find an usable existing TC or create a new one
     logsdir = getTCLogsLoc()
     if not logsdir:
         return False
@@ -178,11 +191,25 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0, tc
                 # found potential usable timecard log.
                 # Call to check time card, it suitable then update, if not then
                 # create
-                pass
+                if checkTCLog(log):
+                    if not updateTCLog(log):
+                        return False
+                    tcupdated = True
+                else:
+                    kwargs = {
+                        'parent' : parent,
+                        'parentid' : parentid,
+                        'task' : task,
+                        'taskid' : taskid
+                    }
+                    if not createTCLog( kwargs ):
+                        return  False
+                    tccreated = True
     if not tcupdated or tccreated:
         # Need to create new time card
+        if not createTCLog( kwargs ):
+            return  False
         tccreated = True
-        pass
 
 
     return True
@@ -203,15 +230,15 @@ def updateTCLog (logpath):
     ---------
     bool
         True if everything went ok.    
-
     '''
+    nimP.info("In updateTCLog")
     if not os.path.exists(logpath):
         nimP.error("Can't update Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
         return False
-    with (logpath"r") as logfile:
+    with (logpath, 'r') as logfile:
         tc = json.load(logfile)
     now = datetime.now()
-    isonow = now.isoformat()
+    isonow = now.isoformat() # Time ISO format: 2022-04-27T11:24:28.317411
     timestamp = isonow.split('.')[0].split('T')[1] # Only get time without microseconds
     tc['end'] = timestamp
 
@@ -219,27 +246,137 @@ def updateTCLog (logpath):
     with open(logpath, "w") as logfile:
         json.dump(tc, logfile, indent=2)
 
+    # TODO: Publish TC log in NIM (Update Time Card in NIM)
+
     return True
 
-# TODO: implement checkTCLog
-# Will check if we can use the timecard log
+def checkTCLog(logpath):
+    '''
+    Check if a time card log has been closed (end) before the MWTT has passed.
+    If that is the case we can reuse the log, other wise we will need to create a new one.
+
+    Parameters
+    ----------
+    logpath : str
+        Path to time card log json file
+
+    Returns
+    ---------
+    bool
+        True if we can reuse the card, False otherwise
+    '''
+    nimP.info("In checkTCLog")
+    if not os.path.exists(logpath):
+        nimP.error("Can't update Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
+        return False
+    with (logpath, 'r') as logfile:
+        tc = json.load(logfile)
+    now = datetime.now()
+    isonow = now.isoformat() # Time ISO format: 2022-04-27T11:24:28.317411
+    date,timestamp = isonow.split('.')[0].split('T') # Split date and time
+
+    if tc['date'] != date:
+        return False
+    tcend = datetime.strptime(tc['end'], "%H:%M:%S")
+    nowtime = datetime.strptime(timestamp, "%H:%M:%S")
+    diff = nowtime - tcend
+    if diff.seconds//60 > mwtt:
+        return False # Time card closed later than MWTT
+
+    return True
 
 
-# TODO: implement createTCLog, Check name we are already using this funcion
-# name.
 # Create json file with correct name, at the moment use a random  id for TC,
 # later we will implement publishing and do name correctly.
 # Set time card id and log path in NIM data for the scene
+def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0):
+    '''
+    Create Log file for a TC and initialise it with th data passed
 
-    
+    Time Card Log format
+    --------------------
+    Basically is a JSON object with information to publish a time card in NIM
+    {
+        'id':1234,
+        'task':'fx',
+        'taskid':34,
+        'parent':'SHL_030'
+        'parentid': 78,
+        'user' : 'pablo',
+        'userid' : 7,
+        'published' : false
+        'date':'2022-05-20',
+        'start':'10:00:00',
+        'end':'20:00:00'
+    }
+
+    Time Card Log Name Convention
+    -----------------------------
+    A time card log filename looks like:
+        PARENT__TASK__TCID.json
+    For instance, for a shot named SHL_030, task comp and a timecard id 1234:
+        SHL_030__comp__1234.json
+    So just extracting the parts of the file name we can know the parent, task and the id of the timecard, this is very handy to
+    quickly find potential usable timecards before doing any more complicated processing.
+
+    Parameters
+    ----------
+    parent : str
+        Parent name, shot or asset
+    parentid : int
+        Parent ID
+    task : str
+        Task type name
+    taskid : int
+        Task ID for the scene
+    typeid : int
+        Task type ID
+    userid : int
+        Current userid.
+
+    Returns
+    ---------
+    str
+        Path to log file created or False if any error
+    '''
+    nimP.info("In createTCLog")
+    # Check inputs
+    if not parent or not parentid or not task or not taskid:
+        nimP.error("Any of the mandatory inputs to create a TC log is empty, check Parent, ParentID, Task and TaskID")
+        return False
+
+    # Get cur time
+    now = datetime.now()
+    isonow = now.isoformat() # Time ISO format: 2022-04-27T11:24:28.317411
+    date,timestamp = isonow.split('.')[0].split('T') # Split date and time
 
 
-    
+    tc              = {}
+    tc['id']        = 0
+    tc['task']      = task
+    tc['taskid']    = taskid
+    tc['parent']    = parent
+    tc['parentid']  = parentid
+    tc['user']      = nimAPI.get_user()
+    tc['userid']    = nimAPI.get_userID(user=tc['user'])
+    tc['published'] = False
+    tc['published'] = False
+    tc['date']      = date
+    tc['start']     = timestamp
+    tc['end']       = timestamp
 
+    # Write log .
+    logsdir = getTCLogsLoc()
+    if not logsdir:
+        return False
+    logname = "%s__%s__%d.json"%(parent, task, 0)
+    logpath = os.path.join(logsdir, logname)
+    with open(logpath, 'w') as logfile:
+        json.dump(tc, logfile, indent=2)
 
-    
+    # TODO: Publish TC log in NIM (Create Time Card in NIM)
 
-
+    return logpath
 
 
 
