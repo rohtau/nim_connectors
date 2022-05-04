@@ -968,7 +968,7 @@ def get_userID( user='' ) :
             else:
                 return False
     except Exception as e :
-        print (traceback.print_exc())
+        # print (traceback.print_exc())
         return False
 
 def get_userList( url=None ) :
