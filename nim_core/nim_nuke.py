@@ -130,9 +130,9 @@ def set_vars( nim=None ) :
     for x in range(len(knobNames)) :
         if not PS.knob( knobNames[x] ) :
             n = None
-            if  knobNames[x].endswith('Path'):
+            if  knobNames[x].endswith('Path') or knobNames[x].endswith('path'):
                 PS.addKnob( nuke.File_Knob( knobNames[x], knobLabels[x] ))
-            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version'):
+            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version') or knobNames[x].endswith('id'):
                 PS.addKnob( nuke.Int_Knob( knobNames[x], knobLabels[x] ))
             elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
                 PS.addKnob( nuke.Multiline_Eval_String_Knob( knobNames[x], knobLabels[x] ))
@@ -145,8 +145,10 @@ def set_vars( nim=None ) :
         knob.setEnabled( True )
         if knobCmds[x] :
             #  Convert backslashes to forward slashes for Nuke :
-            if knobNames[x]=='nim_compPath' :
+            # if knobNames[x]=='nim_compPath' :
+            if knobNames[x].endswith('Path') or knobNames[x].endswith('path'):
                 correctedPath=knobCmds[x].replace( '\\', '/' )
+                correctedPath+= '/'
                 knob.setValue( correctedPath )
             #  Otherwise, set the knob as normal :
             else :

@@ -955,16 +955,28 @@ def get_user() :
     return user
 
 def get_userID( user='' ) :
-    'Retrieves the current user\'s user ID'
+    '''
+    Retrieves the current user\'s user ID
+
+    Parameters
+    ----------
+    user : str
+        User name
+
+    Returns
+    ---------
+    int
+        User ID or False if  it doesn't exist.
+    '''
     if not user :
         user=get_user()
     try :
         userID=get( {'q': 'getUserID', 'u': str(user)} )
         if type(userID)==type(list()) and len(userID)==1 :
-            return userID[0]['ID']
+            return int(userID[0]['ID'])
         else :
             if len(userID)>0:
-                return userID
+                return int(userID)
             else:
                 return False
     except Exception as e :

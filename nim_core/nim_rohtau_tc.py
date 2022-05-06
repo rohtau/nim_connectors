@@ -59,13 +59,13 @@ if sys.version_info >= (3,0):
     from . import nim_print          as nimP
     # from . import nim_file          as nimF
     from . import nim_rohtau   as nimRt
-    # from . import nim_rohtau_utils   as nimUtl
+    from . import nim_rohtau_utils   as nimUtl
     # from . import nim_win as Win
 else:
     # import nim                as Nim
     import nim_api            as nimAPI
     import nim_rohtau   as nimRt
-    # import nim_rohtau_utils   as nimUtl
+    import nim_rohtau_utils   as nimUtl
     import nim_print          as nimP
     # import nim_win as Win
 
@@ -75,6 +75,8 @@ from .import winTitle
 from .import padding 
 from .import imgpadding 
 from .import mwtt 
+
+# import nuke
 
 
 #
@@ -166,38 +168,42 @@ def logTC(entity='SHOT', scenepath='', parent='', parentid=0, task='', taskid=0,
 
     Returns
     ---------
-    str
-        Path to timecard log file.
+    tuple(str,int)
+        Path to timecard log file and id of published TC in NIM (PATH, ID). Empty components in tuple if error ("",0)
 
     '''
+    err = ("",0)
     nimP.info("In logTC")
     # First if a current TC path is provided go straight to update it
     if tcpath:
+        # nuke.tprint("TC path: %s"%tcpath)
         if not os.path.exists(tcpath):
             nimP.error("Can't log TC, path to current log file doesn't exists: %s"%tcpath)
-            return False
+            return err
         return updateTCLog(tcpath)
 
     # Try to find an usable existing TC or create a new one
     logsdir = getTCLogsLoc()
     if not logsdir:
-        return False
+        return err
 
     # If userid for the log is not the same as our current user then try to find
     # a task for the current user. If there is no task for the current
-    # shot/asset, try to create one, if the user refuse then inform no time
-    # tracking will take place.
+    # shot/asset then stop tracking, we assume is an occasional work on this
+    # scene and not something that needs to b tracked.
     myuser = nimAPI.get_user()
+    # myuserid = int(nimAPI.get_userID())
     myuserid = nimAPI.get_userID()
     if userid != myuserid:
-        pubtask = nimRt.pubTask( filepath=scenepath, user=myuser )
+        pubtask = nimUtl.getuserTask(myuserid, typeid, entity, parentid)
         if not pubtask:
-            nimP.warning("Time Cards Tracking disable. No task available for user %s->%s"%(parent, task))
-            return False
+            nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task))
+            return ("", -1) # Disable tracking setting tcid to -1
         taskid = int(pubtask['taskID'])
     
     logfiles = glob.glob(logsdir + '/*.json')
     logpath = ''
+    logid = 0
     tasklogs = []
     tcupdated = False
     tccreated = False
@@ -212,42 +218,27 @@ def logTC(entity='SHOT', scenepath='', parent='', parentid=0, task='', taskid=0,
         filename = os.path.splitext(filename)[0]
         parts    = filename.split('__')
         if parts[0] == parent and parts[1] == task:
-            '''
-            if int(parts[2]) == tcid:
-                # Found time card for current scene, just update end time
-                # Call update TC
-                logpath = updateTCLog(log)
-                if not logpath :
-                    return False
-                tcupdated = True
-                break
-            else:
-            '''
             # found potential usable timecard log.
             # Call to check time card, it suitable then update, if not then
             # create
             if checkTCLog(log):
-                logpath = updateTCLog(log)
+                logpath,logid = updateTCLog(log)
                 if not logpath:
-                    return False
+                    return err
                 tcupdated = True
                 break
-            '''
-            else:
-                logpath = createTCLog(**kwargs)
-                if not logpath:
-                    return  False
-                tccreated = True
-            '''
     if not tcupdated and not tccreated:
         # Need to create new time card
-        logpath = createTCLog(**kwargs)
+        logpath,logid = createTCLog(**kwargs)
         if not logpath:
-            return  False
+            return  err
         tccreated = True
 
-
-    return logpath
+    # nuke.tprint(logpath)
+    # nuke.tprint(logid)
+    logpath = logpath.replace( '\\', '/' )
+    # correctedPath=knobCmds[x].replace( '\\', '/' )
+    return (logpath, logid)
 
 def updateTCLog (logpath):
     '''
@@ -265,10 +256,12 @@ def updateTCLog (logpath):
     str
         Path to the TC log file. False if error
     '''
+    err = ("",0)
+    nimP.info("In logTC")
     nimP.info("In updateTCLog")
     if not os.path.exists(logpath):
         nimP.error("Can't update Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
-        return False
+        return err
     with open(logpath, 'r') as logfile:
         tc = json.load(logfile)
     now = datetime.now()
@@ -282,7 +275,7 @@ def updateTCLog (logpath):
 
     # TODO: Publish TC log in NIM (Update Time Card in NIM)
 
-    return logpath
+    return (logpath, 0)
 
 def checkTCLog(logpath):
     '''
@@ -380,11 +373,12 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0):
     str
         Path to log file created or False if any error
     '''
+    err = ("", 0)
     nimP.info("In createTCLog")
     # Check inputs
     if not parent or not parentid or not task or not taskid:
         nimP.error("Any of the mandatory inputs to create a TC log is empty, check Parent, ParentID, Task and TaskID")
-        return False
+        return err
 
     # Get cur time
     now = datetime.now()
@@ -409,17 +403,18 @@ def createTCLog(parent='', parentid=0, task='', taskid=0, typeid=0, userid=0):
     # Write log .
     logsdir = getTCLogsLoc()
     if not logsdir:
-        return False
+        return err
     rndtcid =  random.randint(0, 9999) # Just temporal, to simulate TC publishing id
     logname = "%s__%s__%d.json"%(parent, task, rndtcid)
     logpath = os.path.join(logsdir, logname)
     with open(logpath, 'w') as logfile:
         json.dump(tc, logfile, indent=2)
+    # logpath = nimRt.toPosix(logpath)
     nimP.info("Create TC Log: %s"%logpath)
 
     # TODO: Publish TC log in NIM (Create Time Card in NIM)
 
-    return logpath
+    return (logpath, 0)
 
 
 
