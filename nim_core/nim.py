@@ -14,9 +14,10 @@
 
 import ntpath, os, traceback
 import sys
-from sys import path
-from pprint import pprint
-from pprint import pformat
+from   sys import path
+import re
+from   pprint import pprint
+from   pprint import pformat
 
 if sys.version_info >= (3,0):
     try:
@@ -293,6 +294,11 @@ class NIM( object ) :
             P.error( 'Sorry, the given file path doesn\'t appear to exist...' )
             P.error( '    %s' % filePath )
             return None
+
+        # Convert frame numbers into NIM convention frameNumbers->####
+        # RND_010__rnd_cache__testPipe_filecache__v011.1234.bgeo.sc ->
+        # RND_010__rnd_cache__testPipe_filecache__v011.####.bgeo.sc
+        filePath = re.sub('\.\d+\.', '.####.', filePath)
         
         P.debug( 'Attempting to gather API information from the following file path...' )
         P.debug( '    %s' % filePath )
@@ -488,12 +494,16 @@ class NIM( object ) :
                                 self.set_dict('ver')
                                 break
                     elif not versionFound :
+                        # print("Look for versions in:")
+                        # pprint(versions)
+                        print("Search for version: %s"%tok)
                         for version in versions :
                             task_abbrev=F.task_toAbbrev( self.name( 'task' ) )
                             ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
                             if tok==version['filename'] or tok==ver_abbrev :
                                 # self.set_name( elem='ver', name=version['filename'] )
+                                print("Set verion: %s with id %s"%(version['version'], version['fileID']))
                                 self.set_name( elem='ver', name=version['version'] )
                                 self.set_ID( elem='ver', ID=version['fileID'] )
                                 self.set_version( version['version'])
@@ -510,11 +520,11 @@ class NIM( object ) :
         if not taskFound:
             # In some special cases the filapath doesn't contain a task
             # folder
-            # Some task for instance doesnt have a folder or there are some
+            # Some task for instance doesn't have a folder or there are some
             # special locations for elements  like plates that are an exception
-            # to the usualt task path. In this cases we run our nimUtl.splitName
+            # to the usual task path. In this cases we run our nimUtl.splitName
             # trying yo guess as most as possible from the file path.
-            # if task hasnt been found then basenamea nd version are also
+            # if task hasn't been found then basename nd version are also
             # missing
             import nim_rohtau_utils as nimUtl
             nameparts = nimUtl.splitName(filename)
