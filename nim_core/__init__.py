@@ -12,7 +12,7 @@ imgpadding            = 4 # Global padding used for images files.
 nimAPIConnectInfoFile = os.path.join(tempfile.gettempdir(), "nimAPIConnectInfo") # Temp file used to store API connection info for non login sessions. For instance, Deadline
 defaultSceneName      = 'main'
 default_frame_range   = 100 # Default frame range. Use this value if frame range is no defined in NIM
-mwtt                  = 10 # Minimum working time for task (MWTT). In minutes. Used to validate time cards
+mwtt                  = 1 # Minimum working time for task (MWTT). In minutes. Used to validate time cards
 
 
 #  END
