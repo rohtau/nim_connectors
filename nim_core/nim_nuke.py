@@ -65,16 +65,18 @@ def _knobInfo( nim=None ) :
     knobNames=( 'nim_server', 'nim_serverID', 'nim_user', 'nim_userID',
         'nim_job', 'nim_jobID', 'nim_tab', 'nim_asset', 'nim_assetID', 'nim_show', 'nim_showID',
         'nim_shot', 'nim_shotID', 'nim_basename', 'nim_version', 'nim_fileID', 'nim_task', 'nim_taskID', 'nim_type', 'nim_typeID', 'nim_taskFolder', 
-        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_pubTasks', 'nim_APIver' )
+        'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_pubTasks', 'nim_APIver',
+               'nim_tcpath', 'nim_tcid' )
     knobLabels=( 'Server Path', 'Server ID', 'User Name', 'User ID',
         'Job Name', 'Job ID', 'Entity', 'Asset Name', 'Asset ID', 'Show Name', 'Show ID',
         'Shot Name', 'Shot ID', 'Basename', 'Version', 'File ID', 'Task Name', 'Task ID', 'Task Type', 'Task Type ID', 'Task Folder', 
-        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'Publishing Tasks', 'NIM Version' )
+        'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'Publishing Tasks', 'NIM Version',
+                'Scene Timecard', 'Timecard ID')
     knobCmds=(  nim.server(), nim.ID('server'), userInfo['name'], userInfo['ID'],
         nim.name('job'), nim.ID('job'), nim.tab(),nim.name('asset'), nim.ID('asset'), nim.name('show'),
         nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), nim.name('task'), '', nim.name('task'),
         nim.ID('task'), nim.taskFolder(), nim.jobPath(), nim.shotPath(), nim.compPath(), nim.renderPath(), nim.platesPath(),
-        str(Api.get_elementTypes()), str(Api.get_taskTypes()), version )
+        str(Api.get_elementTypes()), str(Api.get_taskTypes()), version, '', 0 )
     return ( knobNames, knobLabels, knobCmds )
 
 def set_vars( nim=None ) :
@@ -128,9 +130,9 @@ def set_vars( nim=None ) :
     for x in range(len(knobNames)) :
         if not PS.knob( knobNames[x] ) :
             n = None
-            if  knobNames[x].endswith('Path'):
+            if  knobNames[x].endswith('Path') or knobNames[x].endswith('path'):
                 PS.addKnob( nuke.File_Knob( knobNames[x], knobLabels[x] ))
-            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version'):
+            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version') or knobNames[x].endswith('id'):
                 PS.addKnob( nuke.Int_Knob( knobNames[x], knobLabels[x] ))
             elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
                 PS.addKnob( nuke.Multiline_Eval_String_Knob( knobNames[x], knobLabels[x] ))
@@ -143,8 +145,10 @@ def set_vars( nim=None ) :
         knob.setEnabled( True )
         if knobCmds[x] :
             #  Convert backslashes to forward slashes for Nuke :
-            if knobNames[x]=='nim_compPath' :
+            # if knobNames[x]=='nim_compPath' :
+            if knobNames[x].endswith('Path') or knobNames[x].endswith('path'):
                 correctedPath=knobCmds[x].replace( '\\', '/' )
+                correctedPath+= '/'
                 knob.setValue( correctedPath )
             #  Otherwise, set the knob as normal :
             else :
@@ -424,7 +428,7 @@ def check_vars():
     return True
 
 
-def reset_vars( confirm=True ):
+def reset_vars( confirm=True, quiet=False ):
 
     # Check if the script has been saved:
     if nuke.root().name() == 'Root':
@@ -436,16 +440,20 @@ def reset_vars( confirm=True ):
         msg = "Do you want to reset scene's publishing data?"
         helpmsg = "Publish information will be worked out using file name and path"
         title = "Reset Scene Publishing Data"
-        button = nimRt.DisplayMessage.get_btn( msg, title= title, buttons=('Ok', 'Cancel'), default_button=1)
-        if button == 1:
+        # button = nimRt.DisplayMessage.get_btn( msg, title= title, buttons=('Ok', 'Cancel'), default_button=1)
+        # if button == 1:
+            # return
+        if not nuke.ask(msg):
             return
+
     #  Get API values from file name :
     filepath =  nuke.root()['name'].value() 
     # nuke.tprint("File path: %s"%filepath)
     nimpubdata=Nim.NIM().ingest_filePath( filepath )
     if nimpubdata is None:
         msg = "Error gathering publish info from: %s \nIs the file saved inside a job structure?"%filepath
-        nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+        # nimRt.DisplayMessage.get_btn( msg, title= 'Publishing error')
+        P.error(msg, showwindow=not quiet)
         return False
 
     # Try to create a valid task
@@ -455,8 +463,9 @@ def reset_vars( confirm=True ):
 
     set_vars( nimpubdata )
 
-    if nuke.GUI:
-        ret = nimRt.DisplayMessage.get_btn( "Nuke script publish data updated ", title= 'Publishing update')
+    # if not quiet and nuke.GUI:
+        # ret = nimRt.DisplayMessage.get_btn( "Nuke script publish data updated ", title= 'Publishing update')
+    P.info("Nuke script publish data updated", showwindow=not quiet)
 
     return True
 

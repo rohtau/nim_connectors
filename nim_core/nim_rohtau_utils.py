@@ -997,6 +997,8 @@ def getuserTask(userid, tasktype, parent, parentID):
     if not tasktypeID:
         nimP.error("Task type name or ID not found")
         return False
+    if isinstance(userid, str) and userid.isdigit():
+        userid = int(userid)
 
     tasks = nimAPI.get_taskInfo(itemClass=parent.lower(), itemID=parentID)
     # import nuke
@@ -1649,6 +1651,8 @@ def getuserFullName( username ):
 
     return fullname
 
+#
+# Timecards
 
 #
 # Templates for Rez packages

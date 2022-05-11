@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Wednesday, 20 April 2022 18:51:33 CUT
+Last Modified: Friday, 06 May 2022 12:12:41 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -1237,7 +1237,7 @@ def showPubInfo( fileid, hasgui=True ):
 
     return
 
-def pubTask( nim=None, filepath=None, user=None, yes=False ):
+def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     '''
     Create a task needed for publishing. If a valid task for publishing already exists it will be returned.
 
@@ -1250,6 +1250,8 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
     When getting a valid task, if the current one is not owned by the user, the function will question the user about creating
     a new task in order to take ownership of the data generated from the scene. 
     As said, this is optional, it is recommended in the user is going to take ownership of the scene.
+
+    Also this automatic task creation can be disabled using createTask. I this case if there is not suitable task then we will return False.
 
     This function is called at these stages:
         - During Save As in NIM
@@ -1267,6 +1269,8 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
         Is mandatory if we pass a filepath.
     yes : bool
         Assume yes for any option given to the user. This will allows to use a task from a different user without any questions
+    createTask : bool
+        If there is no available task for the user then try to crate one.
 
     Returns
     -------
@@ -1315,6 +1319,7 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
             if (tab == 'ASSET' and scene_pubtask['assetID'] and int(scene_pubtask['assetID']) == entityID) or \
                (tab == 'SHOT' and scene_pubtask['shotID'] and int(scene_pubtask['shotID']) == entityID):
                 if scene_pubtask['taskName'] == task:
+                    print("pppp")
                     if int(scene_pubtask['userID']) == myuserid:
                         # Got valid tast, return it
                         return scene_pubtask
@@ -1328,7 +1333,7 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
     if not pubtask:
         # If we haven't any task at this point, then ask for it
         pubtask  = nimUtl.getuserTask(userID, taskid, tab.lower(), entityID)
-    if not pubtask or int(pubtask['userID']) != myuserid:
+    if createTask and (not pubtask or int(pubtask['userID']) != myuserid):
         if not pubtask:
             msg="Couldn't find a task %s in %s %s for user %s\nDo you want to create a new task? (Recomended)"%(task, tab.lower(), entity, user)
         else:
@@ -1382,6 +1387,11 @@ def pubTask( nim=None, filepath=None, user=None, yes=False ):
                 nimP.error(msg)
                 Win.popup( title='NIM - Task Warning', msg=msg )
                 return False
+    elif not pubtask or int(pubtask['userID']) != myuserid:
+        # We dont want to crete tasks if they are not available
+        msg = "Couldn't find an available task(%s) for your user for %s %s. It is recommended to have a task for any work you do, please contact production."%(task, tab, entity)
+        nimP.error(msg)
+        return False
 
     # Set pubtask in the scene as the new publishing task
     if nim.app()=='Nuke' :
@@ -1573,7 +1583,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
             res['success'] = False
             res['errorcode'] = 2
             if nim.name('task'):
-                res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo['name'], nim.name('task'))
+                res['msg'] = "Couldn't find a task to publish for given user.\nPlease ensure there is a task for %s in the shot/asset: %s"%(nim.userInfo()['name'], nim.name('task'))
             else:
                 res['msg'] = "Couldn't detect a task for publishing from the given path. Is this path correct?\n%s"%posixpath
             nimP.error(res['msg'])
