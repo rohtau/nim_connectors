@@ -170,6 +170,7 @@ class elementTypeID:
     PRECOMP  = 13
     FLIPBOOK = 14
 
+# DEPRECATED: use version in nim_rohtau_utils
 def toPosix( path, force=False ):
     '''
     Convert path into Posix format.
@@ -686,12 +687,15 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 
     cmd += " frameList=%s-%s"%(start, end)
     # In Seq
+    '''
     path     = infile
     path     = path.replace('%04d', '####') # Fix Nuke's padding format
     path     = path.replace('$F5', '#####') # Fix Houdini's padding format
     path     = path.replace('$F4', '####') # Fix Houdini's padding format
     path     = path.replace('$F', '#') # Fix Houdini's padding format
     path     = os.path.normpath(path)
+    '''
+    path = nimUtl.toNIMFramePadding(infile)
     if platform.system() == 'Windows':
         path = os.path.join('C:', path)
     cmd += " inFile=%s "%path
@@ -898,7 +902,8 @@ def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
         return False
     pass
 
-def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', layer='', subfolder='', isseq=False, format='nim', only_name=False, only_loc=False, force_posix=False  ):
+def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', layer='', subfolder='', isseq=False, hassubsteps=False,
+                       format='nim', only_name=False, only_loc=False, force_posix=False  ):
     '''
     Build output path for a publish element according with the name convention
     This is elements name convention:
@@ -910,8 +915,14 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     Supported app output formats
     ----------------------------
     - Houdini (houdini)
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].$F4.ext
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].$F4.$F2.ext
     - Nuke (nuke)
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].%04d.ext
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].%04d.%02d.ext
     - Nim (nim)
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
+        [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.##.ext
 
     If we need to store temp files for the render we can use the subfolder option. For instance if we need to store IFD files for Mantra
     we can set subfolder to be 'ifd', extension to be 'ifd', then the file path will be a subfolder in the output location called ifd and the files will have the ifd extension.
@@ -938,6 +949,8 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
             Used to save temp or auxiliary files for a render. It designates subfolder in the output path to store the files.
         isseq : bool
             Define whether or not the path is a sequence or single file
+        hassubsteps : bool
+            Whether or not the path needs to support substeps in the frame padding
         format : str
             Output format for host app. This is mostly needed because every app uses a different way of setting padding for sequences.
         only_name : bool
@@ -998,11 +1011,20 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     if not only_name:
         if isseq:
             if format == 'nim':
-                filename += ".####.%s"%ext
+                if hassubsteps:
+                    filename += ".####.##.%s"%ext
+                else:
+                    filename += ".####.%s"%ext
             elif format == 'houdini':
-                filename += ".$F4.%s"%ext
+                if hassubsteps:
+                    filename += ".$F4.$F2.%s"%ext
+                else:
+                    filename += ".$F4.%s"%ext
             elif format == 'nuke':
-                filename += ".%"+"04d.%s"%ext
+                if hassubsteps:
+                    filename += ".%"+"\%04d.\%02d.%s"%ext
+                else:
+                    filename += ".%"+"\%04d.%s"%ext
             else:
                 filename += ".####.%s"%ext # By default use Nim padding format
                 
@@ -1016,8 +1038,8 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
         path = os.path.join( loc, subfolder, filename )
         loc = os.path.join( loc, subfolder )
     if platform.system() == 'Windows' and force_posix:
-        path = toPosix( path )
-        loc  = toPosix( loc )
+        path = nimUtl.toPosix( path )
+        loc  = nimUtl.toPosix( loc )
 
     if only_loc:
         return loc
@@ -1319,7 +1341,6 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
             if (tab == 'ASSET' and scene_pubtask['assetID'] and int(scene_pubtask['assetID']) == entityID) or \
                (tab == 'SHOT' and scene_pubtask['shotID'] and int(scene_pubtask['shotID']) == entityID):
                 if scene_pubtask['taskName'] == task:
-                    print("pppp")
                     if int(scene_pubtask['userID']) == myuserid:
                         # Got valid tast, return it
                         return scene_pubtask
@@ -1417,7 +1438,7 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     return pubtask
 
 
-def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, 
+def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=1, overwrite=pubOverwritePolicy.NOT_ALLOW, 
             state=pubState.PENDING ,asrender=False, require_task=False, task_status=taskStatusID.IN_PROGRESS, 
             source_fileid=0, yes=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
@@ -1483,6 +1504,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         End frame.
     handles   : int
         Frame handles.
+    substeps   : int
+        Frames substeps. How many subframes between fames are in the sequence
     overwrite : pub.pubOverwritePolicy
         Overwrite policy. Whether or not allow to reuse pub elements/files
     state     : pub.pubState
@@ -1536,13 +1559,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     jsonstr = ""
 
     # Fix path
-    posixpath = toPosix( path )
-    # Normalize padding format
-    posixpath = posixpath.replace('%04d', '####') # Fix Nuke's padding format
-    posixpath  = posixpath.replace('$F5', '#####') # Fix Houdini's padding format
-    posixpath = posixpath.replace('$F4', '####') # Fix Houdini's padding format
-    posixpath = posixpath.replace('$F', '#') # Fix Houdini's padding format
-
+    posixpath = nimUtl.toNIMFramePadding(nimUtl.toPosix(path))
     
     nim=Nim.NIM()
     nim.ingest_filePath( filePath=posixpath, checkfile=False )
@@ -1695,7 +1712,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         'elementID':       res['elementID'],
         'extraElementsID': res['extraElementsID'],
         'startFrame':      start,
-        'endFrame':        end
+        'endFrame':        end,
+        'substeps':        substeps
     }
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
@@ -1712,8 +1730,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
     # Update element
     # Link element to file
     metadata = {
-        'fileID'      : res['fileID'],
-        'extraElementsID': res['extraElementsID']
+        'fileID':          res['fileID'],
+        'extraElementsID': res['extraElementsID'],
+        'substeps':        substeps
     }
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
@@ -1766,6 +1785,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, overwrite
         print("\tElement Type: %s"%nimUtl.getelementsIDDict()[int(elm['elementTypeID'])])
         print("\tStart       : %s"%elm['startFrame'])
         print("\tEnd         : %s"%elm['endFrame'])
+        print("\tSubsteps    : %s"%eval(elm['metadata'])['substeps'])
         print("\tComment     : %s"%info['note'])
         print("\tFile ID     : %s"%info['fileID'])
         print("\tElement ID  : %s"%elm['ID'])
@@ -2557,7 +2577,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             return res
 
         # Create review
-        draftPosix = toPosix(draft)
+        draftPosix = nimUtl.toPosix(draft)
         # Add review to render item or to parent item
         keywords = [nimUtl.getelementsIDDict()[int(elementInfo['elementTypeID'])]]
         if renderid:

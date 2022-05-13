@@ -309,8 +309,10 @@ def updateTCLog (logpath):
         json.dump(tc, logfile, indent=2)
 
     # TODO: Publish TC log in NIM (Update Time Card in NIM)
-    hrs = tc['delta'] / 60
-    res = nimAPI.update_timecard(tc['id'], hrs=hrs)
+    breakHrs = tc['breakdelta'] / 60
+    hrs      = tc['delta'] / 60
+    hrs      = hrs + breakHrs # NIM needs hours to have aeverything, effective hours, breaks and OT
+    res      = nimAPI.update_timecard(tc['id'], hrs=hrs, breakHrs=breakHrs)
 
     return (logpath, 0)
 

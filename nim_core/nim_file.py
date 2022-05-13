@@ -316,6 +316,72 @@ def os_filePath( path='', nim=None, serverID=None ) :
     
     return filePath
 
+#
+# rohtau added
+#
+def toPosix( path, force=False ):
+    '''
+    Convert path into Posix format.
+    Remove drive letter and change \ to /
+
+    Only does the conversion if platform is Windows, unless force is set
+    in which case it is done in any platform.
+
+    Arguments:
+        path {str} -- source path
+        force {bool} -- force conversion even for no Windows systems
+
+    Returns:
+        str -- path in Posix
+    '''
+    if platform.system() == 'Windows' or force:
+        return re.sub('^\w:', '', path.replace('\\', '/') )
+    else:
+        return path
+
+
+def toNIMFramePadding(path):
+    '''
+    Convert frame padding to NIM format using ####
+        myfile.$F4.jpg -> myfile.####.jpg
+        myfile.%d04.jpg -> myfile.####.jpg
+        myfile.1020.jpg -> myfile.####.jpg
+
+    Supported Frame Formats
+    -----------------------
+    - Regular 4 Padding: 1100
+    - Houdini: $F4, $F in general $F\d?
+    - Nuke: %d04
+
+    Parameters
+    ----------
+    path : str
+        Path to convert
+
+    Returns
+    ---------
+    str
+        Converted path
+    '''
+    nimpath = path
+    nimpath = nimpath.replace('%04d', '####') # Fix Nuke's padding format
+    nimpath = nimpath.replace('$F5', '#####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F4', '####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F3', '####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F', '#') # Fix Houdini's padding format
+    nimpath = re.sub('\.\d{5}\.\d{2}\.', '.#####.##.', nimpath) # Set frame number to nim padding (5) with subframes
+    nimpath = re.sub('\.\d{5}\.', '.#####.', nimpath) # Set frame number to nim padding (5) no subframes
+    nimpath = re.sub('\.\d{4}\.\d{2}\.', '.####.##.', nimpath) # Set frame number to nim padding (4) with subframes
+    nimpath = re.sub('\.\d{4}\.', '.####.', nimpath) # Set frame number to nim padding (4) no subframes
+    nimpath = re.sub('\.\d+\.', '.####.', nimpath) # Set frame number to nim padding
+    # nimpath = os.path.normpath(nimpath)
+
+    return nimpath
+#
+#
+#
+
+
 #DEPRECATED
 def task_toAbbrev( task='' ) :
     'Returns the short version of a given task' 

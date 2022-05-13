@@ -296,12 +296,16 @@ class NIM( object ) :
             return None
 
         # Convert frame numbers into NIM convention frameNumbers->####
+        # Convert to Posix
+        # All pasths in NIM must follow NIM frame padding convention and been in
+        # POSIX
+        filePath = F.toNIMFramePadding(F.toPosix(filePath))
         # RND_010__rnd_cache__testPipe_filecache__v011.1234.bgeo.sc ->
         # RND_010__rnd_cache__testPipe_filecache__v011.####.bgeo.sc
-        filePath = re.sub('\.\d+\.', '.####.', filePath)
+        # filePath = re.sub('\.\d+\.', '.####.', filePath)
         
-        P.debug( 'Attempting to gather API information from the following file path...' )
-        P.debug( '    %s' % filePath )
+        P.info( 'Attempting to gather API information from the following file path...' )
+        P.info( '    %s' % filePath )
         
         #  Tokenize file path :
         toks = None
@@ -496,14 +500,12 @@ class NIM( object ) :
                     elif not versionFound :
                         # print("Look for versions in:")
                         # pprint(versions)
-                        print("Search for version: %s"%tok)
                         for version in versions :
                             task_abbrev=F.task_toAbbrev( self.name( 'task' ) )
                             ver_abbrev=version['filename'].replace( '_'+self.name( 'task' )+'_', \
                                 '_'+task_abbrev+'_' )
                             if tok==version['filename'] or tok==ver_abbrev :
                                 # self.set_name( elem='ver', name=version['filename'] )
-                                print("Set verion: %s with id %s"%(version['version'], version['fileID']))
                                 self.set_name( elem='ver', name=version['version'] )
                                 self.set_ID( elem='ver', ID=version['fileID'] )
                                 self.set_version( version['version'])
