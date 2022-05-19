@@ -474,9 +474,9 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
         # return err
     else:
         msg = "Automatic timecard"
-        res = nimAPI.add_timecard( date=tc['date'], userID=tc['userid'], username=tc['user'], jobID=jobid, taskTypeID=nimUtl.gettaskTypesIdFromName(task),
-                                taskType=task, taskID=taskid, startTime=timestamp, endTime=timestamp, hrs=0, breakHrs=0, ot=0, dt=0, 
-                                description=msg, customKeys=None)
+        res = nimAPI.add_timecard( date=tc['date'], userID=tc['userid'], username=tc['user'], jobID=jobid, 
+                                  taskTypeID=nimUtl.gettaskTypesIdFromName(task), taskID=taskid, startTime=timestamp, 
+                                  endTime=timestamp, hrs=0, breakHrs=0, ot=0, dt=0, description=msg, customKeys=None)
         if not res or res['success'] != 'true':
             nimP.error("Error publishing timecard for task %s at %s. Stop timecards tracking from this scene"%(task, parent))
             return ("", -1) # Stop tracking

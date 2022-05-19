@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Friday, 06 May 2022 12:12:41 CUT
+Last Modified: Wednesday, 18 May 2022 19:31:40 CUT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -866,7 +866,7 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
         return 1
     pass
 
-def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
+def getPublishedVers ( filename, parent='SHOT', parentID='', pub=2):
     '''
     Query NIM's database to get all published version for an element in a shot/asset
 
@@ -878,29 +878,33 @@ def getPublishedVers ( filename, parent='SHOT', parentID='', pub=False):
             Parent for publish element:SHOT or ASSET
         parentID : str
             Shot or Asset ID
+        pub : int
+            Publish mark filter: 0 return no published elements, 1 return only elements marked  as published, 2 no filter return all (default)
 
     Returns
     -------
         int 
             List of versions dictionaries
     '''
-    # (dirname, filename) = os.path.split(path)
-    # Extract basename and ver. Assume name convention is: [SHOT|ASSET]__[TASK]__[TAG]__[VER].####.ext
-    basename = filename.split('.')[0]
-    basenameparts = basename.split('__')
-    basename = '__'.join(basenameparts[:-1]) # Exclude ver part
-    curver = basenameparts[-1][1:] # Get ver part and remove the initial v
-    if parent == 'SHOT':
-        vers = nimAPI.get_vers( shotID=parentID, basename=basename )
-    else:
-        vers = nimAPI.get_vers( assetID=parentID, basename=basename )
-    if vers:
-        if pub:
-            vers = [ver for ver in  vers if int(ver['isPublished'])==1]
-        return vers
-    else:
+    fileparts = nimUtl.splitName(filename)
+    basename = fileparts['base']
+    vers = []
+    if pub != 1:
+        # Get non published.
+        vers = nimAPI.get_vers(shotID=parentID if parent == 'SHOT' else None,
+                               assetID=parentID if parent == 'ASSET' else None,
+                               basename=basename, pub=False)
+    if pub:
+        # Get non published.
+        vers.extend(nimAPI.get_vers(shotID=parentID if parent == 'SHOT' else None,
+                               assetID=parentID if parent == 'ASSET' else None,
+                               basename=basename, pub=True))
+    if pub == 2:
+        vers = sorted(vers, key=lambda x : int(x['version']), reverse=True)
+
+    if not vers:
         return False
-    pass
+    return vers
 
 def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', layer='', subfolder='', isseq=False, hassubsteps=False,
                        format='nim', only_name=False, only_loc=False, force_posix=False  ):
