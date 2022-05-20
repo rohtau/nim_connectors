@@ -4,7 +4,7 @@ Project:       nim
 File Created:  Tuesday, 26 April 2022 11:03:02
 Author:        Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Tuesday, 10 May 2022 09:05:25 CUT
+Last Modified: Friday, 20 May 2022 01:29:38 CUT
 Modified By:   Pablo Gimenez (pablo@rohtau.com)
 -----
 Copyright 2020 - 2021, rohtau
@@ -56,18 +56,18 @@ from pprint import pprint,pformat
 # NIM imports
 if sys.version_info >= (3,0):
     # from . import nim                as Nim
-    from . import nim_api            as nimAPI
-    from . import nim_print          as nimP
+    from . import nim_api          as nimAPI
+    from . import nim_print        as nimP
     # from . import nim_file          as nimF
-    from . import nim_rohtau   as nimRt
-    from . import nim_rohtau_utils   as nimUtl
+    from . import nim_rohtau       as nimRt
+    from . import nim_rohtau_utils as nimUtl
     # from . import nim_win as Win
 else:
     # import nim                as Nim
-    import nim_api            as nimAPI
-    import nim_rohtau   as nimRt
-    import nim_rohtau_utils   as nimUtl
-    import nim_print          as nimP
+    import nim_api          as nimAPI
+    import nim_rohtau       as nimRt
+    import nim_rohtau_utils as nimUtl
+    import nim_print        as nimP
     # import nim_win as Win
 
 #  Variables :
@@ -83,6 +83,7 @@ from .import mwtt
 #
 # Globals
 #
+sentinel_envvar = 'RT_SENTINEL_VERBOSE'
 
 #
 # Timecards Logging
@@ -104,7 +105,6 @@ def getTCLogsLoc():
         Path to timecards location. If any error happens then False.    
 
     '''
-    # TODO: define a predefined tmp, c:\tmp or /tmp.
     # The problem is that tools like houdini redefine TEMP and returns a path to
     # the Houdini temp, instead of agenera temp.
     # tmpdir = tempfile.gettempdir()
@@ -190,7 +190,7 @@ def logTC(job, jobid, entity='SHOT', scenepath='', parent='', parentid=0, task='
         'task' : task,
         'taskid' : taskid
     }
-    nimP.info("In logTC")
+    nimP.info("In logTC", envvar=sentinel_envvar)
     # First if a current TC path is provided go straight to update it
     if tcpath and os.path.exists(tcpath):
         # Check if update is needed. This avoids having several scenes for same
@@ -221,7 +221,7 @@ def logTC(job, jobid, entity='SHOT', scenepath='', parent='', parentid=0, task='
         if userid != myuserid:
             pubtask = nimUtl.getuserTask(myuserid, typeid, entity, parentid)
             if not pubtask:
-                nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task))
+                nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task), envvar=sentinel_envvar)
                 return ("", -1) # Disable tracking setting tcid to -1
             taskid = int(pubtask['taskID'])
         
@@ -277,8 +277,7 @@ def updateTCLog (logpath):
         Path to the TC log file. False if error
     '''
     err = ("",0)
-    nimP.info("In logTC")
-    nimP.info("In updateTCLog")
+    nimP.info("In updateTCLog", envvar=sentinel_envvar)
     if not os.path.exists(logpath):
         nimP.error("Can't update Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
         return err
@@ -312,7 +311,9 @@ def updateTCLog (logpath):
     breakHrs = tc['breakdelta'] / 60
     hrs      = tc['delta'] / 60
     hrs      = hrs + breakHrs # NIM needs hours to have aeverything, effective hours, breaks and OT
-    res      = nimAPI.update_timecard(tc['id'], hrs=hrs, breakHrs=breakHrs)
+    # XXX: update_timecard() requires taskID to be passed otherwise the task
+    # type, and timecard type will be lost after the update.
+    res      = nimAPI.update_timecard(tc['id'], hrs=hrs, breakHrs=breakHrs, taskType=tc['task'], taskID=tc['taskid'], jobID=tc['jobid'])
 
     return (logpath, 0)
 
@@ -335,9 +336,9 @@ def checkTCLog(logpath):
             - 2: tie card has been update recently, no update need but time card
               is legit.
     '''
-    nimP.info("In checkTCLog")
+    nimP.info("In checkTCLog", envvar=sentinel_envvar)
     if not os.path.exists(logpath):
-        nimP.error("Can't update Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
+        nimP.error("Can't check Time Card log file, doesn't exists: %s"%logpath, showwindow=True)
         return 0
     with open (logpath, 'r') as logfile:
         tc = json.load(logfile)
@@ -425,7 +426,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
         Path to log file created or False if any error
     '''
     err = ("", 0)
-    nimP.info("In createTCLog")
+    nimP.info("In createTCLog", envvar=sentinel_envvar)
     usepublished = False
     # Check inputs
     if not parent or not parentid or not task or not taskid:
@@ -466,7 +467,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
         tc['end'] = card['end_time']
         tc['delta'] = float(card['hrs']) * 60 # Delta is in min, card in hrs
         usepublished = True
-        nimP.info("Found published valid Time Card: %d"%tc['id'])
+        nimP.info("Found published valid Time Card: %d"%tc['id'], envvar=sentinel_envvar)
 
 
         # pprint(card)
@@ -475,7 +476,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
     else:
         msg = "Automatic timecard"
         res = nimAPI.add_timecard( date=tc['date'], userID=tc['userid'], username=tc['user'], jobID=jobid, 
-                                  taskTypeID=nimUtl.gettaskTypesIdFromName(task), taskID=taskid, startTime=timestamp, 
+                                  taskType=task, taskID=taskid, startTime=timestamp, 
                                   endTime=timestamp, hrs=0, breakHrs=0, ot=0, dt=0, description=msg, customKeys=None)
         if not res or res['success'] != 'true':
             nimP.error("Error publishing timecard for task %s at %s. Stop timecards tracking from this scene"%(task, parent))
@@ -491,7 +492,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
     logpath = os.path.join(logsdir, logname)
     with open(logpath, 'w') as logfile:
         json.dump(tc, logfile, indent=2)
-    nimP.info("Create TC Log: %s"%logpath)
+    nimP.info("Create TC Log: %s"%logpath, envvar=sentinel_envvar)
     # logpath = nimRt.toPosix(logpath)
 
     if usepublished:
@@ -504,6 +505,66 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
 #
 # Timecards Logging
 #
+def generateTCReport(output='text'):
+    '''
+    Create a report for today's timecards in several formats
+
+    Reports Formats
+    ---------------
+    text: use pprint to outputtime cards dictionaries
+
+    Parameters
+    ----------
+    output : str
+        Output format: text.
+    
+
+    Returns
+    ---------
+    
+
+    '''
+    tcs = []
+    aggregate = 0
+    nimP.info("In generateTCReport", envvar=sentinel_envvar)
+    # Try to find an usable existing TC or create a new one
+    logsdir = getTCLogsLoc()
+    if not logsdir:
+        return False
+    logfiles = glob.glob(logsdir + '/*.json')
+    for log in logfiles:
+        filename = os.path.basename(log)
+        filename = os.path.splitext(filename)[0]
+        parts    = filename.split('__')
+        tcdict = {}
+        if len(parts) == 3:
+            # Valid name
+            if checkTCLog(log):
+                with open (log, 'r') as logfile:
+                    tc = json.load(logfile)
+                tcdict['CardID'] = tc['id']
+                tcdict['Job'] = tc['job']
+                tcdict['Shot/Asset'] = tc['parent']
+                tcdict['Type'] = tc['task']
+                tcdict['Hours'] = tc['delta'] / 60.0 #Hours
+                tcs.append(tcdict)
+                aggregate += tc['delta'] / 60.0
+
+    msg = "Today's Time Cards for %s"%getpass.getuser()
+    if tcs:
+        msg += "\n\n%s"%pformat(tcs)
+        msg += "\n\nTotal Aggregate Time (hrs): %g\n"%aggregate
+    else:
+        msg += "\n\nNo Time Cards for today yet"
+
+    return msg
+
+
+
+    
+
+
+    
 
 
 

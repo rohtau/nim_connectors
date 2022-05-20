@@ -627,6 +627,11 @@ def getShowGlobals( job):
     jobglobals['number'] = jobinfo['number'].encode('ascii')
     jobglobals['description'] = jobinfo['description'].encode('ascii') if jobinfo['description'] else ""
     jobglobals['id'] = int(jobinfo['ID'])
+    # Custom defaults:
+    jobglobals['output_res']    = '1920x1080' # Default resolution to HD if not provided
+    jobglobals['fps']           = 25 # Set FPS to 25  by default if no FPS information if provided
+    jobglobals['autotimecards'] = False # By Default disable Time Cards
+    jobglobals['timecardsblacklist'] = ""
     for custom in jobinfo['customKeys']:
         name = custom['keyName']
         if name == 'Working Resolution':
@@ -645,6 +650,15 @@ def getShowGlobals( job):
         elif name == 'Tools':
             res = [line for line in  custom['value'].splitlines() if len(line)>0]
             jobglobals['tools'] = res
+        elif name == 'Automatic Timecards':
+            res = custom['dropdownText']
+            if res:
+                jobglobals['autotimecards'] = res == 'Enabled'
+            else:
+                jobglobals['autotimecards'] = False # By Default disable Time Cards
+        elif name == 'Automatic Timecards Users Blacklist':
+            res = [line for line in  custom['value'].splitlines() if len(line)>0]
+            jobglobals['timecardsblacklist'] = res
 
     return jobglobals
 

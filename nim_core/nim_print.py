@@ -13,7 +13,7 @@
 # *****************************************************************************
 
 
-
+import os
 
 # Try to import nuke, if nuke is available, assume we are in Nuke and use
 # nuke.tprint
@@ -51,8 +51,38 @@ def debug( msg='' ) :
     return
 
 
-def info( msg='', showwindow=False  ) :
-    'Custom info printer'
+def info( msg='', showwindow=False, envvar=""  ) :
+    '''
+    Create log messages that will be output to stdout and if possible to the status line
+
+    Env Var
+    --------
+    The envvar positional argument allows to specify an envvar name that will be checked before
+    showing any log message.
+    For instance we can have an environment variable called PIPE_VERBOSE, set it to 1 in the environment.
+    The in our call to log() we can set envvar to "PIPE_VERBOSE" and it will be cheked, if it doesnt exist or is 0
+    then no log will happen.
+
+    Parameters
+    ----------
+    msg : str
+        Log Message
+    showwindow : bool
+        whether or not open a windows message
+    envvar : str
+        Environment variable used to decide whether or not the  log message needs to be shown
+    
+
+    Returns
+    ---------
+    
+
+    '''
+    # Check envvar
+    if envvar:
+        if envvar in os.environ and os.getenv(envvar).isdigit():
+            if not int(os.getenv(envvar)):
+                return
     if isinstance(msg, list):
         msg = ''.join(msg)
     tokens=msg.rstrip().split( '\n' )

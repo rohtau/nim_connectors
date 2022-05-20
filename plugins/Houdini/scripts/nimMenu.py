@@ -26,14 +26,15 @@ sys.path.append(nimScriptPath)
 # print "INFO: NIM Script Path: %s" % nimScriptPath
 
 
-import nim_core.UI as nimUI
-import nim_core.nim_api as nimAPI
-import nim_core.nim_file as nimFile
-import nim_core.nim_win as nimWin
-import nim_core.nim_print as nimP
-import nim_core.nim_houdini as nimHoudini
-import nim_core.nim_rohtau as nimRt
+import nim_core.UI               as nimUI
+import nim_core.nim_api          as nimAPI
+import nim_core.nim_file         as nimFile
+import nim_core.nim_win          as nimWin
+import nim_core.nim_print        as nimP
+import nim_core.nim_houdini      as nimHoudini
+import nim_core.nim_rohtau       as nimRt
 import nim_core.nim_rohtau_utils as nimUtl
+import nim_core.nim_rohtau_tc    as nimTc
 from nim_core import padding
 
 from rt import pipe
@@ -301,6 +302,28 @@ def rtCopyHipFileID( ):
 
     pass
 
+def rtCheckTimecards():
+    '''
+    Show a report fo today's timecards
+
+    Parameters
+    ----------
+    
+
+    Returns
+    ---------
+    
+
+    '''
+    hou.ui.setStatusMessage( "NIM: Show Today's Time Cards")
+    msg = nimTc.generateTCReport()
+    hou.ui.displayMessage(msg, title="Today's Timecards")
+
+    pass
+
+
+    
+
 
 if action == 'open':
 	openFileAction()
@@ -346,4 +369,6 @@ elif action == 'copypath':
 	rtCopyHipPath()
 elif action == 'copyfileid':
 	rtCopyHipFileID()
+elif action == 'timecards':
+	rtCheckTimecards()
 
