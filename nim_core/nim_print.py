@@ -80,7 +80,9 @@ def info( msg='', showwindow=False, envvar=""  ) :
     '''
     # Check envvar
     if envvar:
-        if envvar in os.environ and os.getenv(envvar).isdigit():
+        if envvar not in os.environ or not os.getenv(envvar).isdigit():
+            return
+        else:
             if not int(os.getenv(envvar)):
                 return
     if isinstance(msg, list):
