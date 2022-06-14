@@ -3117,6 +3117,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'Unable to derive filepath/API information, sorry.' )
         Win.popup( title='NIM Error', msg='Unable to derive filepath, sorry.' )
         return False
+    # Publish path as fileDir
     fileDir=os.path.normpath( os.path.dirname( filePath ) )+os.sep
     
     #  Get user information :
@@ -3309,13 +3310,30 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
         if userID is not None : params['userID'] = userID
         if basename is not None : params['basename'] = basename
         if filename is not None : params['filename'] = filename
-        if path is not None : params['filepath'] = path
+        # Adjust filepath to follow NIM convention. Done is (add_file()  but
+        # originally not done in safe_file()
+        # NIM convention is that filepath has the dirname and the basename is in
+        # filename.
+        # So if filename is present at the ne of filepath then convert filepath
+        # into dirname:
+        # FIXME: this is not working yet, my paths looks correct but  is not
+        # published correctly in NIM. filePath has the full path.
+        if path is not None : 
+            if path.endswith(filename):
+                print("File path published as dirname")
+                params['filepath'] = os.path.dirname(path)
+                print("File path parm: %s"%params['filepath'])
+            else:
+                print("File path published as full path")
+                params['filepath'] = path
         if ext is not None : params['ext'] = ext
         if version is not None : params['version'] = version
         if comment is not None : params['note'] = comment
         if serverID is not None : params['serverID'] = serverID
         if metadata is not None : params['metadata'] = metadata
         if customKeys is not None : params['customKeys'] = json.dumps(customKeys)
+
+        pprint(params)
 
         result = connect( method='get', params=params )
 

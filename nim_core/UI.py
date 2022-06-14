@@ -3104,13 +3104,11 @@ class GUI(QtGui.QMainWindow) :
                 nimCheck=Nim.NIM()
                 N.get_vars( nim=nimCheck )
                 mod=nuke.root().modified()
+                name=nuke.root().name()
+                nuke.tprint("Scne name: %s"%name)
                 #  Prompt to manually save the file, if modified and no variables present :
-                if mod and not nimCheck.ID('shot') and not nimCheck.ID('asset') :
-                    msg='Please Save your current file first'
-                    P.error( msg )
-                    Win.popup( title='NIM - Import Error', msg=msg )
-                    self.close()
-                    return False
+                if mod and name == 'Root':
+                    P.warning("Reset Untitled script and open selected one")
                 #  Prompt to Save the current file :
                 elif mod :
                     # result=N.Win_SavePySide.get_btn()

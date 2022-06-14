@@ -1026,9 +1026,10 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
                     filename += ".$F4.%s"%ext
             elif format == 'nuke':
                 if hassubsteps:
-                    filename += ".%"+"\%04d.\%02d.%s"%ext
+                    filename += ".%"+"04d.%" + "02d.%s"%ext
                 else:
-                    filename += ".%"+"\%04d.%s"%ext
+                    # filename += ".%"+"\%04d.%s"%ext
+                    filename += ".%"+"04d.%s"%ext
             else:
                 filename += ".####.%s"%ext # By default use Nim padding format
                 
