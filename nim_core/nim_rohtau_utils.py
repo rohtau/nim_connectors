@@ -41,6 +41,7 @@ from .import winTitle
 from .import padding
 from .import default_frame_range
 
+custom_api_url = nimPrefs.get_url().replace('nimAPI.php', '_custom/rohtauAPI_expensesAPI.php?')
 
 class shotStatusID:
     '''
@@ -1285,12 +1286,12 @@ def getcustomFindElements(name=None, path=None, jobID=None, showID=None, shotID=
     if metadata is not None:
         params['metadata'] = metadata
 
-    nim_url = nimPrefs.get_url()
-    custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI.php')
-    custom_nim_url += '?'
+    # nim_url = nimPrefs.get_url()
+    # custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI.php')
+    # custom_nim_url += '?'
     # print("NIM Url: %s"%custom_nim_url)
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_nim_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url )
     return result
 
 
@@ -1736,7 +1737,6 @@ def getuserFullName( username ):
 #
 # Expenses
 # Wrappers to access custom expenses API
-custom_expenses_api_url = nimPrefs.get_url().replace('nimAPI.php', '_custom/rohtauAPI_expensesAPI.php?')
 
 def get_expenses(ID=None, jobID=None, startDate=None, endDate=True, expenseType=True, location=None, method=None, minValue=None, maxValue=None):
     '''
@@ -1776,7 +1776,7 @@ def get_expenses(ID=None, jobID=None, startDate=None, endDate=True, expenseType=
     if maxValue is not None: params['maxValue']       = maxValue
 
 
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_expenses_api_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
     return result
 
 
@@ -1821,7 +1821,7 @@ def add_expense(jobID, expenseType, company=None, description=True, cultureCode=
     if external_cost is not None: params['external_cost']     = external_cost
 
 
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_expenses_api_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
     return result
 
 
@@ -1864,7 +1864,7 @@ def update_expense(ID, expenseType=None, company=None, description=True, culture
     if external_cost is not None: params['external_cost']     = external_cost
 
 
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_expenses_api_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
     return result
 
 
@@ -1884,7 +1884,7 @@ def delete_expense(ID):
     params = {'q': 'deleteExpense'}
     params['ID'] = ID
 
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_expenses_api_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
     return result
 
 
@@ -1901,7 +1901,7 @@ def get_cultureCodes():
     '''
     params = {'q': 'getCultureCodes'}
 
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_expenses_api_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
     return result
 
 
