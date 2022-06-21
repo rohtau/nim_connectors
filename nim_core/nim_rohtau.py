@@ -1562,6 +1562,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     taskname = ''
     taskid = 0
     jsonstr = ""
+    customKeys = {}
 
     # Fix path
     posixpath = nimUtl.toNIMFramePadding(nimUtl.toPosix(path))
@@ -1710,9 +1711,15 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # Link file to elements and render preview if needed. Update comment
     # Update filename and filepath in case the file is being reused and it has
     # change frame range
+    # Update extension and file type in case format has changed (But file type
+    # is considered the same, this happens with geometry files for instance)
+    if file:
+        customKeys = file['customKeys']
+    customKeys['File Type'] = nim.nim['fileExt']['fileType']
     pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
     if comment.strip("''"):
-        pubcomment += ". " + comment.strip("'")
+        # pubcomment += ". " + comment.strip("'")
+        pubcomment = comment.strip("'")
     metadata = {
         'elementID':       res['elementID'],
         'extraElementsID': res['extraElementsID'],
@@ -1723,7 +1730,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
     metadata = json.dumps(metadata)
-    updatefile_res = nimAPI.update_file( int(res['fileID']), filename=nim.name('file'), path=nim.filePath(), comment=pubcomment, metadata=metadata )
+    updatefile_res = nimAPI.update_file( int(res['fileID']), filename=nim.name('file'), path=nim.filePath(), ext=nim.name('fileExt'),
+                                        comment=pubcomment, metadata=metadata, customKeys=customKeys )
     if updatefile_res['success'] != 'true':
         if verbose:
             nimP.error("Error updating published file metadata")
@@ -1814,9 +1822,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         # )
     if  not jsonout and not profile:
         if not file:
-            print("New file successfully published!:\nPublish Name: %s,  Version: %s, FileID: %s, ElementID: %s"%(nim.name('file'), nim.version(), info['fileID'], elm['ID']))
+            nimP.info("New file successfully published!:\nPublish Name: %s,  Version: %s, FileID: %s, ElementID: %s"%(nim.name('file'), nim.version(), info['fileID'], elm['ID']))
         else:
-            print("File was already published")
+            nimP.warning("File was already published")
         print("\n")
         
 

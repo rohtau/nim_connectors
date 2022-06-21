@@ -304,7 +304,7 @@ def rtCopyHipFileID( ):
 
 def rtCheckTimecards():
     '''
-    Show a report fo today's timecards
+    Show a report for today's timecards
 
     Parameters
     ----------

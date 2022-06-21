@@ -386,6 +386,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
         'user' : 'pablo',
         'userid' : 7,
         'published' : false
+        'location' : 'London'
         'date':'2022-05-20',
         'start':'10:00:00',
         'end':'20:00:00'
@@ -450,6 +451,7 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
     tc['user']       = nimAPI.get_user()
     tc['userid']     = nimAPI.get_userID(user=tc['user'])
     tc['published']  = False
+    tc['location']   = 'London' # At the moment there is no way to get the location for an user, so hardcode it to London
     tc['date']       = date
     tc['start']      = timestamp
     tc['end']        = timestamp
@@ -477,7 +479,8 @@ def createTCLog(job, jobid, parent='', parentid=0, task='', taskid=0, typeid=0, 
         msg = "Automatic timecard"
         res = nimAPI.add_timecard( date=tc['date'], userID=tc['userid'], username=tc['user'], jobID=jobid, 
                                   taskType=task, taskID=taskid, startTime=timestamp, 
-                                  endTime=timestamp, hrs=0, breakHrs=0, ot=0, dt=0, description=msg, customKeys=None)
+                                  endTime=timestamp, hrs=0, breakHrs=0, ot=0, dt=0, description=msg,
+                                  location = tc['location'], customKeys=None)
         if not res or res['success'] != 'true':
             nimP.error("Error publishing timecard for task %s at %s. Stop timecards tracking from this scene"%(task, parent))
             return ("", -1) # Stop tracking
