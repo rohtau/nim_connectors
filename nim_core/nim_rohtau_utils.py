@@ -1841,7 +1841,7 @@ def add_expense(jobID, expenseType, company=None, description=True, cultureCode=
     if location is not None: params['location']               = location
     if external_cost is not None: params['external_cost']     = external_cost
 
-    print("Connect to URL: %s"%custom_api_url)
+    # print("Connect to URL: %s"%custom_api_url)
 
 
     result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
