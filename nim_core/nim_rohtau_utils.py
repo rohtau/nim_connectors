@@ -41,7 +41,7 @@ from .import winTitle
 from .import padding
 from .import default_frame_range
 
-custom_api_url = nimPrefs.get_url().replace('nimAPI.php', '_custom/rohtauAPI_expensesAPI.php?')
+custom_api_url = nimPrefs.get_url().replace('nimAPI.php', '_custom/rohtauAPI.php?')
 
 class shotStatusID:
     '''
@@ -505,6 +505,27 @@ def get_job_users(jobid):
                 jobusers.append(user)
     # pprint(jobusers)
     return jobusers
+
+def get_job_status(jobid):
+    '''
+    Get job status
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+
+    Returns
+    -------
+    jobAwardStatusID
+        Job status. If jobid doesn't exist then False is returned
+    '''
+    res = nimAPI.get_jobInfo(jobID=jobid)
+    if res:
+        return int(res[0]['jobStatusID'])
+    else:
+        return False
+
 
 def set_job_status(jobid, status):
     '''
@@ -1738,7 +1759,7 @@ def getuserFullName( username ):
 # Expenses
 # Wrappers to access custom expenses API
 
-def get_expenses(ID=None, jobID=None, startDate=None, endDate=True, expenseType=True, location=None, method=None, minValue=None, maxValue=None):
+def get_expenses(ID=None, jobID=None, startDate=None, endDate=None, expenseType=None, location=None, method=None, minValue=None, maxValue=None):
     '''
     // Get Expenses based on search parameters
     //
@@ -1819,6 +1840,8 @@ def add_expense(jobID, expenseType, company=None, description=True, cultureCode=
     if payment_method is not None: params['payment_method']   = payment_method
     if location is not None: params['location']               = location
     if external_cost is not None: params['external_cost']     = external_cost
+
+    print("Connect to URL: %s"%custom_api_url)
 
 
     result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
