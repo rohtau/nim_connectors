@@ -528,7 +528,13 @@ class NIM( object ) :
             # trying yo guess as most as possible from the file path.
             # if task hasn't been found then basename nd version are also
             # missing
-            import nim_rohtau_utils as nimUtl
+            if sys.version_info >= (3,0):
+                try:
+                    from . import nim_rohtau_utils as nimUtl
+                except ImportError as e:
+                    import nim_rohtau_utils as nimUtl
+            else:
+                import nim_rohtau_utils as nimUtl
             nameparts = nimUtl.splitName(filename)
             if nameparts:
                 self.set_name( elem='base', name=nameparts['base'] )
