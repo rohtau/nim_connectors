@@ -41,6 +41,7 @@ from .import winTitle
 from .import padding
 from .import default_frame_range
 
+custom_api_url = nimPrefs.get_url().replace('nimAPI.php', '_custom/rohtauAPI.php?')
 
 class shotStatusID:
     '''
@@ -504,6 +505,27 @@ def get_job_users(jobid):
                 jobusers.append(user)
     # pprint(jobusers)
     return jobusers
+
+def get_job_status(jobid):
+    '''
+    Get job status
+
+    Parameters
+    ----------
+    jobid : int
+        Job ID
+
+    Returns
+    -------
+    jobAwardStatusID
+        Job status. If jobid doesn't exist then False is returned
+    '''
+    res = nimAPI.get_jobInfo(jobID=jobid)
+    if res:
+        return int(res[0]['jobStatusID'])
+    else:
+        return False
+
 
 def set_job_status(jobid, status):
     '''
@@ -1040,7 +1062,7 @@ def getcustomTaskInfo(ID=None, itemClass=None, itemID=None):
         params['itemID'] = itemID
 
     nim_url = nimPrefs.get_url()
-    custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI.php')
+    custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI_getTaskInfo.php')
     custom_nim_url += '?'
     # print("NIM Url: %s"%custom_nim_url)
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
@@ -1285,12 +1307,12 @@ def getcustomFindElements(name=None, path=None, jobID=None, showID=None, shotID=
     if metadata is not None:
         params['metadata'] = metadata
 
-    nim_url = nimPrefs.get_url()
-    custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI.php')
-    custom_nim_url += '?'
+    # nim_url = nimPrefs.get_url()
+    # custom_nim_url = nim_url.replace('nimAPI.php', '_custom/rohtauAPI.php')
+    # custom_nim_url += '?'
     # print("NIM Url: %s"%custom_nim_url)
     # result = nimAPI.connect( method='get', params=params, nimURL='http://localhost:8888/_client/rohtau/rohtauAPI.php?' )
-    result = nimAPI.connect(method='get', params=params, nimURL=custom_nim_url)
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url )
     return result
 
 
@@ -1732,6 +1754,180 @@ def getuserFullName( username ):
 
 #
 # Timecards
+
+#
+# Expenses
+# Wrappers to access custom expenses API
+
+def get_expenses(ID=None, jobID=None, startDate=None, endDate=None, expenseType=None, location=None, method=None, minValue=None, maxValue=None):
+    '''
+    // Get Expenses based on search parameters
+    //
+    // Variables
+    //        Required Fields:
+    //             none                                         Will return all expenses the requesting user has access to
+    //   
+    //        Optional:
+    //            ID                     integer                 The ID of an expense item to query
+    //             jobID                 integer                 Will return all expense items for the provided jobID
+    //             startDate             date  (YYYY-mm-dd)        Will return all expenses on or after the startDate
+    //            endDate             date  (YYYY-mm-dd)         Will return all expenses on or before the endDate
+    //            expenseType         string                     Will return all items matching the expenseType name
+    //            location             string                     Will return all items matching the location name
+    //            method                 string                     Will return all items matching the payment methood name
+    //            minValue             float                     Will return all items whose value is equal or greater than the minValue
+    //            maxValue             float                     Will return all items whose value is equal or less than the minValue
+    //
+    // Return:
+    //        Returns an associative array in the format
+    //        $result->success         True/False
+    //        $result->error             Includes any error or security messaging   
+    //         $result->rows             An array of returned data
+    //        $result->totalRows         The total count of returned rows in the array
+    '''
+    params = {'q': 'getExpenses'}
+    if ID is not None : params['ID']                  = ID
+    if jobID is not None: params['jobID']             = jobID
+    if startDate is not None: params['startDate']     = startDate
+    if endDate is not None: params['endDate']         = endDate
+    if expenseType is not None: params['expenseType'] = expenseType
+    if location is not None: params['location']       = location
+    if method is not None: params['method']           = method
+    if minValue is not None: params['minValue']       = minValue
+    if maxValue is not None: params['maxValue']       = maxValue
+
+
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
+    return result
+
+
+def add_expense(jobID, expenseType, company=None, description=True, cultureCode=None, value=None, date=None, transactionType=None,
+                 payment_method=None, location=None, external_cost=None):
+    '''
+    // Add Expense
+    //
+    // Variables
+    //        Required Fields:
+    //             jobID                                         The job ID to add the expense to
+    //            expenseType                                 The name of the expense type to associate with the expense
+    //   
+    //        Optional:
+    //             company             string                     The company name to assocaite with the expense   
+    //             description         string                    The description for the expense   
+    //            cultureCode         string                    The culture code for the expense to determine currency ( use getCultureCodes() to retrieve list of options )
+    //            value                 float                     The value of the expense       
+    //            date                 date   (YYYY-mm-dd)     The date of the expense.  If no date is provided, the current date will be used.       
+    //            transactionType     string (debit/credit)    The name of the transactionType (debit/credit).  Debit will be used if no transactionType is defined.
+    //            payment_method         string                     The name of the payment method for the expense           
+    //            location             string                     The name of the location for the expense
+    //            external_cost         (0/1)                     A flag to determine if the expense is a 3rd party cost.  0 = NO / 1 = YES
+    //
+    // Return:
+    //        Returns an associative array in the format
+    //        $result->success         True/False
+    //        $result->error             Includes any error or security messaging   
+    //         $result->ID             The ID of the newly created item
+    '''
+    params = {'q': 'addExpense'}
+    params['jobID']       = jobID
+    params['expenseType'] = expenseType
+    if company is not None: params['company']                 = company
+    if description is not None: params['description']         = description
+    if cultureCode is not None: params['cultureCode']         = cultureCode
+    if value is not None: params['value']                     = value
+    if date is not None: params['date']                       = date
+    if transactionType is not None: params['transactionType'] = transactionType
+    if payment_method is not None: params['payment_method']   = payment_method
+    if location is not None: params['location']               = location
+    if external_cost is not None: params['external_cost']     = external_cost
+
+    # print("Connect to URL: %s"%custom_api_url)
+
+
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
+    return result
+
+
+def update_expense(ID, expenseType=None, company=None, description=True, cultureCode=None, value=None, date=None, transactionType=None,
+                 payment_method=None, location=None, external_cost=None):
+    '''
+    // Update An Expense
+    //
+    // Variables
+    //        Required Fields:
+    //             ID                                             The ID of the expense to update
+    //   
+    //        Optional:                                         (If an optional field is not passed, the value for that field will remain unchanged)
+    //            expenseType                                 The name of the expense type to associate with the expense
+    //             company             string                     The company name to assocaite with the expense   
+    //             description         string                    The description for the expense   
+    //            cultureCode         string                    The culture code for the expense to determine currency ( use getCultureCodes() to retrieve list of options )
+    //            value                 float                     The value of the expense       
+    //            date                 date   (YYYY-mm-dd)     The date of the expense.   
+    //            transactionType     string (debit/credit)    The name of the transactionType (debit/credit).  Debit will be used if no transactionType is defined.
+    //            payment_method         string                     The name of the payment method for the expense           
+    //            location             string                     The name of the location for the expense
+    //            external_cost         (0/1)                     A flag to determine if the expense is a 3rd party cost.  0 = NO / 1 = YES
+    // Return:
+    //        Returns an associative array in the format
+    //        $result->success         True/False
+    //        $result->error             Includes any error or security messaging
+    '''
+    params = {'q': 'updateExpense'}
+    params['ID'] = ID
+    if expenseType is not None: params['expenseType']         = expenseType
+    if company is not None: params['company']                 = company
+    if description is not None: params['description']         = description
+    if cultureCode is not None: params['cultureCode']         = cultureCode
+    if value is not None: params['value']                     = value
+    if date is not None: params['date']                       = date
+    if transactionType is not None: params['transactionType'] = transactionType
+    if payment_method is not None: params['payment_method']   = payment_method
+    if location is not None: params['location']               = location
+    if external_cost is not None: params['external_cost']     = external_cost
+
+
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
+    return result
+
+
+def delete_expense(ID):
+    '''
+    // Delete An Expense
+    //
+    // Variables
+    //        Required Fields:
+    //             ID                                             The ID of the expense to delete
+    //
+    // Return:
+    //        Returns an associative array in the format
+    //        $result->success         True/False
+    //        $result->error             Includes any error or security messaging
+    '''
+    params = {'q': 'deleteExpense'}
+    params['ID'] = ID
+
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
+    return result
+
+
+def get_cultureCodes():
+    '''
+    // getCultureCodes
+    //
+    // Return:
+    //        Returns an associative array in the format
+    //        $result->success         True/False
+    //        $result->error             Includes any error or security messaging   
+    //         $result->rows             An array of returned data
+    //        $result->totalRows         The total count of returned rows in the array
+    '''
+    params = {'q': 'getCultureCodes'}
+
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url)
+    return result
+
+
 
 #
 # Templates for Rez packages
