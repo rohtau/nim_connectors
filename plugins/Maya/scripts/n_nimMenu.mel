@@ -29,21 +29,40 @@ global proc n_nimMenu()
 	string $nimReload = "python( \"import nim_core.nim_file as F; F.scripts_reload()\")";
 	string $nimChangeUser = "python( \"import nim_core.nim_win as Win; Win.userInfo()\")";
 
-	string $name = "NIM";
+	string $rtShowScriptPubInfo = "python( \"import nim_core.nim_maya as M; M.rtShowScriptPubInfo()\")";
+	string $rtCopyScenePathToClipboard = "python( \"import nim_core.nim_maya as M; M.rtCopyScenePathToClipboard()\")";
+
+	//string $name = "NIM";
+	string $name = "|| rohtau";
+    if( size(getenv("SHOW")) ) {
+        $name += " > ";
+        $name += getenv("SHOW");
+        if( size(getenv("SHOT")) ) {
+            $name += "/";
+            $name += getenv("SHOT");
+        }
+    }
+    $name += " ||";
 	$nimMenuCtrl = `menu -p MayaWindow -to true -l $name`;
 	    menuItem -label "Open" -c $nimOpen;
 	    menuItem -label "Import" -c $nimImport;
 	    menuItem -label "Reference" -c $nimReferece;
 	    menuItem -divider true;
 	    menuItem -label "Save As" -c $nimSaveAs;
-	    menuItem -label "Export Selected" -c $nimExportSelected;
-	    menuItem -divider true;
 	    menuItem -label "Version Up" -c $nimVersionUp;
 	    menuItem -label "Publish" -c $nimPublish;
+	    menuItem -label "Export Selected" -c $nimExportSelected;
+	    menuItem -label "Copy Scene Path to Clipboard" -c $rtCopyScenePathToClipboard;
 	    menuItem -divider true;
 	    //setParent -menu ..;
 
-		menuItem -p $nimMenuCtrl -subMenu true -label "Settings";
+        // Globals
+		menuItem -p $nimMenuCtrl -subMenu true -label "Globals";
+	    setParent -menu ..;
+
+        // NIM
+		menuItem -p $nimMenuCtrl -subMenu true -label "NIM";
+	    	menuItem -label "Show Script Pub Info" -c $rtShowScriptPubInfo;
 	    	menuItem -label "Change User" -c $nimChangeUser;
 	    	menuItem -label "Reload Scripts" -c $nimReload;
 	    setParent -menu ..;

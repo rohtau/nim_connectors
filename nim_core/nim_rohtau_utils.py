@@ -217,7 +217,6 @@ def set_file_as_ro_others( filepath ):
 
     return True
 
-
 def toPosix( path, force=False ):
     '''
     Convert path into Posix format.
@@ -237,7 +236,6 @@ def toPosix( path, force=False ):
         return re.sub('^\w:', '', path.replace('\\', '/') )
     else:
         return path
-
 
 def toNIMFramePadding(path):
     '''
@@ -1439,6 +1437,188 @@ def findElements(jobid=0, name="", shotid=0, assetid=0, taskid=0, elementid=0, u
 
     return elmts
 
+def find_extra_elements( mainelmpath, extradirs=None, extrasufx=None):
+    '''
+    Find extra elements associated to the main publishing.
+
+    Extra Elements
+    --------------
+    This feature allows to add extra elements, files, to the main published element. We can call this bundles of elements and are used
+    to publish things like AOVs or extra geometry formats.
+    For instance we ca have out main render and then secondary image sequences that are  AOVs from the beauty render.
+    Similar case is extra file formats for geomatry caches. We can cache the main cache as Alembic but then have a secondary cache as a
+    Redshift Proxy.
+    The parameters controls these extra elemets publishing:
+    - extradirs: comma separated list of subfolder, inside main element location
+      folder, with secondary elements
+    - extrasufx: comma separated list of suffixes to search for secondary
+      elements.
+    - extracat: a category to put this extra elements in. For instance AOV. It is
+      a name to bundle all  extra elements.
+
+    Both extradirs and extrasufx use glob pattern matching. So '*' will match all.
+    If extradirs is 'ass,bgeo' it will look for files in the ass and bgeo subfolders inside the main element folder.
+    If extrasufx is 'albedo,spec' it will look for this suffixes added to the main publish basename.
+    For instance, a file called car__lookdev_tex__hull, can have secondaries called:
+        - car__lookdev_tex__hull_albedo
+        - car__lookdev_tex__hull_spec
+
+    Parameters
+    ----------
+    mainelmpath : str
+        Path to main element. Will be used as the basis to extract base location and/or basename.
+    extradirs = str
+        Subdir name, or list separated  by commas. The names can also be glob patterns like: *,LOD*,^Draft . ^ Negates pattern.
+    extradirs = str
+        Suffix name, or list separated  by commas. The names can also be glob patterns like: rgb, sped*,^cryptomatte . ^ Negates pattern.
+        Suffix is added at the end of the basename.
+
+    Returns
+    ---------
+    list
+        List of found sequences path.
+    
+    '''
+    import fnmatch
+    extraelmts = []
+
+    if extradirs:
+        dirs = extradirs.split(',')
+        dirname = os.path.dirname(mainelmpath)
+        if not os.path.exists(dirname) or not os.path.isdir(dirname):
+            nimP.error("Base folder for main element to publish doesn't exists or is not a folder: %s"%dirname)
+        pubsubdirs = next(os.walk(dirname), None)
+        if pubsubdirs:
+            pubsubdirs = pubsubdirs[1]
+        else:
+            pubsubdirs = []
+        extralocs = []
+        for loc in pubsubdirs:
+            for dirpat in dirs:
+                 if fnmatch.fnmatch(loc, dirpat):
+                     extralocs.append(loc)
+                     print("Location found!: %s"%loc)
+                     break
+        if extralocs:
+            for loc in extralocs:
+                locpath = os.path.join(dirname, loc)
+                files = os.listdir(locpath)
+                if files:
+                    # XXX: Let's assume every subfolder for extra elements has only
+                    # one sequence file. Is not great but can do tyhe job at the
+                    # moment
+                    filepadded = toNIMFramePadding(files[0])
+                    filepadded = toPosix(os.path.join(locpath, filepadded))
+                    # TODO: convert path to POSIX
+                    extraelmts.append(filepadded)
+
+    print("Extra elements found:")
+    pprint(extraelmts)
+
+
+
+    return extraelmts
+
+    
+def build_extra_elements_paths( mainelmpath, extradirs=None, extrasufx=None, isseq=True, hassubsteps=False):
+    '''
+    Build the path for all extra elements that will be published based on extradirs and extrasufx parameters.
+    In many cases these paths dont exists at the time of calling this function, and this is used mainly to reserve publish slots for the
+    new elements.
+
+    Extra Elements
+    --------------
+    This feature allows to add extra elements, files, to the main published element. We can call this bundles of elements and are used
+    to publish things like AOVs or extra geometry formats.
+    For instance we ca have out main render and then secondary image sequences that are  AOVs from the beauty render.
+    Similar case is extra file formats for geomatry caches. We can cache the main cache as Alembic but then have a secondary cache as a
+    Redshift Proxy.
+    The parameters controls these extra elements publishing:
+    - extradirs: comma separated list of subfolder, inside main element location
+      folder, with secondary elements
+    - extrasufx: comma separated list of suffixes to search for secondary
+      elements.
+    - extracat: a category to put this extra elements in. For instance AOV. It is
+      a name to bundle all  extra elements.
+
+    If extradirs is 'ass,bgeo' it will look for files in the ass and bgeo subfolders inside the main element folder.
+    The name of the files inside the subfolders is the same as the main element but with different extension
+    If extrasufx is 'albedo,spec' it will look for this suffixes added to the main publish basename.
+    For instance, a file called car__lookdev_tex__hull, can have secondaries called:
+        - car__lookdev_tex__hull_albedo
+        - car__lookdev_tex__hull_spec
+
+    Parameters
+    ----------
+    mainelmpath : str
+        Path to main element. Will be used as the basis to extract base location and/or basename.
+    extradirs = str
+        List of folders separater by commans.
+    extradirs = str
+        List of suffixes separated  by commas.
+        Suffix is added at the end of the basename.
+    isseq : bool
+        Whether or not the path is for a sequence
+    hassubsteps : bool
+        Whether or not the cache has substeps
+
+    Returns
+    ---------
+    list
+        List of found sequences path.
+    
+    '''
+    extraelmts = []
+
+    if extradirs:
+        dirs = extradirs.split(',')
+        dirname = os.path.dirname(mainelmpath)
+        filename = os.path.basename(mainelmpath)
+        if not os.path.exists(dirname) or not os.path.isdir(dirname):
+            nimP.error("Base folder for main element to publish doesn't exists or is not a folder: %s"%dirname)
+        for extradir in dirs:
+            name,ext=os.path.splitext(filename)
+            print("Name: %s, Extension: %s"%(name,ext))
+            extra_ext = extradir if extradir != 'proxy' else 'bgeo.sc'
+            # if extradir != 'proxy':
+            # TODO: implement correct paths for secondary elemets using isseq and
+            # hassubsteps
+            pprint("Process extradir: %s"%extradir)
+            if isseq and hassubsteps:
+                extra_elm_name = "%s.####.##.%s"%(name,extra_ext)
+            elif isseq:
+                extra_elm_name = "%s.####.%s"%(name,extra_ext)
+            else:
+                extra_elm_name = "%s.%s"%(name,extra_ext)
+            if extra_ext.endswith('abc'):
+                extra_elm_name = "%s.%s"%(name,extra_ext) # Alembics are always single file.
+            '''
+            if ext.endswith('abc'):
+                # If main element is Alembic, chances are that we need to add
+                # padding. Alembics are always single file whereas the rest
+                # of formats are per frame.
+                extra_elm_name = "%s.####.%s"%(name,extradir)
+            '''
+
+
+            # else:
+                # extra_elm_name = "%s.%s"%(name,'bgeo.sc')
+            '''
+            if extradir == 'abc':
+                # Remove frame padding for alembics
+                extra_elm_name = extra_elm_name.replace('.####', '') # Remove padding
+                extra_elm_name = extra_elm_name.replace('.##', '') # Remove substeps padding
+            '''
+            extra_elm_path = toPosix(os.path.join(dirname, extradir, extra_elm_name))
+            extraelmts.append(extra_elm_path)
+
+    print("Extra elements paths:")
+    pprint(extraelmts)
+
+    return extraelmts
+
+
+
 #
 # Files
 def find_basenames(showid=None, shotid=None, assetid=None):
@@ -1463,7 +1643,6 @@ def find_basenames(showid=None, shotid=None, assetid=None):
         basename_groups[basename] = basename_files
 
     return basename_groups
-
 
 def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid=0, userid=0, published=False, last=False, profile=False):
     '''
@@ -1586,7 +1765,6 @@ def findFiles(jobid, name="", showid=0, shotid=0, assetid=0, taskid=0, elementid
 
     return basenames
 
-
 def splitName(filename, error=True):
     '''
     Split a filename according with the name convention:
@@ -1662,6 +1840,67 @@ def splitName(filename, error=True):
     fileparts['elem'] = task.split('_')[1] if task.count('_') else "" # elem is not mandatory
 
     return fileparts
+
+def completeFileInfoWithMetadata( fileinfo, elmts):
+    '''
+    Add extra data to a file info dictionary extracted from the Metadata field.
+    A file Info is the output from get_verInfo(). If includes a Metadta key which is basically a string that
+    serializes a a custom dictionary. We can use it to add any arbitrary data in it.
+    This function can expand some of this data and add it to the file info dict to make it easier to be consumed.
+    Some of the data added to the file Info dict:
+    - Start and End frame from the element associated to the File. This is done
+      using the elementID key and indexing into the elmts dict.
+      Add startFrame and endFrame keys.
+    - Get the Element Info for every extra element associated with out published
+      file.
+      Add extraElements key.
+
+    elmts is a dictionary of elements indexed by their ID number. This helps to access arbitrary elements based on ID quickly.
+    Usually is the list of all elements published for the shot/asset.
+
+    Since parameters are passed by reference in Python, we will modify fileinfo directly.
+
+
+    Parameters
+    ----------
+    fileinfo : dict
+        Dictionary with all the published info from a file. Same as output from nimAPI.get_verInfo() .
+    emts : dict
+        Dictionary of elements info indexed by ID.
+    
+
+    Returns
+    ---------
+    bool
+        True if everything when ok.
+    '''
+    fileinfo['startFrame'], fileinfo['endFrame'] = 0, 0
+    metadata = eval(fileinfo['metadata'])
+    if 'startFrame' in metadata:
+        # Get range info from metadata
+        fileinfo['startFrame'] = int(metadata['startFrame'])
+        fileinfo['endFrame']   = int(metadata['endFrame'])
+        if 'substeps' in metadata:
+            fileinfo['substeps']   = int(metadata['substeps'])
+    elif 'elementID' in fileinfo['metadata']:
+        # If range info is not in file's metadata then query element
+        elmid = int(metadata['elementID'])
+        if elmid in elmts.keys():
+            fileinfo['startFrame'] = int(elmts[elmid]['startFrame'])
+            fileinfo['endFrame']   = int(elmts[elmid]['endFrame'])
+    if 'extraElementsID' in metadata and metadata['extraElementsID']\
+            and metadata['extraElementsID'] != 'Array':
+        # Extract information for extra elements
+        extra_elmts_id = [int(elmid) for elmid in metadata['extraElementsID'].split(',')]
+        # Add extra elements to this fileinfo dict
+        fileinfo['extraElements'] = []
+        for elmid in extra_elmts_id:
+            fileinfo['extraElements'].append(elmts[elmid])
+
+    
+
+
+    
 
 #
 # Users

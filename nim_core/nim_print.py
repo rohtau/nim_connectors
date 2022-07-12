@@ -32,6 +32,18 @@ try:
 except ImportError:
     pass
 
+# Try to import maya, if Maya is available
+isMaya = False
+try:
+    import maya.utils as mm
+    isMaya = True
+except ImportError:
+    pass
+
+#  Variables :
+from .import version 
+from .import winTitle 
+
 def debug( msg='' ) :
     'Custom info printer'
     debug = False
@@ -94,10 +106,12 @@ def info( msg='', showwindow=False, envvar=""  ) :
         else:
             print('NIM ~> %s' % toke)
     if showwindow:
-        if isNuke and nuke.GUI:
+        if isNuke and nuke.GUI: 
             nuke.message(msg)
         elif isHoudini and hou.isUIAvailable():
             hou.ui.displayMessage(msg, title='NIM Error')
+        elif isMaya and not mel.about(batch=True):
+            res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok','cancel'], defaultButton='Ok', cancelButton='Cancel', dismissString='Cancel' ))
     if msg[-1:]=='\n' :
         if isNuke:
             nuke.tprint('NIM ~>')

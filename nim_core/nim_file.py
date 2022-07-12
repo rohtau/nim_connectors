@@ -465,7 +465,10 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
     
     #  Make Maya Project directory :
     if os.path.isdir( projpath ) and nim.app()=='Maya' :
-        import nim_maya as M
+        try:
+            import nim_maya as M
+        except ImportError as e:
+            from . import nim_maya as M
         if M.makeProject( projectLocation=projpath, renderPath=renDir ) :
             P.info( 'Created Maya project directorires within...\n    %s' % projpath )
         else :
@@ -502,6 +505,7 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
     #===------
     P.info('APP = %s' % nim.app())
     filename = os.path.basename( filepath )
+    ext=get_ext( filename )
 
     #  Maya :
     if nim.app()=='Maya' :
@@ -510,7 +514,10 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         #  Save File :
         if not selected :
             #  Set Vars :
-            import nim_maya as M
+            try:
+                import nim_maya as M
+            except ImportError as e:
+                from . import nim_maya as M
             M.set_vars( nim=nim )
             
             P.info( 'Saving file as %s \n' % filepath )

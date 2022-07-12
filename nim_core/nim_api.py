@@ -2873,8 +2873,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             elif nim.app()=='Houdini' :
                 from . import nim_houdini as Houdini
                 Houdini.set_fileid_var( result_addFile )
+            elif nim.app()=='Maya' :
+                from . import nim_maya as M
+                M.set_fileid_var( result_addFile )
             else:
-                nimP.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
+                P.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
             
             # Update published file with File Type depending on the app
             customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}
@@ -3303,13 +3306,14 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
 
         params = {'q': 'addFile'}
 
-        if parent is not None : params['class'] = parent
-        if parentID is not None : params['itemID'] = parentID
-        if task_type_ID is not None : params['task_type_ID'] = task_type_ID
-        if task_folder is not None : params['task_type_folder'] = task_folder
-        if userID is not None : params['userID'] = userID
-        if basename is not None : params['basename'] = basename
-        if filename is not None : params['filename'] = filename
+        if parent is not None:       params['class']            = parent
+        if parentID is not None:     params['itemID']           = parentID
+        if task_type_ID is not None: params['task_type_ID']     = task_type_ID
+        if task_folder is not None:  params['task_type_folder'] = task_folder
+        if userID is not None:       params['userID']           = userID
+        if basename is not None:     params['basename']         = basename
+        if filename is not None:     params['filename']         = filename
+        if path is not None:         params['filepath']         = path
         # Adjust filepath to follow NIM convention. Done is (add_file()  but
         # originally not done in safe_file()
         # NIM convention is that filepath has the dirname and the basename is in
@@ -3318,22 +3322,20 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
         # into dirname:
         # FIXME: this is not working yet, my paths looks correct but  is not
         # published correctly in NIM. filePath has the full path.
-        if path is not None : 
-            if path.endswith(filename):
-                print("File path published as dirname")
-                params['filepath'] = os.path.dirname(path)
-                print("File path parm: %s"%params['filepath'])
-            else:
-                print("File path published as full path")
-                params['filepath'] = path
-        if ext is not None : params['ext'] = ext
-        if version is not None : params['version'] = version
-        if comment is not None : params['note'] = comment
-        if serverID is not None : params['serverID'] = serverID
-        if metadata is not None : params['metadata'] = metadata
-        if customKeys is not None : params['customKeys'] = json.dumps(customKeys)
-
-        pprint(params)
+        # if path is not None : 
+            # if path.endswith(filename):
+                # print("File path published as dirname")
+                # params['filepath'] = os.path.dirname(path)
+                # print("File path parm: %s"%params['filepath'])
+            # else:
+                # print("File path published as full path")
+                # params['filepath'] = path
+        if ext is not None:        params['ext']        = ext
+        if version is not None:    params['version']    = version
+        if comment is not None:    params['note']       = comment
+        if serverID is not None:   params['serverID']   = serverID
+        if metadata is not None:   params['metadata']   = metadata
+        if customKeys is not None: params['customKeys'] = json.dumps(customKeys)
 
         result = connect( method='get', params=params )
 

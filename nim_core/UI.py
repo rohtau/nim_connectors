@@ -3426,7 +3426,8 @@ class GUI(QtGui.QMainWindow) :
         try : 
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
-            P.error(traceback.format_stack())
+            P.error(traceback.format_exc())
+            # P.error(sys.exc_info()[2])
             P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
         
@@ -3602,7 +3603,10 @@ class GUI(QtGui.QMainWindow) :
 
             #  Set Variables :
             if self.nim.app().lower()=='maya' :
-                import nim_maya as M
+                try:
+                    import nim_maya as M
+                except ImportError as e:
+                    from . import nim_maya as M
                 M.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='nuke' :
                 from . import nim_nuke as N
