@@ -218,23 +218,47 @@ def set_file_as_ro_others( filepath ):
 
 #
 # Jobs
-def getjobs():
-    """
-    Get a dictionary with all jobs and IDs
+def getjobs(userid=None):
+    '''
+    Get a dictionary with all jobs and IDs.
+    If userid is provided only get jobs assigned to that user, otherwise get all jobs with users
+    assigned to it.
+
     { 'JobName' : ID , ... }
-    """
+
+    Parameters
+    ----------
+    userid : int
+        User id to search a task for
+
+    Returns
+    ---------
+    dict
+        Dictionary with jobnames as str and IDs as int. False if error
+    
+
+    '''
     # get NIM jobs
     # XXX: this function is pretty expensive, at the moment in NIM we need to loop through all the users in order
     # to get a full list of jobs
-    users = nimAPI.get_userList()
-    jobsnames = {}
-    for user in users:
-        userjobs = nimAPI.get_jobs(user['ID'])
-        if userjobs == False:
-            continue
-        for key in userjobs.keys():
-            if key not in jobsnames:
-                jobsnames[key.decode('utf-8')] = int(userjobs[key])
+    if userid:
+        userjobs = nimAPI.get_jobs(userid)
+        if not userjobs:
+            return False
+        jobsnames = {key.decode('utf-8'):int(value) for key,value in userjobs.items()}
+    else:
+        users = nimAPI.get_userList()
+        jobsnames = {}
+        for user in users:
+            userjobs = nimAPI.get_jobs(user['ID'])
+            if userjobs == False:
+                continue
+            # for key in userjobs.keys():
+                # if key not in jobsnames:
+                    # jobsnames[key.decode('utf-8')] = int(userjobs[key])
+            for key,value in userjobs.items():
+                if key not in jobsnames:
+                    jobsnames[key.decode('utf-8')] = int(value)
     return jobsnames
 
 
