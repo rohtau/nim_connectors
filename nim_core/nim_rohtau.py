@@ -1006,7 +1006,12 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     if elem in ('plates', 'comps', 'renders'):
         loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     else:
-        loc = os.path.normpath( os.path.join(baseloc, shortelem, pathtask, basename, pathver))
+        # XXX:Adding the elem name after baseloc causes a duplicate in the elem
+        # type for. So baseloc in general will return something like /rnd/cache
+        # . There is no point to add cache again, but this was changed for some
+        # reason, so let's keep it here commmented just in case.
+        # loc = os.path.normpath( os.path.join(baseloc, shortelem, pathtask, basename, pathver))
+        loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 
@@ -1524,6 +1529,9 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     elif nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         scene_pubtask_id = Houdini.get_taskid_var()
+    elif nim.app()=='Maya' :
+        from . import nim_maya as M
+        scene_pubtask_id = M.get_taskid_var()
     else:
         nimP.error("Can't get taskid from scene's publishing info. App not supported: %s"%nim.app())
 
@@ -1614,6 +1622,9 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     elif nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         Houdini.set_taskid_var(pubtask['taskID'])
+    elif nim.app()=='Maya' :
+        from . import nim_maya as M
+        M.set_taskid_var(pubtask['taskID'])
     else:
         nimP.error("Can't set taskid in scene's publishing info. App not supported: %s"%nim.app())
 

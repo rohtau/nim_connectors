@@ -3448,6 +3448,10 @@ class GUI(QtGui.QMainWindow) :
             from . import nim_nuke as N
             N.set_globals()
             pass
+        elif self.app=='Maya' :
+            from . import nim_maya as M
+            M.set_globals()
+            pass
 
         
         #  Close the window :

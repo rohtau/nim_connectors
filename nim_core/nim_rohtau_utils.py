@@ -804,8 +804,14 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
 
     # Shot
     # pprint(shotinfo)
-    shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
-    shotglobals['description'] = shotinfo['description'].encode('ascii')
+    if sys.version_info >= (3, 0):
+        shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName']
+    else:
+        shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
+    if sys.version_info >= (3, 0):
+        shotglobals['description'] = shotinfo['description']
+    else:
+        shotglobals['description'] = shotinfo['description'].encode('ascii')
     shotglobals['id'] = int(shotid)
     if entity_type=='SHOT':
         shotglobals['frames'] = int(shotinfo['frames']) if shotinfo['frames'] else 0

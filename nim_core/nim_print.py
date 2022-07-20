@@ -35,7 +35,10 @@ except ImportError:
 # Try to import maya, if Maya is available
 isMaya = False
 try:
-    import maya.utils as mm
+    import maya.cmds as mc
+    import maya.mel as mm
+    import maya.OpenMaya as om
+    from pymel.core import *
     isMaya = True
 except ImportError:
     pass
@@ -103,6 +106,11 @@ def info( msg='', showwindow=False, envvar=""  ) :
     for toke in tokens :
         if isNuke:
             nuke.tprint('NIM ~> %s' % toke)
+        elif isMaya:
+            om.MGlobal.displayInfo('NIM ~> %s' % toke)
+        elif isHoudini and hou.isUIAvailable():
+            print('NIM ~> %s' % toke)
+            hou.ui.setStatusMessage( 'NIM ~> %s' % toke)
         else:
             print('NIM ~> %s' % toke)
     if showwindow:
@@ -111,7 +119,7 @@ def info( msg='', showwindow=False, envvar=""  ) :
         elif isHoudini and hou.isUIAvailable():
             hou.ui.displayMessage(msg, title='NIM Error')
         elif isMaya and not mel.about(batch=True):
-            res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok','cancel'], defaultButton='Ok', cancelButton='Cancel', dismissString='Cancel' ))
+            res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok','cancel'], defaultButton='Ok', cancelButton='Cancel', dismissString='Cancel', icon='information' )
     if msg[-1:]=='\n' :
         if isNuke:
             nuke.tprint('NIM ~>')
@@ -147,6 +155,11 @@ def warning( msg='', showwindow=False ) :
         if isNuke:
             nuke.tprint('NIM.Warning ~> %s' % toke)
             nuke.warning('NIM.Warning ~> %s' % toke)
+        elif isMaya:
+            om.MGlobal.displayWarning('NIM.Warning ~> %s' % toke)
+        elif isHoudini and hou.isUIAvailable():
+            print('NIM.Warning ~> %s' % toke)
+            hou.ui.setStatusMessage( "NIM: Publish Flipbook", hou.severityType.Warning)
         else:
             print('NIM.Warning ~> %s' % toke)
     if showwindow:
@@ -154,6 +167,8 @@ def warning( msg='', showwindow=False ) :
             nuke.alert(msg)
         elif isHoudini and hou.isUIAvailable():
             hou.ui.displayMessage(msg, title='NIM Error', severity=hou.severityType.Warning)
+        elif isMaya and not mel.about(batch=True):
+            res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok'], defaultButton='Ok', cancelButton='Ok', dismissString='', icon='warning' )
     if msg[-1:]=='\n' :
         if isNuke:
             nuke.tprint('NIM.Warning ~>')
@@ -173,6 +188,11 @@ def error( msg='', showwindow=False ) :
             if isNuke:
                 nuke.tprint('NIM.Error ~> %s' % toke)
                 nuke.error('NIM.Error ~> %s' % toke )
+            elif isMaya:
+                om.MGlobal.displayError('NIM.Error ~> %s' % toke)
+            elif isHoudini and hou.isUIAvailable():
+                print('NIM.Warning ~> %s' % toke)
+                hou.ui.setStatusMessage( "NIM: Publish Flipbook", hou.severityType.Error)
             else:
                 print('NIM.Error ~> %s' % toke)
         if msg[-1:]=='\n' :
@@ -186,6 +206,8 @@ def error( msg='', showwindow=False ) :
                 nuke.alert(msg)
             elif isHoudini and hou.isUIAvailable():
                 hou.ui.displayMessage(msg, title='NIM Error', severity=hou.severityType.Error)
+            elif isMaya and not mel.about(batch=True):
+                res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok'], defaultButton='Ok', cancelButton='Ok', dismissString='', icon='critical' )
     else : 
         if isNuke:
             nuke.tprint('NIM.Error ~> An error was logged but no message was received.')

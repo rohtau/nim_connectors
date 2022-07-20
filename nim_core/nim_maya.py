@@ -17,6 +17,10 @@ import os
 import sys
 import platform
 import traceback
+import threading
+import time
+import json
+import getpass
 from pprint import pprint, pformat
 # NIM imports
 try:
@@ -26,6 +30,7 @@ try:
     import nim_api          as Api
     import nim_rohtau       as Rt
     import nim_rohtau_utils as Utl
+    import nim_rohtau_tc    as Tc
 except ImportError as e:
     from . import nim              as Nim
     from . import nim_file         as F
@@ -33,9 +38,11 @@ except ImportError as e:
     from . import nim_api          as Api
     from . import nim_rohtau       as Rt
     from . import nim_rohtau_utils as Utl
+    from . import nim_rohtau_tc    as Tc
 #  Maya Imports :
 import maya.cmds as mc
 import maya.mel as mm
+import maya.OpenMaya as om
 from pymel.core import *
 #  Import Python GUI packages :
 try : 
@@ -53,10 +60,25 @@ except ImportError :
                 from PyQt5 import QtCore
             except ImportError :
                 print("NIM: Failed to load UI Modules - Maya")
+# Import rohtau's mayacore
+import pipe
 
 #  Variables :
 from .import version 
 from .import winTitle 
+from .import mwtt
+
+# Globals
+fps_names = {
+    15 : 'game',
+    24 : 'film',
+    25 : 'pal',
+    30 : 'ntsc',
+    48 : 'show',
+    50 : 'palf',
+    60 : 'ntscf'
+}
+
 
 
 
@@ -270,6 +292,10 @@ def set_vars( nim=None ) :
     P.info('    Completed setting NIM attributes on the defaultRenderGlobals node.')
     #nim.Print()
     
+    # Open/Close scene script nodes
+    if not mc.objExists( 'rtOpenScene' ) :
+        openSceneNodeName = cmds.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
+
     mc.undoInfo(closeChunk=True)
     return
 
@@ -443,6 +469,11 @@ def get_vars( nim=None ) :
     #  Print dictionary :
     #P.info('\nNIM Dictionary from get vars...')
     #nim.Print()
+
+    # Open/Close scene script nodes
+    if not mc.objExists( 'rtOpenScene' ) :
+        openSceneNodeName = cmds.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
+
     mc.undoInfo(closeChunk=True)
     return
 
@@ -463,6 +494,323 @@ def get_taskid_var():
     else:
         P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
         return False
+
+def stash_frame_range():
+    '''
+    Store current frame and display range in envars for future restore using restore_range
+
+    Parameters
+    ----------
+
+
+    Returns
+    ---------
+    bool
+        True if everything went ok.
+
+    '''
+    # framerange = hou.playbar.frameRange()
+    # displayrange = hou.playbar.playbackRange()
+    playstart = mc.playbackOptions(minTime=True, query=True)
+    playend   = mc.playbackOptions(maxTime=True, query=True)
+    start     = mc.playbackOptions(ast=True, query=True)
+    end       = mc.playbackOptions(aet=True, query=True)
+    mel.putenv('SHOTSTART_STASH',    str(int(start)))
+    mel.putenv('SHOTEND_STASH',      str(int(end)))
+    mel.putenv('SHOTSTARTCUT_STASH', str(int(playstart)))
+    mel.putenv('SHOTENDCUT_STASH',   str(int(playend)))
+
+    return True
+
+
+def set_globals():
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Globals
+    --------
+    - Render resolution
+    - FPS
+    - Shot range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    #  Job ID :
+    if not mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
+        P.error("Maya scene doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(mc.getAttr( 'defaultRenderGlobals.nim_jobID' ))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    msg = ""
+
+    # Set output format.
+    # If format doesn't match, create format for show.
+    if 'output_res' in jobglobals:
+        mel.putenv('SHOWOUTPUT', jobglobals['output_res'])
+        (resx, resy) = jobglobals['output_res'].split('x')
+        resx = int(resx)
+        resy = int(resy)
+        mc.setAttr( 'defaultResolution.width', resx)
+        mc.setAttr( 'defaultResolution.height', resy)
+        msg += "- Render resolution set to: %dx%d\n"%(resx,resy)
+
+    
+    # Set FPS
+    if 'fps' in jobglobals:
+        mel.putenv('FPS', str(jobglobals['fps']))
+        # cmds.currentUnit( time='ntsc' )
+        if jobglobals['fps'] in fps_names:
+            mel.currentUnit( time=fps_names[jobglobals['fps']] )
+        msg += "- FPS set to %d\n"%jobglobals['fps']
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(mc.getAttr( 'defaultRenderGlobals.nim_shotID' )) if mc.getAttr( 'defaultRenderGlobals.nim_class' ) == 'SHOT' else int(mc.getAttr( 'defaultRenderGlobals.nim_assetID' ))
+    shotglobals = Utl.getShotGlobals( shotid, entity_type=mc.getAttr( 'defaultRenderGlobals.nim_class' ))
+
+    # print("Shot Globals")
+    # print(pformat(shotglobals))
+    if 'frames' in shotglobals:
+        # Set frame range and display range. Move to first display frame. Disable cooking
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
+        # Save current range
+        stash_frame_range()
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + frames - 1
+        mc.playbackOptions(ast=first)
+        mc.playbackOptions(aet=last)
+        mc.playbackOptions(minTime=first+shotglobals['handles'])
+        mc.playbackOptions(maxTime=last-shotglobals['handles'])
+        mc.playbackOptions(maxTime=last-shotglobals['handles'])
+        mel.currentTime( first+shotglobals['handles'] )
+        mel.putenv('SHOTSTART', str(first))
+        mel.putenv('SHOTEND', str(last))
+        mel.putenv('SHOTSTARTCUT', str(first+shotglobals['handles']))
+        mel.putenv('SHOTENDCUT', str(last-shotglobals['handles']))
+        mel.putenv('SHOTFRAMES', str(frames))
+        mel.putenv('SHOTHANDLES', str(shotglobals['handles']))
+        if not mel.getenv('SHOTPREROLL'):
+            mel.putenv('SHOTPREROLL', str(0))
+        mel.putenv('SHOTSIMSTART', str(first-int(mel.getenv('SHOTPREROLL'))))
+
+
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
+                                                                                   last-shotglobals['handles'])
+    else:
+        msg += "- WARNING: No Frame Range information for this shot"
+
+    if msg:
+        msg = "The next changes have been apply in the script:\n\n" + msg
+        mel.confirmDialog(title='Set Globals ...', message=msg, button=['Ok'], defaultButton='Ok')
+
+
+    return True
+
+def set_shot_range():
+    '''
+    Set scene time range to shot frames
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    #  Job ID :
+    if not mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
+        P.error("Maya scene doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(mc.getAttr( 'defaultRenderGlobals.nim_jobID' ))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(mc.getAttr( 'defaultRenderGlobals.nim_shotID' )) if mc.getAttr( 'defaultRenderGlobals.nim_class' ) == 'SHOT' else int(mc.getAttr( 'defaultRenderGlobals.nim_assetID' ))
+    frames  = int(mel.getenv('SHOTFRAMES'))
+    handles = int(mel.getenv('SHOTHANDLES'))
+    if not frames and mc.objExists( 'defaultRenderGlobals.nim_frames'):
+        frames = int(mc.getAttr( 'defaultRenderGlobals.nim_frames'))
+    if not handles and mc.objExists( 'defaultRenderGlobals.nim_handles'):
+        handles = int(mc.getAttr( 'defaultRenderGlobals.nim_handles'))
+    if frames :
+        stash_frame_range()
+        first = 1001 # We always start at 1001 by convention
+        last = 1001 + frames - 1
+        mc.playbackOptions(ast=first)
+        mc.playbackOptions(aet=last)
+        mc.playbackOptions(minTime=first+handles)
+        mc.playbackOptions(maxTime=last-handles)
+        mel.currentTime( first+handles )
+        msg = "Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, last-handles)
+        om.MGlobal.displayInfo(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
+        om.MGlobal.displayError(msg)
+        mel.confirmDialog(title='Set Shot Range ...', message=msg, button=['Ok'], defaultButton='Ok')
+        return False
+
+    return True
+
+
+def set_preroll():
+    '''
+    Set scene simulation preroll
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    #  Job ID :
+    if not mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
+        P.error("Maya scene doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(mc.getAttr( 'defaultRenderGlobals.nim_jobID' ))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(mc.getAttr( 'defaultRenderGlobals.nim_shotID' )) if mc.getAttr( 'defaultRenderGlobals.nim_class' ) == 'SHOT' else int(mc.getAttr( 'defaultRenderGlobals.nim_assetID' ))
+    frames  = int(mel.getenv('SHOTFRAMES'))
+    handles = int(mel.getenv('SHOTHANDLES'))
+    if frames:
+        preroll = int(mel.getenv('SHOTPREROLL'))
+        if not preroll:
+            preroll=0
+        result = mc.promptDialog(
+                title='Set Scene Pre-Roll for Simulation ...',
+                message='Pre-Roll Frames',
+                text=str(preroll),
+                button=['OK', 'Cancel'],
+                defaultButton='OK',
+                cancelButton='Cancel',
+                dismissString='Cancel')
+
+        if result == 'OK':
+            preroll  = int(mc.promptDialog(query=True, text=True))
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = 1001 + frames - 1
+            first = first - preroll
+            mc.playbackOptions(ast=first)
+            mc.playbackOptions(aet=last)
+            mc.playbackOptions(minTime=first)
+            mc.playbackOptions(maxTime=last)
+            mel.currentTime( first)
+            mel.putenv('SHOTPREROLL', str(preroll))
+            mel.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            om.MGlobal.displayInfo(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        om.MGlobal.displayError(msg)
+        mel.confirmDialog(title='Set SIM Range ...', message=msg, button=['Ok'], defaultButton='Ok')
+        return False
+
+    return True
+
+def set_sim_range():
+    '''
+    Set scene time range to simulation  range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    #  Job ID :
+    if not mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
+        P.error("Maya scene doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(mc.getAttr( 'defaultRenderGlobals.nim_jobID' ))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(mc.getAttr( 'defaultRenderGlobals.nim_shotID' )) if mc.getAttr( 'defaultRenderGlobals.nim_class' ) == 'SHOT' else int(mc.getAttr( 'defaultRenderGlobals.nim_assetID' ))
+    frames  = int(mel.getenv('SHOTFRAMES'))
+    handles = int(mel.getenv('SHOTHANDLES'))
+    if frames:
+        preroll = int(mel.getenv('SHOTPREROLL'))
+        if preroll:
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = 1001 + frames - 1
+            first = first - preroll
+            mc.playbackOptions(ast=first)
+            mc.playbackOptions(aet=last)
+            mc.playbackOptions(minTime=first)
+            mc.playbackOptions(maxTime=last)
+            mel.currentTime( first)
+            mel.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            om.MGlobal.displayInfo(msg)
+        else:
+            msg = "This scene doesnt have a Pre-Roll defined. Please use Set Sim Preroll first."
+            om.MGlobal.displayError(msg)
+            return False
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        om.MGlobal.displayError(msg)
+        mel.confirmDialog(title='Set SIM Range ...', message=msg, button=['Ok'], defaultButton='Ok')
+        return False
+
+    return True
+
+
+def restore_range():
+    '''
+    Restore previous stashed range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    # Set frame range using stached values in envvars.
+    first    = int(mel.getenv('SHOTSTART_STASH'))
+    last     = int(mel.getenv('SHOTEND_STASH'))
+    firstcut = int(mel.getenv('SHOTSTARTCUT_STASH'))
+    lastcut  = int(mel.getenv('SHOTENDCUT_STASH'))
+    if first or last or firstcut or lastcut:
+        stash_frame_range()
+        mc.playbackOptions(ast=firstcut)
+        mc.playbackOptions(aet=lastcut)
+        mc.playbackOptions(minTime=first)
+        mc.playbackOptions(maxTime=last)
+        mel.currentTime( firstcut)
+        msg = "Frame range restored to %d-%d "%(first, last)
+        om.MGlobal.displayInfo(msg)
+    else:
+        msg = "Couldn't find previous frame range state"
+        om.MGlobal.displayError(msg)
+        return False
+
+    return True
+
 
 def rtShowScriptPubInfo():
     '''
@@ -486,151 +834,195 @@ def rtCopyScenePathToClipboard():
 
     P.info("Script path copied to clipboard: %s"%path)
 
+def rtSetGlobals( ):
+    '''
+    Wrapper to call set_globals() fro the Menu
+
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info ( 'Set Scene Globals' )
+    set_globals()
+
+    pass
+
+def rtSetShotRange ( ):
+    '''
+    Wrapper to call set_shot_range() from the Menu
+
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info ( 'Set Shot Range' )
+    set_shot_range()
+
+    pass
+
+def rtSetPreRoll( ):
+    '''
+    Set pre roll frames for simulations
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info ( 'Set Pre-Roll' )
+    set_preroll()
+
+    pass
+
+def rtSimRange( ):
+    '''
+    Set simulation range in timeline
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info ( 'Set Sim Range' )
+    set_sim_range()
+
+    pass
+
+def rtRestoreRange( ):
+    '''
+    Restore previously stached range
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info ( 'Restore Range' )
+    restore_range()
+
+    pass
+
+def rtCreateTaskForScript():
+    '''
+    Create an appropriate task in the shot/asset for this user according with the task used by the script filename
+    
+    Returns
+    -------
+    bool
+        True if task was created correctly or if it already exists. False if task creation failed
+    '''
+    path = mel.file(q=True, sn=True)
+    task = Rt.pubTask( filepath=path, user=Api.get_user())
+    if task:
+        #  Task ID :
+        if not mc.attributeQuery( 'nim_taskID', node='defaultRenderGlobals', exists=True) :
+            mc.addAttr( 'defaultRenderGlobals', longName='nim_taskID', dt="string")
+        mc.setAttr( 'defaultRenderGlobals.nim_taskID', lock=False)
+        mc.setAttr( 'defaultRenderGlobals.nim_taskID', str(task['taskID']), type='string' )
+        mc.setAttr( 'defaultRenderGlobals.nim_taskID', lock=True, keyable=False)
+    else:
+        return False
+    return  True
+
+def rtCopySceneFileID( ):
+    '''
+    Copy Scene file NIM's FilE ID to the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    #  Job ID :
+    if not mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
+        P.error("Maya scene doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(mc.getAttr( 'defaultRenderGlobals.nim_jobID' ))
+    jobglobals = Utl.getShowGlobals( jobid )
+    P.info( 'Copy Hip File ID to Clipboard' )
+    fileid  = str(int(mc.getAttr( 'defaultRenderGlobals.nim_fileID' )))
+    from PySide2 import QtGui as QtGui2
+    cb = QtGui2.QGuiApplication.clipboard()
+    cb.clear(mode=cb.Clipboard )
+    cb.setText(fileid, mode=cb.Clipboard)
+    
+    P.info("Hip File ID copied to the clipboard: %s"%fileid)
+
+    pass
+
+def rtCopySceneFileID( ):
+    '''
+    Copy Scene file NIM's FilE ID to the clipboard
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    pass
+
+def rtPublishFlipbook( ):
+    '''
+    Publish current flipbook in MPlay
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    P.info("Publish Flipbook")
+    pipe.publish_flipbook()
+
+    pass
+
+
+def rtOpenScene():
+    '''
+    Function to be called from a script node when a scene is opened.
+
+    Parameters
+    ----------
     
 
+    Returns
+    ---------
+    bool
+        True if all commands executed correctly.
 
-#DEPRICATED
-def mk_workspace( renPath='' ) :
-    'Creates the NIM Project Workspace'
-    
-    workspace='//NIM Project Workspace File\n\n'
-    workspace +='workspace -fr "scene" "scenes";\n'
-    workspace +='workspace -fr "3dPaintTextures" "sourceimages/3dPaintTextures";\n'
-    workspace +='workspace -fr "eps" "data";\n'
-    workspace +='workspace -fr "mel" "scripts";\n'
-    workspace +='workspace -fr "particles" "cache/particles";\n'
-    workspace +='workspace -fr "STEP_DC" "data";\n'
-    workspace +='workspace -fr "CATIAV5_DC" "data";\n'
-    workspace +='workspace -fr "sound" "sound";\n'
-    workspace +='workspace -fr "furFiles" "renderData/fur/furFiles";\n'
-    workspace +='workspace -fr "depth" "renderData/depth";\n'
-    workspace +='workspace -fr "CATIAV4_DC" "data";\n'
-    workspace +='workspace -fr "autoSave" "autosave";\n'
-    workspace +='workspace -fr "diskCache" "data";\n'
-    workspace +='workspace -fr "fileCache" "cache/nCache";\n'
-    workspace +='workspace -fr "IPT_DC" "data";\n'
-    workspace +='workspace -fr "SW_DC" "data";\n'
-    workspace +='workspace -fr "DAE_FBX export" "data";\n'
-    workspace +='workspace -fr "Autodesk Packet File" "data";\n'
-    workspace +='workspace -fr "DAE_FBX" "data";\n'
-    workspace +='workspace -fr "DXF_DCE" "data";\n'
-    workspace +='workspace -fr "mayaAscii" "scenes";\n'
-    workspace +='workspace -fr "iprImages" "renderData/iprImages";\n'
-    workspace +='workspace -fr "move" "data";\n'
-    workspace +='workspace -fr "mayaBinary" "scenes";\n'
-    workspace +='workspace -fr "fluidCache" "cache/nCache/fluid";\n'
-    workspace +='workspace -fr "clips" "clips";\n'
-    workspace +='workspace -fr "templates" "assets";\n'
-    workspace +='workspace -fr "DWG_DC" "data";\n'
-    workspace +='workspace -fr "offlineEdit" "scenes/edits";\n'
-    workspace +='workspace -fr "translatorData" "data";\n'
-    workspace +='workspace -fr "DXF_DC" "data";\n'
-    workspace +='workspace -fr "renderData" "renderData";\n'
-    workspace +='workspace -fr "SPF_DCE" "data";\n'
-    workspace +='workspace -fr "ZPR_DCE" "data";\n'
-    workspace +='workspace -fr "furShadowMap" "renderData/fur/furShadowMap";\n'
-    workspace +='workspace -fr "audio" "sound";\n'
-    workspace +='workspace -fr "IV_DC" "data";\n'
-    workspace +='workspace -fr "scripts" "scripts";\n'
-    workspace +='workspace -fr "STL_DCE" "data";\n'
-    workspace +='workspace -fr "furAttrMap" "renderData/fur/furAttrMap";\n'
-    workspace +='workspace -fr "FBX export" "data";\n'
-    workspace +='workspace -fr "JT_DC" "data";\n'
-    workspace +='workspace -fr "sourceImages" "sourceimages";\n'
-    workspace +='workspace -fr "DWG_DCE" "data";\n'
-    workspace +='workspace -fr "FBX" "data";\n'
-    workspace +='workspace -fr "movie" "movies";\n'
-    workspace +='workspace -fr "Alembic" "data";\n'
-    workspace +='workspace -fr "furImages" "renderData/fur/furImages";\n'
-    workspace +='workspace -fr "IGES_DC" "data";\n'
-    workspace +='workspace -fr "illustrator" "data";\n'
-    workspace +='workspace -fr "furEqualMap" "renderData/fur/furEqualMap";\n'
-    workspace +='workspace -fr "UG_DC" "data";\n'
-    #  Add render images directory :
-    if not renPath :
-        workspace +='workspace -fr "images" "images";\n'
-    else :
-        renPath=renPath.replace('\\', '/')
-        workspace +='workspace -fr "images" "'+renPath+'";\n'
-    workspace +='workspace -fr "SPF_DC" "data";\n'
-    workspace +='workspace -fr "PTC_DC" "data";\n'
-    workspace +='workspace -fr "OBJ" "data";\n'
-    workspace +='workspace -fr "CSB_DC" "data";\n'
-    workspace +='workspace -fr "STL_DC" "data";\n'
-    workspace +='workspace -fr "IGES_DCE" "data";\n'
-    workspace +='workspace -fr "shaders" "renderData/shaders";\n'
-    workspace +='workspace -fr "UG_DCE" "data";\n'
-    
-    return workspace
+    '''
+    pipe.sentinel_start()
 
-#DEPRICATED
-def mk_proj( path='', renPath='' ) :
-    'Creates a show project structure'
-    workspaceExists=False
-    
-    #  Variables :
-    projDirs=['assets', 'autosave', 'cache', 'cache/nCache', 'cache/nCache/fluid',
-        'cache/particles', 'clips', 'data', 'images', 'movies', 'renderData',
-        'renderData/depth', 'renderData/fur', 'renderData/fur/furAttrMap', 'renderData/fur/furEqualMap',
-        'renderData/fur/furFiles', 'renderData/fur/furImages', 'renderData/fur/furShadowMap',
-        'renderData/iprImages', 'renderData/shaders', 'scenes','scenes/edits', 'scripts', 'sound',
-        'sourceimages', 'sourceimages/3dPaintTextures']
-    
-    #  Create Maya project directories :
-    path=os.path.normpath(path)
-    if os.path.isdir( path ) :
-        P.info('Creating Project Folders...')
-        for projDir in projDirs:
-            _dir=os.path.normpath( os.path.join( path, projDir ) )
-            if not os.path.isdir( _dir ) :
-                try : os.mkdir( _dir )
-                except Exception as e :
-                    P.error( 'Failed creating the directory: %s' % _dir )
-                    P.error( '    %s' % traceback.print_exc() )
-                    return False
-        P.info('Complete')
-
-    #  Check for workspace file :
-    workspaceFile=os.path.normpath( os.path.join( path, 'workspace.mel' ) )
-    if os.path.exists( workspaceFile ) :
-        workspaceExists=True
-        P.info('Workspace exists!')
+    pass
 
 
-    #  Create workspace file :
-    if not workspaceExists :
-        P.info('Creating Maya workspace.mel file...')
-        workspace_text=mk_workspace( renPath )
-        #P.info(workspace_text)
-        workspace_file=open( workspaceFile, 'w' )
-        workspace_file.write( workspace_text )
-        workspace_file.close
-        P.info('Complete')
+def rtDebugSentinel( menuitem):
+    '''
+    Toggle envvar to enable/disable of sentinel process logging
 
-        #  Write out the render path :
-        if renPath and os.path.isdir( renPath ) :
-            try :
-                nim_file=open( os.path.join(path,'nim.mel'),'w')
-                nim_file.write( renPath )
-                nim_file.close
-            except : P.info( 'Sorry, unable to write the nim.mel file' )
+    Parameters
+    ----------
 
+    Returns
+    ---------
+    bool
+        True if all commands executed correctly.
 
-    #  Set Project
-    try :
-        P.info('Setting Project...')
-        pathToSet=path.replace('\\', '/')
-        if os.path.isdir( pathToSet ) :
-            mm.eval( 'setProject "%s"' % pathToSet )
-            #mc.workspace( pathToSet, o=True)
-            P.info( 'nim_maya: Current Project Set: %s\n' % pathToSet )
-        else :
-            P.info('Project not set!')
-    except : pass
+    '''
+    toggle = mc.menuItem(menuitem, query=True, checkBox=True)
+    mel.putenv('RT_SENTINEL_VERBOSE', str(int(toggle)))
+    P.info("%s sentinel process debug"%('Disable', 'Enable')[int(toggle)])
+
+    pass
 
 
-
-    return True
 
 
 def makeProject(projectLocation='', renderPath='') :
