@@ -80,9 +80,9 @@ except ImportError :
 #
 
 # List of tasks available in publishing system
-pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
+pubTasksList = ['', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
 # List of elements available in publishing system
-pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'precomp', 'roto', 'dmp']
+pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'cam', 'precomp', 'roto', 'dmp', 'tex', 'ibl']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 # Geo filetypes
@@ -687,14 +687,6 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 
     cmd += " frameList=%s-%s"%(start, end)
     # In Seq
-    '''
-    path     = infile
-    path     = path.replace('%04d', '####') # Fix Nuke's padding format
-    path     = path.replace('$F5', '#####') # Fix Houdini's padding format
-    path     = path.replace('$F4', '####') # Fix Houdini's padding format
-    path     = path.replace('$F', '#') # Fix Houdini's padding format
-    path     = os.path.normpath(path)
-    '''
     path = nimUtl.toNIMFramePadding(infile)
     if platform.system() == 'Windows':
         path = os.path.join('C:', path)
@@ -1150,6 +1142,10 @@ def checkFileAndElementPublished( nim ):
             element = next((elm for elm in elmts if elm['ID']==metadata['elementID']), None)
     # try to find at least a valid element if file is not published
     if not file and not elmts:
+        if not nim.ID('element'):
+            nimP.error("Element Type not supported: %s"%nim.name('element'))
+            return False
+
         elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')),
                                     elementTypeID=int(nim.ID('element')))
         if elmts:
