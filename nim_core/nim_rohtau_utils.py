@@ -681,6 +681,12 @@ def getShowGlobals( job):
         elif name == 'Automatic Timecards Users Blacklist':
             res = [line for line in  custom['value'].splitlines() if len(line)>0]
             jobglobals['timecardsblacklist'] = res
+        elif name == 'Automatic Job Expenses':
+            res = custom['dropdownText']
+            if res:
+                jobglobals['autojobexpenses'] = res == 'Enabled'
+            else:
+                jobglobals['autojobexpenses'] = False # By Default disable Automatic job expenses
 
     return jobglobals
 
