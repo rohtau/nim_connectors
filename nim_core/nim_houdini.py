@@ -379,8 +379,6 @@ def get_vars( nim=None ) :
         P.error('Failed reading nim_class')
 
 
-
-
     #  Server :
     nim_server = h_root.userData("nim_server")
     if nim_server is not None:
@@ -388,8 +386,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_server')
     else:
         P.error('Failed reading nim_server')
-
-
     #  Server ID :
     nim_serverID = h_root.userData("nim_serverID")
     if nim_serverID is not None:
@@ -397,7 +393,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_serverID')
     else:
         P.error('Failed reading nim_serverID')
-
 
 
     #  Job :
@@ -418,7 +413,6 @@ def get_vars( nim=None ) :
         P.error('Failed reading nim_jobID')
 
 
-
     #  Show :
     nim_showName = h_root.userData("nim_showName")
     if nim_showName is not None:
@@ -437,7 +431,6 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading nim_showID')
 
-
     
     #  Shot :
     nim_shot = h_root.userData("nim_shot")
@@ -446,7 +439,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_shot')
     else:
         P.error('Failed reading nim_shot')
-
 
     
     #  Shot ID :
@@ -833,9 +825,13 @@ def set_shot_range():
     shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
     frames  = int(hou.getenv('SHOTFRAMES', "0"))
     handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if not frames and 'nim_frames' in rootdict:
+        frames = int(rootdict['nim_frames'])
+    if not handles and 'nim_handles' in rootdict:
+        handles = int(rootdict['nim_handles'])
     if frames :
         hou.setUpdateMode(hou.updateMode.Manual)
-        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
+        frames = frames
         stash_frame_range()
         first = 1001 # We always start at 1001 by convention
         last = 1001 + frames - 1

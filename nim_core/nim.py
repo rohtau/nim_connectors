@@ -596,6 +596,9 @@ class NIM( object ) :
         
         #  Derive file extension :
         if F.get_ext( filePath ) :
+            # print("In get ext in ingest")
+            # print("File Path: %s"%filePath)
+            # print("Extension: %s"%F.get_ext( filePath ))
             self.set_name( elem='fileExt', name=F.get_ext( filePath ) )
             self.set_fileTypeByExt( F.get_ext( filePath ) )
 

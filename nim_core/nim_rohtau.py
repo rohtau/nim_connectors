@@ -4,7 +4,7 @@ Project: nim_core
 File Created: Tuesday, 22nd December 2020 6:38:27 pm
 Author: Pablo Gimenez (pablo@rohtau.com)
 -----
-Last Modified: Wednesday, 18 May 2022 19:31:40 CUT
+Last Modified: Thursday, 30 June 2022 01:54:49 GDT
 Modified By: Pablo Gimenez (pablo@rohtau.com>)
 -----
 Copyright 2020 - 2020, rohtau
@@ -80,9 +80,9 @@ except ImportError :
 #
 
 # List of tasks available in publishing system
-pubTasksList = ['', 'camera', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
+pubTasksList = ['', 'model', 'anim', 'fx', 'light', 'comp', 'layout', 'lookdev', 'cfx', 'rig', 'pack', 'track', 'conform']
 # List of elements available in publishing system
-pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'camera', 'prep', 'precomp', 'roto', 'dmp']
+pubElementsList = ['', 'plates', 'comps', 'renders', 'cache', 'cam', 'precomp', 'roto', 'dmp', 'tex', 'ibl']
 # User mask. Only user can write/delete
 user_mask = 0o777 ^ (stat.S_IWGRP | stat.S_IWOTH)
 # Geo filetypes
@@ -687,14 +687,6 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
 
     cmd += " frameList=%s-%s"%(start, end)
     # In Seq
-    '''
-    path     = infile
-    path     = path.replace('%04d', '####') # Fix Nuke's padding format
-    path     = path.replace('$F5', '#####') # Fix Houdini's padding format
-    path     = path.replace('$F4', '####') # Fix Houdini's padding format
-    path     = path.replace('$F', '#') # Fix Houdini's padding format
-    path     = os.path.normpath(path)
-    '''
     path = nimUtl.toNIMFramePadding(infile)
     if platform.system() == 'Windows':
         path = os.path.join('C:', path)
@@ -1006,7 +998,12 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     if elem in ('plates', 'comps', 'renders'):
         loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     else:
-        loc = os.path.normpath( os.path.join(baseloc, shortelem, pathtask, basename, pathver))
+        # XXX:Adding the elem name after baseloc causes a duplicate in the elem
+        # type for. So baseloc in general will return something like /rnd/cache
+        # . There is no point to add cache again, but this was changed for some
+        # reason, so let's keep it here commmented just in case.
+        # loc = os.path.normpath( os.path.join(baseloc, shortelem, pathtask, basename, pathver))
+        loc = os.path.normpath( os.path.join(baseloc, pathtask, basename, pathver))
     # folderbasename = buildBasename( shot, task, name, subtask=subtask, layer=layer, cat=cat, isfolder=True)
     # loc = os.path.normpath( os.path.join(baseloc, pathtask, folderbasename, pathver))
 
@@ -1026,9 +1023,10 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
                     filename += ".$F4.%s"%ext
             elif format == 'nuke':
                 if hassubsteps:
-                    filename += ".%"+"\%04d.\%02d.%s"%ext
+                    filename += ".%"+"04d.%" + "02d.%s"%ext
                 else:
-                    filename += ".%"+"\%04d.%s"%ext
+                    # filename += ".%"+"\%04d.%s"%ext
+                    filename += ".%"+"04d.%s"%ext
             else:
                 filename += ".####.%s"%ext # By default use Nim padding format
                 
@@ -1134,26 +1132,218 @@ def checkFileAndElementPublished( nim ):
             for verfile in vers:
                 if int(ver) == int(verfile['version']):
                     file = verfile
+                    break
+    elmts = None
     if file:
         metadata = json.loads(file['metadata'])
         if 'elementID' in metadata:
             # Try to use the element linked to our file
-            elementInfo = nimAPI.find_elements( name=file['filename'], assetID=int(nim.ID('asset')) if nim.tab()=='ASSET' else '', shotID=int(nim.ID('shot')) if nim.tab()=='SHOT' else '')
-            found = False
-            for elm in elementInfo:
-                if elm['ID'] == metadata['elementID']:
-                    return (file, elm)
-            # Couldn't find linked element associated to out file
-            return (file, None)
-    # try to find element
-    elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
-    if elmts:
-        for elm in elmts:
-            if elm['name'] == nim.name('file'):
-                element = elm
-                break
+            elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
+            element = next((elm for elm in elmts if elm['ID']==metadata['elementID']), None)
+    # try to find at least a valid element if file is not published
+    if not file and not elmts:
+        if not nim.ID('element'):
+            nimP.error("Element Type not supported: %s"%nim.name('element'))
+            return False
+
+        elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')),
+                                    elementTypeID=int(nim.ID('element')))
+        if elmts:
+            element = next((elm for elm in elmts if elm['name'] == nim.name('file') and elm['path'] == os.path.dirname(nim.filePath())), None)
 
     return (file, element)
+
+
+def publish_elmt( nim, elmpath=None, ID=None, start=1001, end=1001, handles=0, pubtask=None, userid=None, metadata=''):
+    '''
+    Publish a file in NIM.
+    In general a new element will be created, but if ID is provided then an existing element will be updated.
+
+    Parameters
+    ----------
+    nim : NIM Object
+        NIM object for main published element
+    elmpath : str
+        Optional path to element if it differs from data in nim object.
+        This allows to use the nim object to get info about the publishing but log a different filename.
+    ID : int
+        Element ID. If provided instead of creating a new element it will update an existing one using this ID.
+    start     : int
+        Start frame.
+    end       : int
+        End frame.
+    handles   : int
+        Frame handles.
+    pubtask : dict
+        Dictionary for task to publish element to. Optional.
+    userid    : int
+        User ID who owns the published item. If not provided use current user
+    metadata : str
+        This is a dictionary in string format used to add extra custom information to published element.
+    
+
+    Returns
+    ---------
+    dict
+        File info dict or False if error
+    
+
+    '''
+    # userid
+    if not userid:
+        myuser = nimAPI.get_user()
+        userid = int(nimAPI.get_userID(myuser))
+    # PID
+    parent = nim.tab()
+    pid = nim.ID('shot') if parent == 'SHOT' else nim.ID('asset')
+    if not pid:
+        res['msg'] = "Shot or Asset name in file path doesn't exists"
+        return res
+    else:
+        pid = int(pid)
+    # TaskID
+    task_id = int(pubtask['taskID']) if pubtask else None
+    # Path and Name
+    file_path = nim.filePath() if not elmpath else elmpath
+    file_name = os.path.basename(file_path)
+    file_path = os.path.dirname(file_path)
+
+    # Publish element
+    # Elements are parent to the same shot/asset of the file and also "linked" to a task and/or a render preview 
+    if not ID:
+        # New element
+        addelmt_result = nimAPI.add_element( parent=parent.lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=file_path, 
+                                name=file_name, startFrame=start, endFrame=end, handles=handles, metadata=metadata )
+        if not addelmt_result['result']:
+            if verbose:
+                nimP.error("Error creating new element publishing %s v%s"%(nim.name('base'), nim.version()))
+            return False
+
+        if task_id:
+            updateelmt_result = nimAPI.update_element( ID=int(addelmt_result['ID']), taskID=task_id)
+            if updateelmt_result['success'] != 'true':
+                # TODO: remove element and file
+                nimAPI.delete_element( addelmt_result['elementID'] )
+                if verbose:
+                    nimP.error("Error linking element to task")
+                return False
+    else:
+        # Update existing element
+        addelmt_result = nimAPI.update_element( ID=ID, shotID=pid if parent=='SHOT' else None, assetID=pid if parent=='ASSET' else None,
+                                               userID=userid, elementTypeID=nim.ID('element'), path=file_path, name=file_name,
+                                               startFrame=start, endFrame=end, handles=handles,
+                                               taskID=task_id, metadata=metadata)
+        if addelmt_result['success'] != 'true':
+            nimP.error("Error updating published element %s v%s"%(nim.name('base'), nim.version()))
+            return False
+
+
+    return addelmt_result
+
+    
+
+
+
+def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=1001, handles=0, pubtask=None, userid=None,
+                        fileID=0, elementID=0, sourceID=0, isseq=True, hassubsteps=False):
+    '''
+    Publish all extra elements associated with this publishing.
+
+    - Find Extra elements to publish
+    - Check if the are already published
+    - If so then update frame range
+    - If not, then create new elements
+
+    Return list of Elements Info
+
+    Information about main file and element from the published bundle is added to the metadata
+
+    Parameters
+    ----------
+    nim : NIM Object
+        NIM object for main published element
+    extradirs = str
+        Subdir name, or list separated  by commas. The names can also be glob patterns like: *,LOD*,^Draft . ^ Negates pattern.
+    extradirs = str
+        Suffix name, or list separated  by commas. The names can also be glob patterns like: rgb, sped*,^cryptomatte . ^ Negates pattern.
+        Suffix is added at the end of the basename.
+    start     : int
+        Start frame.
+    end       : int
+        End frame.
+    handles   : int
+        Frame handles.
+    userid    : int
+        User ID who owns the published item. If not provided use current user
+    fileID : int
+        ID for main file published
+    elementID : int
+        ID for main element published
+    sourceID : int
+        ID for scene published that generated all these elements
+    isseq : bool
+        Whether or not the path is for a sequence
+    hassubsteps : bool
+        Whether or not the cache has substeps
+
+
+    Returns
+    ---------
+    list
+        List of extra elements published. For every element it's Element Info dictionary is returned. False oif error.
+        Returned list can be empty if no extra elements are needed.
+    
+    '''
+    pub_elmts = []
+    # extra_elmts = nimUtl.find_extra_elements( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx)
+    extra_elmts = nimUtl.build_extra_elements_paths( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx, isseq=isseq, hassubsteps=hassubsteps)
+    if not extra_elmts:
+        return pub_elmts
+    metadata = {
+        'fileID':        fileID,
+        'mainElementID': elementID,
+        'sourceFileID':  sourceID
+    }
+    # try to find element
+    kwargs = {
+        'parent' : nim.tab(),
+        'parentID' : int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')),
+        'elementTypeID' : int(nim.ID('element'))
+    }
+    elmts = nimAPI.get_elements(**kwargs)
+    found_elmts = []
+    if elmts:
+        extra_elmts_names = [os.path.basename(elm) for elm in extra_elmts]
+        found_elmts = [elm for elm in elmts if elm['name'] in extra_elmts_names]
+    for elm in extra_elmts:
+        # Need to check name and filepath
+        found_elmt = next((x for x in found_elmts if (x["name"] == os.path.basename(elm) and x["path"] == os.path.dirname(elm))), None)
+        # if elmts and found_elmts:
+        if found_elmt:
+            # Element already published.
+            # print("Element %s already publsihed"%elm)
+            res = publish_elmt( nim, elmpath=elm, ID=int(found_elmt['ID']), start=start, end=end, handles=handles, pubtask=pubtask, userid=userid, metadata=metadata)
+            if res['success'] != 'true':
+                nimP.error("Error updating existing extra element %s v%s"%(file_name, nim.version()))
+                return False
+            pub_elmts.append(found_elmt)
+        else:
+            # Element is not published. Published it
+            # print("Element %s needs to be published"%elm)
+            res = publish_elmt( nim, elmpath=elm, start=start, end=end, handles=handles, pubtask=pubtask, userid=userid, metadata=metadata)
+            if not res['result']:
+                if verbose:
+                    nimP.error("Error creating new extra element publishing %s v%s"%(file_name, nim.version()))
+                return False
+            else:
+                pub_elmts.append(res)
+
+    # print("Published elements:")
+    # print(pub_elmts)
+
+    return pub_elmts
+
+
 
 def createRenderIcon( elementInfo ):
     '''
@@ -1335,6 +1525,9 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     elif nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         scene_pubtask_id = Houdini.get_taskid_var()
+    elif nim.app()=='Maya' :
+        from . import nim_maya as M
+        scene_pubtask_id = M.get_taskid_var()
     else:
         nimP.error("Can't get taskid from scene's publishing info. App not supported: %s"%nim.app())
 
@@ -1425,6 +1618,9 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     elif nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         Houdini.set_taskid_var(pubtask['taskID'])
+    elif nim.app()=='Maya' :
+        from . import nim_maya as M
+        M.set_taskid_var(pubtask['taskID'])
     else:
         nimP.error("Can't set taskid in scene's publishing info. App not supported: %s"%nim.app())
 
@@ -1444,7 +1640,7 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
 
 def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=1, overwrite=pubOverwritePolicy.NOT_ALLOW, 
             state=pubState.PENDING ,asrender=False, require_task=False, task_status=taskStatusID.IN_PROGRESS, 
-            source_fileid=0, yes=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
+            source_fileid=0, extradirs=None, extrasufx=None, extracat=None, yes=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
     The path can point to a single file or a sequence.
@@ -1485,13 +1681,35 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     Render ID is returned in the output dir for further adding icons and review elements.
 
     Publish Task
-    ------------
+    -------------
     Some published elements like cg or 2d renders requires a task to be published to.
     For these elements we need to pass require_task.
     If task_status is greater than 0 then the publish task state will be changed to this
     status if the publishing is successful.
     This is useful to mark that some work is being published, hence done, in this particular 
     task so we assume the task is in progress.
+
+    Extra Elements
+    --------------
+    This feature allows to add extra elements, files, to the main published element. We can call this bundles of elements and are used
+    to publish things like AOVs or extra geometry formats.
+    For instance we ca have out main render and then secondary image sequences that are  AOVs from the beauty render.
+    Similar case is extra file formats for geomatry caches. We can cache the main cache as Alembic but then have a secondary cache as a
+    Redshift Proxy.
+    The parameters controls these extra elemets publishing:
+    - extradirs: comma separated list of subfolder, inside main element location
+      folder, with secondary elements
+    - extrasufx: comma separated list of suffixes to search for secondary
+      elements.
+    - extracat: a category to put this extra elements in. For instance AOV. It is
+      a name to bundle all  extra elements.
+
+    Both extradirs and extrasufx use glob pattern matching. So '*' will match all.
+    If extradirs is 'ass,bgeo' it will look for files in the ass and bgeo subfolders inside the main element folder.
+    If extrasufx is 'albedo,spec' it will look for this suffixes added to the main publish basename.
+    For instance, a file called car__lookdev_tex__hull, can have secondaries called:
+        - car__lookdev_tex__hull_albedo
+        - car__lookdev_tex__hull_spec
 
 
     Parameters
@@ -1520,6 +1738,13 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         The data being published requires a proper task to be linked to. This is only used for renders. The option asrender will also force to have task.
     source_fileid : int
         File Id of the published scene/script from DCC app used to generate this file. (Houdini HIP file, Nuke script, etc ...)
+    extradirs = str
+        Subdir name, or list separated  by commas. The names can also be glob patterns like: *,LOD*,^Draft . ^ Negates pattern.
+    extradirs = str
+        Suffix name, or list separated  by commas. The names can also be glob patterns like: rgb, sped*,^cryptomatte . ^ Negates pattern.
+        Suffix is added at the end of the basename.
+    extracat : str
+        Category to put extra files in. This will be used as a key in a dictionary in extraElementsID.
     yes     : bool
         Assume yes for options given to the user. This will bypass asking to create a task if needed or use other user task, it will just do it.
     plain     : bool
@@ -1555,12 +1780,14 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         'fileID'         : None,
         'elementID'      : None,
         'renderID'       : None,
-        'extraElementsID': []
+        'extraElementsID': None,
+        'extraElements'  : []
     }
     parents = ('SHOW', 'SHOT', 'ASSET')
     taskname = ''
     taskid = 0
     jsonstr = ""
+    customKeys = {}
 
     # Fix path
     posixpath = nimUtl.toNIMFramePadding(nimUtl.toPosix(path))
@@ -1621,26 +1848,22 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         # nuke.tprint(pformat(pubtask))
 
 
-    # Check if there is already a file published with different file type
-    check_res = checkFileAlreadyPublished( nim )
-    if not check_res or not check_res['success']:
-        res['success']   = False
-        res['errorcode'] = 3
-        res['msg']       = "A file with name %s and file type %s is already published. Trying to save with file type %s. Please change the name of your file."%(nim.name('base'), check_res['type'], nim.nim['fileExt']['fileType'])
-        nimP.error(res['msg'])
-        return res if not plain and not jsonout else False
 
     # Check if there is no file or element published yet with this basename and version
     (file, element) = checkFileAndElementPublished( nim )
+
+    # What to do if file already exists
     if file:
         res['fileID'] = file['fileID']
-    if element:
-        # Force delete of existing element, otherwise changes in frame ranges
-        # won't be updated if we keep using a previous element publish
-        # res['elementID'] = element['ID']
-        delElm_res = nimAPI.delete_element(ID=element['ID'])
-        element = None
-    if file:
+        # Check if there is already a file published with different file type
+        check_res = checkFileAlreadyPublished( nim )
+        if not check_res or not check_res['success']:
+            res['success']   = False
+            res['errorcode'] = 3
+            res['msg']       = "A file with name %s and file type %s is already published. Trying to save with file type %s. Please change the name of your file."%(nim.name('base'), check_res['type'], nim.nim['fileExt']['fileType'])
+            nimP.error(res['msg'])
+            return res if not plain and not jsonout else False
+        # Check overwrite permissions
         if overwrite == pubOverwritePolicy.NOT_ALLOW:
             res['success']   = False
             res['errorcode'] = (4, 5)[int(file['userID']) != userid]
@@ -1661,11 +1884,14 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         else:
             nimP.warning("File is already published by %s. Rendering over previous published item is allowed. Consider increment the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
     
-    # Publish file
-    if not file:
+    # Publish new file
+    else:
         customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': pubState.name[state]}
+        # addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=pid, task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), \
+            # filename=nim.name('file'), path=nim.filePath(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
+                # pub=False, forceLink=False, customKeys=customkeys)
         addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=pid, task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), \
-            filename=nim.name('file'), path=nim.filePath(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
+            filename=nim.name('file'), path=nim.fileDir(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
                 pub=False, forceLink=False, customKeys=customkeys)
         if addfile_result['success']:
             res['fileID'] = addfile_result['ID']
@@ -1680,49 +1906,80 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # Publish element
     # Elements are parent to the same shot/asset of the file and also "linked" to a task and/or a render preview 
     if not element:
-        addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
-            startFrame=start, endFrame=end, handles=handles, metadata='' )
+        addelmt_result = publish_elmt( nim, start=start, end=end, handles=handles, pubtask=pubtask, userid=userid)
+        # addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
+            # startFrame=start, endFrame=end, handles=handles, metadata='' )
         if not addelmt_result['result']:
             if verbose:
                 nimP.error("Error creating new element publishing %s v%s"%(nim.name('base'), nim.version()))
             res['success']   = False
             res['errorcode'] = 7
             res['msg']       = "Error creating new element publishing %s v%s"%(nim.name('base'), nim.version())
-            # TODO: remove file if it was published correctly
-            # Waiting for NIM to add function to API
             return res if not plain and not jsonout else False
         else:
             res['elementID'] = addelmt_result['ID']
-        if pubtask and require_task:
-            updateelmt_result = nimAPI.update_element( ID=int(addelmt_result['ID']), taskID=int(pubtask['taskID']))
-            if updateelmt_result['success'] != 'true':
-                # TODO: remove element and file
-                nimAPI.delete_element( res['elementID'] )
-                if verbose:
-                    nimP.error("Error linking element to task")
-                res['success']   = False
-                res['errorcode'] = 8
-                res['msg']       = "Error linking element to task"
-                return res if not plain and not jsonout else False
+    else:
+        res['elementID'] = element['ID']
+        addelmt_result = publish_elmt( nim, ID=element['ID'], start=start, end=end, handles=handles, pubtask=pubtask, userid=userid)
+        # addelmt_result = nimAPI.add_element( parent=nim.tab().lower(), parentID=pid, userID=userid, typeID=nim.ID('element'), path=nim.filePath(), name=nim.name('file'), \
+            # startFrame=start, endFrame=end, handles=handles, metadata='' )
+        if not addelmt_result:
+            if verbose:
+                nimP.error("Error updating published element %s v%s"%(nim.name('base'), nim.version()))
+            res['success']   = False
+            res['errorcode'] = 7
+            res['msg']       = "Error updating published element %s v%s"%(nim.name('base'), nim.version())
+            return res if not plain and not jsonout else False
+
+    # Publish extra elements
+    kwargs = {
+        'extradirs':   extradirs,
+        'extrasufx':   extrasufx,
+        'start':       start,
+        'end':         end,
+        'handles':     handles,
+        'pubtask':     pubtask,
+        'userid':      userid,
+        'fileID':      res['fileID'],
+        'elementID':   res['elementID'],
+        'sourceID':    source_fileid,
+        'isseq':       start!=end,
+        'hassubsteps': substeps>1
+    }
+ 
+    extra_elmts = publish_extra_elmts( nim, **kwargs)
+    # print("Extra elements")
+    # pprint(extra_elmts)
+    res['extraElements'] = extra_elmts
 
     # Update file
     # Link file to elements and render preview if needed. Update comment
     # Update filename and filepath in case the file is being reused and it has
     # change frame range
+    # Update extension and file type in case format has changed (But file type
+    # is considered the same, this happens with geometry files for instance)
+    if file:
+        customKeys = file['customKeys']
+    customKeys['File Type'] = nim.nim['fileExt']['fileType']
     pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
     if comment.strip("''"):
-        pubcomment += ". " + comment.strip("'")
+        # pubcomment += ". " + comment.strip("'")
+        pubcomment = comment.strip("'")
     metadata = {
         'elementID':       res['elementID'],
-        'extraElementsID': res['extraElementsID'],
+        'extraElements':   res['extraElements'],
+        'extraElementsID': ",".join([elm['ID'] for elm in res['extraElements']]),
         'startFrame':      start,
         'endFrame':        end,
         'substeps':        substeps
     }
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
-    metadata = json.dumps(metadata)
-    updatefile_res = nimAPI.update_file( int(res['fileID']), filename=nim.name('file'), path=nim.filePath(), comment=pubcomment, metadata=metadata )
+    # print("Metadata")
+    # pprint(metadata)
+    metadata = json.dumps(metadata, sort_keys=True)
+    updatefile_res = nimAPI.update_file( int(res['fileID']), filename=nim.name('file'), path=nim.fileDir(), ext=nim.name('fileExt'),
+                                        comment=pubcomment, metadata=metadata, customKeys=customKeys )
     if updatefile_res['success'] != 'true':
         if verbose:
             nimP.error("Error updating published file metadata")
@@ -1734,9 +1991,9 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # Update element
     # Link element to file
     metadata = {
-        'fileID':          res['fileID'],
-        'extraElementsID': res['extraElementsID'],
-        'substeps':        substeps
+        'fileID':        res['fileID'],
+        'extraElements': res['extraElements'],
+        'substeps':      substeps
     }
     if source_fileid:
         metadata['sourceFileID'] = source_fileid
@@ -1772,28 +2029,36 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # pprint(info)
     # pprint(elm)
 
+    # Store publish info into a pub.json file
+    if not os.path.exists(os.path.dirname(posixpath)):
+        os.makedirs(os.path.dirname(posixpath), exist_ok=True)
+    pub_info_file_path = os.path.normpath(os.path.join(os.path.dirname(posixpath), 'pub.json'))
+    with open(pub_info_file_path, 'w') as f:
+        json.dump(info, f, ensure_ascii=False, indent=4)
+
     if verbose and not plain and not jsonout and not profile:
         nimP.info("Publishing Details:")
-        print("\tName        : %s"%info['filename'])
-        print("\tVersion     : %s"%info['version'])
+        print("\tName           : %s"%info['filename'])
+        print("\tVersion        : %s"%info['version'])
         if nim.tab() == 'SHOT':
-            print("\tShot        : %s"%nim.name('shot'))
+            print("\tShot          : %s"%nim.name('shot'))
         else:
-            print("\tAsset       : %s"%nim.name('asset'))
+            print("\tAsset         : %s"%nim.name('asset'))
         # print("\tTask        : %s"%nim.name('task'))
-        print("\tTask        : %s"%nimUtl.gettasksTypesIDDict()[int(info['task_type_ID'])])
-        print("\tOwner       : %s"%info['username'])
-        print("\tDate        : %s"%info['date'])
-        print("\tFile Type   : %s"%info['ext'][1:] if info['ext'].startswith('.') else info['ext'])
+        print("\tTask           : %s"%nimUtl.gettasksTypesIDDict()[int(info['task_type_ID'])])
+        print("\tOwner          : %s"%info['username'])
+        print("\tDate           : %s"%info['date'])
+        print("\tFile Type      : %s"%info['ext'][1:] if info['ext'].startswith('.') else info['ext'])
         # print("\tElement Type: %s"%nim.name('element'))
-        print("\tElement Type: %s"%nimUtl.getelementsIDDict()[int(elm['elementTypeID'])])
-        print("\tStart       : %s"%elm['startFrame'])
-        print("\tEnd         : %s"%elm['endFrame'])
-        print("\tSubsteps    : %s"%eval(elm['metadata'])['substeps'])
-        print("\tComment     : %s"%info['note'])
-        print("\tFile ID     : %s"%info['fileID'])
-        print("\tElement ID  : %s"%elm['ID'])
-        print("\tPath        : %s"%info['filepath'])
+        print("\tElement Type   : %s"%nimUtl.getelementsIDDict()[int(elm['elementTypeID'])])
+        print("\tStart          : %s"%elm['startFrame'])
+        print("\tEnd            : %s"%elm['endFrame'])
+        print("\tSubsteps       : %s"%eval(elm['metadata'])['substeps'])
+        print("\tComment        : %s"%info['note'])
+        print("\tFile ID        : %s"%info['fileID'])
+        print("\tElement ID     : %s"%elm['ID'])
+        print("\tExtra Elements : %s"%",".join([str(elm['ID']) for elm in extra_elmts]))
+        print("\tPath           : %s"%info['filepath'])
         # This only works on Python 3
         # print(
             # f"{'Name:':<15}{nim.name('file')}",
@@ -1811,11 +2076,12 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
             # f"\n{'Element ID:':<15}{elm['ID']}",
             # f"\n{'Path:':<15}{info['filepath']}",
         # )
+
     if  not jsonout and not profile:
         if not file:
-            print("New file successfully published!:\nPublish Name: %s,  Version: %s, FileID: %s, ElementID: %s"%(nim.name('file'), nim.version(), info['fileID'], elm['ID']))
+            nimP.info("New file successfully published!:\nPublish Name: %s,  Version: %s, FileID: %s, ElementID: %s"%(nim.name('file'), nim.version(), info['fileID'], elm['ID']))
         else:
-            print("File was already published")
+            nimP.warning("File was already published")
         print("\n")
         
 

@@ -3104,13 +3104,11 @@ class GUI(QtGui.QMainWindow) :
                 nimCheck=Nim.NIM()
                 N.get_vars( nim=nimCheck )
                 mod=nuke.root().modified()
+                name=nuke.root().name()
+                nuke.tprint("Scne name: %s"%name)
                 #  Prompt to manually save the file, if modified and no variables present :
-                if mod and not nimCheck.ID('shot') and not nimCheck.ID('asset') :
-                    msg='Please Save your current file first'
-                    P.error( msg )
-                    Win.popup( title='NIM - Import Error', msg=msg )
-                    self.close()
-                    return False
+                if mod and name == 'Root':
+                    P.warning("Reset Untitled script and open selected one")
                 #  Prompt to Save the current file :
                 elif mod :
                     # result=N.Win_SavePySide.get_btn()
@@ -3428,7 +3426,8 @@ class GUI(QtGui.QMainWindow) :
         try : 
             Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
-            P.error(traceback.format_stack())
+            P.error(traceback.format_exc())
+            # P.error(sys.exc_info()[2])
             P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
         
@@ -3448,6 +3447,10 @@ class GUI(QtGui.QMainWindow) :
         elif self.app=='Nuke' :
             from . import nim_nuke as N
             N.set_globals()
+            pass
+        elif self.app=='Maya' :
+            from . import nim_maya as M
+            M.set_globals()
             pass
 
         
@@ -3604,7 +3607,10 @@ class GUI(QtGui.QMainWindow) :
 
             #  Set Variables :
             if self.nim.app().lower()=='maya' :
-                import nim_maya as M
+                try:
+                    import nim_maya as M
+                except ImportError as e:
+                    from . import nim_maya as M
                 M.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='nuke' :
                 from . import nim_nuke as N

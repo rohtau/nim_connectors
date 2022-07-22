@@ -19,33 +19,81 @@ global proc n_nimMenu()
 	setParent $gMainWindow;
 	
 	// NIM
-	string $nimOpen = "python(\"import nim_core.UI as UI; UI.mk('FILE')\")";
-	string $nimImport = "python(\"import nim_core.UI as UI; UI.mk('LOAD', _import=True )\")";
-	string $nimReferece = "python(\"import nim_core.UI as UI; UI.mk('LOAD', ref=True)\")";
-	string $nimSaveAs = "python(\"import nim_core.UI as UI; UI.mk('SAVE')\")";
-	string $nimExportSelected = "python(\"import nim_core.UI as UI; UI.mk( mode='SAVE', _export=True )\")";
-	string $nimVersionUp = "python(\"import nim_core.nim_api as Api; Api.versionUp()\")";
-	string $nimPublish = "python(\"import nim_core.UI as UI; UI.mk('PUB')\")";
-	string $nimReload = "python( \"import nim_core.nim_file as F; F.scripts_reload()\")";
-	string $nimChangeUser = "python( \"import nim_core.nim_win as Win; Win.userInfo()\")";
+	string $nimOpen                    = "python(\"import nim_core.UI as UI; UI.mk('FILE')\")";
+	string $nimImport                  = "python(\"import nim_core.UI as UI; UI.mk('LOAD', _import=True )\")";
+	string $nimReferece                = "python(\"import nim_core.UI as UI; UI.mk('LOAD', ref=True)\")";
+	string $nimSaveAs                  = "python(\"import nim_core.UI as UI; UI.mk('SAVE')\")";
+	string $nimExportSelected          = "python(\"import nim_core.UI as UI; UI.mk( mode='SAVE', _export=True )\")";
+	string $nimVersionUp               = "python(\"import nim_core.nim_api as Api; Api.versionUp()\")";
+	string $nimPublish                 = "python(\"import nim_core.UI as UI; UI.mk('PUB')\")";
+	string $nimReload                  = "python( \"import nim_core.nim_file as F; F.scripts_reload()\")";
+	string $nimChangeUser              = "python( \"import nim_core.nim_win as Win; Win.userInfo()\")";
 
-	string $name = "NIM";
-	$nimMenuCtrl = `menu -p MayaWindow -to true -l $name`;
-	    menuItem -label "Open" -c $nimOpen;
+	string $rtShowScriptPubInfo        = "python( \"import nim_core.nim_maya as M; M.rtShowScriptPubInfo()\")";
+	string $rtCopyScenePathToClipboard = "python( \"import nim_core.nim_maya as M; M.rtCopyScenePathToClipboard()\")";
+	string $rtSetGlobals               = "python( \"import nim_core.nim_maya as M; M.rtSetGlobals()\")";
+	string $rtSetShotRange             = "python( \"import nim_core.nim_maya as M; M.rtSetShotRange ()\")";
+	string $rtSetPreRoll               = "python( \"import nim_core.nim_maya as M; M.rtSetPreRoll ()\")";
+	string $rtSimRange                 = "python( \"import nim_core.nim_maya as M; M.rtSimRange ()\")";
+	string $rtRestoreRange             = "python( \"import nim_core.nim_maya as M; M.rtRestoreRange ()\")";
+	string $rtCreateTaskForScript      = "python( \"import nim_core.nim_maya as M; M.rtCreateTaskForScript ()\")";
+	string $rtCopySceneFileID          = "python( \"import nim_core.nim_maya as M; M.rtCopySceneFileID ()\")";
+	string $rtDebugSentinel            = "python( \"import nim_core.nim_maya as M; M.rtDebugSentinel ()\")";
+	string $rtPublishFlipbook          = "python( \"import nim_core.nim_maya as M; M.rtPublishFlipbook ()\")";
+
+    // rohtau menu name
+	//string $name = "NIM";
+	string $name = "|| rohtau";
+    if( size(getenv("SHOW")) ) {
+        $name += " > ";
+        $name += getenv("SHOW");
+        if( size(getenv("SHOT")) ) {
+            $name += "/";
+            $name += getenv("SHOT");
+        }
+    }
+    $name += " ||";
+	string $nimMenuCtrl = `menu -p MayaWindow -to true -l $name`;
+		//menuItem -label "Open" -c $nimOpen -ctrlModifier true -keyEquivalent "o";
+	    menuItem -label "Open" -c $nimOpen ;
 	    menuItem -label "Import" -c $nimImport;
 	    menuItem -label "Reference" -c $nimReferece;
 	    menuItem -divider true;
 	    menuItem -label "Save As" -c $nimSaveAs;
-	    menuItem -label "Export Selected" -c $nimExportSelected;
-	    menuItem -divider true;
 	    menuItem -label "Version Up" -c $nimVersionUp;
 	    menuItem -label "Publish" -c $nimPublish;
+	    menuItem -label "Export Selected" -c $nimExportSelected;
+	    menuItem -label "Copy Scene Path to Clipboard" -c $rtCopyScenePathToClipboard;
+	    menuItem -divider true;
+	    menuItem -label "Publish Flipbook" -c $rtPublishFlipbook;
 	    menuItem -divider true;
 	    //setParent -menu ..;
 
-		menuItem -p $nimMenuCtrl -subMenu true -label "Settings";
+        // Globals
+		$globalMenu = `menuItem -p $nimMenuCtrl -subMenu true -label "Globals"`;
+	    	menuItem -label "Set Globals" -c $rtSetGlobals;
+	    	menuItem -label "Set Shot Frame Range" -c $rtSetShotRange ;
+	    	menuItem -label "Set Sim Preroll" -c $rtSetPreRoll ;
+	    	menuItem -label "Set Sim Range" -c $rtSimRange ;
+	    	menuItem -label "Restore Previous Range" -c $rtRestoreRange ;
+	    setParent -menu ..;
+
+        // NIM
+		string $nimMenu = `menuItem -p $nimMenuCtrl -subMenu true -label "NIM"`;
+	    	menuItem -label "Show Scene Pub Info" -c $rtShowScriptPubInfo;
+	    	menuItem -label "Create Task For This Scene" -c $rtCreateTaskForScript;
+	    	menuItem -label "Copy Scene FileID to Clipboard" -c $rtCopySceneFileID;
 	    	menuItem -label "Change User" -c $nimChangeUser;
 	    	menuItem -label "Reload Scripts" -c $nimReload;
+            string $nimDebugMenu = `menuItem -p $nimMenu -subMenu true -label "Debug"`;
+                string $debugSentinelMenu = "";
+                if( size(getenv("RT_SENTINEL_VERBOSE")) &&  int(getenv("RT_SENTINEL_VERBOSE")))
+                    $debugSentinelMenu = `menuItem -label "Background Sentinel Process" -checkBox on` ;
+                else
+                    $debugSentinelMenu = `menuItem -label "Background Sentinel Process" -checkBox off` ;
+                $rtDebugSentinel = "python( \"import nim_core.nim_maya as M; M.rtDebugSentinel ('" + $debugSentinelMenu + "')\")";
+                menuItem -edit -c $rtDebugSentinel $debugSentinelMenu;
+            setParent -menu ..;
 	    setParent -menu ..;
 	// NIM END
 		
