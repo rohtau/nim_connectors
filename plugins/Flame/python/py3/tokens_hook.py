@@ -40,6 +40,7 @@
 #
 #    Note: The token for Browsing should be wrapped in {}.
 #
+'''
 def get_custom_token_list(context):
     if context == "Browsing":
         return (
@@ -49,5 +50,23 @@ def get_custom_token_list(context):
             {"name": "{sequence}", "displayName": "Sequence"},
             {"name": "{artist}", "displayName": "Artist"},
             {"name": "{task}", "displayName": "Task"},
+        )
+    return None
+'''
+
+def get_custom_token_list(context):
+    if context == "Browsing":
+        return (
+            {"name": "{shotName}", "displayName": "Shot Name"},
+            {"name": "{task}", "displayName": "Task"},
+            {"name": "<nim_job_root>", "displayName": "NIM Job Root"},
+            {"name": "<nim_job_name>", "displayName": "NIM Job Name"},
+            {"name": "<nim_show_root>", "displayName": "NIM Show Root"},
+            {"name": "<nim_show_root>", "displayName": "NIM Show Root"},
+            {"name": "<nim_shot_name>", "displayName": "NIM Shot Name"},
+            {"name": "<nim_shot_name>", "displayName": "NIM Shot Name"},
+            {"name": "<nim_shot_plates>", "displayName": "NIM Shot Plates"},
+            {"name": "<nim_shot_render>", "displayName": "NIM Shot Renders"},
+            {"name": "<nim_shot_comp>", "displayName": "NIM Shot Comps"},
         )
     return None
