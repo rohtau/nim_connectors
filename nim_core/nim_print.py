@@ -159,14 +159,14 @@ def warning( msg='', showwindow=False ) :
             om.MGlobal.displayWarning('NIM.Warning ~> %s' % toke)
         elif isHoudini and hou.isUIAvailable():
             print('NIM.Warning ~> %s' % toke)
-            hou.ui.setStatusMessage( "NIM: Publish Flipbook", hou.severityType.Warning)
+            hou.ui.setStatusMessage( 'NIM.Warning ~> %s' % toke, hou.severityType.Warning)
         else:
             print('NIM.Warning ~> %s' % toke)
     if showwindow:
         if isNuke and nuke.GUI:
             nuke.alert(msg)
         elif isHoudini and hou.isUIAvailable():
-            hou.ui.displayMessage(msg, title='NIM Error', severity=hou.severityType.Warning)
+            hou.ui.displayMessage(msg, title='NIM Warning', severity=hou.severityType.Warning)
         elif isMaya and not mel.about(batch=True):
             res = mel.confirmDialog(title=winTitle, message=msg, button=['Ok'], defaultButton='Ok', cancelButton='Ok', dismissString='', icon='warning' )
     if msg[-1:]=='\n' :
@@ -192,7 +192,7 @@ def error( msg='', showwindow=False ) :
                 om.MGlobal.displayError('NIM.Error ~> %s' % toke)
             elif isHoudini and hou.isUIAvailable():
                 print('NIM.Warning ~> %s' % toke)
-                hou.ui.setStatusMessage( "NIM: Publish Flipbook", hou.severityType.Error)
+                hou.ui.setStatusMessage( 'NIM.Error ~> %s' % toke , hou.severityType.Error)
             else:
                 print('NIM.Error ~> %s' % toke)
         if msg[-1:]=='\n' :

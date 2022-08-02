@@ -96,6 +96,8 @@ class taskStatusID:
     APPROVED        = 19
     BLOCKED         = 20
 
+# Well known extensions used to name extra elemets dirs
+known_extradir_exts = ("bgeo", "bgeo.sc", "vdb", "abc", "usd", "usdc", "ass", "rs")
 
 #
 # Utilities
@@ -1615,19 +1617,33 @@ def build_extra_elements_paths( mainelmpath, extradirs=None, extrasufx=None, iss
         for extradir in dirs:
             name,ext=os.path.splitext(filename)
             print("Name: %s, Extension: %s"%(name,ext))
-            extra_ext = extradir if extradir != 'proxy' else 'bgeo.sc'
+            # The extension for the extra element can come from the extra dir
+            # name if it is recognise as a well known extension, if the extradir
+            # has a special name, like proxy, or if none of these options then
+            # assign the same extension as the main element,
+            extra_name = name.split('__')[2]
+            extra_name = name.replace(extra_name, "%s_%s"%(extra_name, extradir))
+            if extradir in known_extradir_exts:
+                extra_ext = extradir
+                extra_name = name
+            elif extradir == 'proxy':
+                extra_ext = 'bgeo.sc'
+            else:
+                extra_ext = ext[1:] if ext.startswith('.') else ext
+            # If element type is cam then change to cache. All extra elements
+            # for cameras, instead of being cameras are geo
+            extra_name = extra_name.replace('cam', 'cache', 1)
+            # extra_ext = extradir if extradir != 'proxy' else 'bgeo.sc'
             # if extradir != 'proxy':
-            # TODO: implement correct paths for secondary elemets using isseq and
-            # hassubsteps
             pprint("Process extradir: %s"%extradir)
             if isseq and hassubsteps:
-                extra_elm_name = "%s.####.##.%s"%(name,extra_ext)
+                extra_elm_name = "%s.####.##.%s"%(extra_name,extra_ext)
             elif isseq:
-                extra_elm_name = "%s.####.%s"%(name,extra_ext)
+                extra_elm_name = "%s.####.%s"%(extra_name,extra_ext)
             else:
-                extra_elm_name = "%s.%s"%(name,extra_ext)
+                extra_elm_name = "%s.%s"%(extra_name,extra_ext)
             if extra_ext.endswith('abc'):
-                extra_elm_name = "%s.%s"%(name,extra_ext) # Alembics are always single file.
+                extra_elm_name = "%s.%s"%(extra_name,extra_ext) # Alembics are always single file.
             '''
             if ext.endswith('abc'):
                 # If main element is Alembic, chances are that we need to add

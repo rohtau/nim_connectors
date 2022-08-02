@@ -1869,7 +1869,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
             res['errorcode'] = (4, 5)[int(file['userID']) != userid]
             res['msg']       = "File version is already published by %s. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version())
             if verbose:
-                nimP.error("File version is already published by %s. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
+                nimP.warning("File version is already published by %s. Overwrite policy disallow re-using published items. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
                 # pprint(res)
             return res if not plain and not jsonout else False
         elif overwrite == pubOverwritePolicy.ALLOW_USER:
@@ -1878,7 +1878,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
                 res['errorcode'] = 5
                 res['msg']       = "File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version())
                 if verbose:
-                    nimP.error("File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
+                    nimP.warning("File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
                     # pprint(res)
                 return res if not plain and not jsonout else False
         else:
