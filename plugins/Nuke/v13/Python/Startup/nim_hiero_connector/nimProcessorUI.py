@@ -33,6 +33,7 @@ import nim_core.nim_api as nimAPI
 import nim_core.nim_prefs as nimPrefs
 import nim_core.nim_file as nimFile
 import nim_core.nim as nim
+import nim_core.nim_rohtau_utils as nimUtl
 
 import nimHieroConnector
 #END NIM
@@ -125,7 +126,8 @@ class NimProcessorUIBase(IProcessorUI):
 
     #Get NIM Jobs
     self.nim_jobID = None
-    self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    self.nim_jobs = nimUtl.getjobs(self.nim_userID)
     if not self.nim_jobs :
       print ( "No Jobs Found" )
       self.nim_jobs["None"]="0"
@@ -423,7 +425,8 @@ class NimProcessorUIBase(IProcessorUI):
     # JOBS: Add dictionary in ordered list
 
     #Get NIM Jobs
-    self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    self.nim_jobs = nimUtl.getjobs(self.nim_userID)
     if not self.nim_jobs :
       print ( "No Jobs Found" )
       self.nim_jobs["None"]="0"
