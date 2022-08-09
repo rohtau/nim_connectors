@@ -1843,11 +1843,13 @@ def splitName(filename, error=True):
     # can ad suffixes to the name, like in the render scene where we add  a time
     # stamp.
     verstr = basenameparts[2] if len(basenameparts) == 3 else basenameparts[3]
-    if verstr.startswith('v') or verstr.startswith('v'): 
+    ver = verstr.split('_')[0][1:] if len(verstr) > 1 else "" 
+    if ( verstr.startswith('v') or verstr.startswith('V') ) and ver.isdigit(): 
         # There is version part
         # Get ver part and remove the initial v. Do a split('_')  in case there
         # is a suffix for the version number. This is used for instance for
         # published: v005_PUB
+        '''
         ver = verstr.split('_')[0][1:]  
         if ver is not None and not ver.isdigit():
             if error:
@@ -1855,6 +1857,7 @@ def splitName(filename, error=True):
             # else:
                 # nimP.warning("Filename not following name convention. Wrong version string. Only number allowed after v: %s" % filename)
             return False
+        '''
         fileparts['ver']  = int(ver)
         if len(basenameparts) > 3:
             fileparts['tag']  = basenameparts[2]
