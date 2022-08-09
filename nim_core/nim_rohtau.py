@@ -693,7 +693,11 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     cmd += " inFile=%s "%path
     # Out draft movie path
     outdraft = os.path.join( os.path.dirname(path), 'Draft' ) # Draft location
-    (basename, tagname, ver) = nimAPI.extract_basename( filepath=os.path.basename(path) )
+    basename = nimAPI.extract_basename( filepath=os.path.basename(path) )
+    if not basename:
+        nimP.error("Path for review movie wrong or incomplete?: %s"%path)
+        return  False
+    (basename, tagname, ver) = basename
     draftname = "%s_v%s.mov"%(basename, str(ver).zfill(3))
     if isstillframe:
         draftname = "%s_v%s.jpg"%(basename, str(ver).zfill(3))
