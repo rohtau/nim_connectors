@@ -12,6 +12,17 @@
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
+import os,sys,re
+from pprint import pprint, pformat
+
+# NIM imports
+import nim_core.nim_print        as nimP
+import nim_core.nim              as Nim
+import nim_core.nim_file         as nimF
+import nim_core.nim_api          as nimAPI
+import nim_core.nim_rohtau       as nimRt
+import nim_core.nim_rohtau_utils as nimUtl
+from nim_core import padding 
 
 #  Import Python GUI packages :
 try : 
@@ -25,11 +36,11 @@ except ImportError :
     except ImportError : 
         print("NIM: Failed to load UI Modules")
 
-import os,sys,re
+# Flame
 import flame 
 
 nim_app = 'Flame'
-os.environ['NIM_APP'] = str(nim_app)
+os.environ['NIM_APP'] = nim_app
 
 # Relative path to append for NIM Scripts
 nimFlamePythonPath = os.path.dirname(os.path.realpath(__file__))
@@ -61,8 +72,9 @@ except :
 sys.path.append(nimScriptPath)
 
 import nimFlameExport
+import rtFlameExport
 
-debug = True
+debug = False
 
 # Hooks in this files are called in the following order:
 #
@@ -146,42 +158,54 @@ def pre_custom_export(info, userData, *args, **kwargs):
         exportDlg = nimFlameExport.NimExportSequenceDialog()
         exportDlg.show()
         if exportDlg.exec_() :
-            print("NIM - nim_userID: %s" % exportDlg.nim_userID)
+            nimP.info("Export dialog settings:")
+
+            nimP.info("User ID: %s" % exportDlg.nim_userID)
             userData['nim_userID'] = exportDlg.nim_userID
             
-            print("NIM - serverID: %s" % exportDlg.nim_serverID)
+            nimP.info("Server ID: %s" % exportDlg.nim_serverID)
             userData['nim_serverID'] = exportDlg.nim_serverID
             
-            print("NIM - serverOSPath: %s" % exportDlg.nim_serverOSPath)
+            nimP.info("Server OS Path: %s" % exportDlg.nim_serverOSPath)
             nim_serverOSPath = exportDlg.nim_serverOSPath
             userData['nim_serverOSPath'] = nim_serverOSPath
             
             # Set destination path to NIM server path
+            nimP.info("Destination Path: %s" % info['destinationPath'])
             info['destinationPath'] = nim_serverOSPath
-            print("Destination Path: %s" % info['destinationPath'])
             
             
-            print("NIM - jobID: %s" % exportDlg.nim_jobID)
+            nimP.info("Job ID: %s" % exportDlg.nim_jobID)
             userData['nim_jobID'] = exportDlg.nim_jobID
             
-            print("NIM - showID: %s" % exportDlg.nim_showID)
+            nimP.info("Show ID: %s" % exportDlg.nim_showID)
             userData['nim_showID'] = exportDlg.nim_showID
             
-            print("NIM - videoElementID: %s" % exportDlg.videoElementID)
+            nimP.info("Video Element ID: %s" % exportDlg.videoElementID)
             userData['videoElementID'] = exportDlg.videoElementID
             
-            print("NIM - audioElementID: %s" % exportDlg.audioElementID)
+            nimP.info("Audio Element ID: %s" % exportDlg.audioElementID)
             userData['audioElementID'] = exportDlg.audioElementID
             
-            print("NIM - openClipElementID: %s" % exportDlg.openClipElementID)
+            nimP.info("Open Clip Element ID: %s" % exportDlg.openClipElementID)
             userData['openClipElementID'] = exportDlg.openClipElementID
             
-            print("NIM - batchOpenClipElementID: %s" % exportDlg.batchOpenClipElementID)
+            nimP.info("Batch Open Clip Element ID: %s" % exportDlg.batchOpenClipElementID)
             userData['batchOpenClipElementID'] = exportDlg.batchOpenClipElementID
             
-            print("NIM - batchTaskTypeID: %s" % exportDlg.batchTaskTypeID)
+            nimP.info("Batch Task Type ID: %s" % exportDlg.batchTaskTypeID)
             userData['batchTaskTypeID'] = exportDlg.batchTaskTypeID
             userData['batchTaskTypeFolder'] = exportDlg.batchTaskTypeFolder
+
+            nimP.info("Puiblish Export: %s" % exportDlg.pub_dopub)
+            userData['pub_dopub'] = exportDlg.pub_dopub
+            nimP.info("Autover: %s"%exportDlg.pub_autover)
+            userData['pub_autover'] = exportDlg.pub_autover
+            nimP.info("Publish Version %d" % int(exportDlg.pub_ver))
+            userData['pub_ver'] = exportDlg.pub_ver
+            info['versionNumber'] = int(exportDlg.pub_ver)
+            info['versionName'] = "v" + str(exportDlg.pub_ver).zfill(3)
+
             
             # Create empty dictionary for shot data
             userData['shotData'] = {}
@@ -262,6 +286,155 @@ def pre_custom_export(info, userData, *args, **kwargs):
         exportDlg = nimFlameExport.NimExportDailyDialog()
         exportDlg.show()
         if exportDlg.exec_() :
+            # print("NIM - nim_userID: %s" % exportDlg.nim_userID)
+            nimP.info("UserID: %s" % exportDlg.nim_userID)
+            userData['nim_userID'] = exportDlg.nim_userID
+            
+            # print("NIM - serverID: %s" % exportDlg.nim_serverID)
+            nimP.info("ServerID: %s" % exportDlg.nim_serverID)
+            userData['nim_serverID'] = exportDlg.nim_serverID
+            
+            # print("NIM - serverOSPath: %s" % exportDlg.nim_serverOSPath)
+            nimP.info("Server OS Path: %s" % exportDlg.nim_serverOSPath)
+            nim_serverOSPath = exportDlg.nim_serverOSPath
+            userData['nim_serverOSPath'] = nim_serverOSPath
+            
+            # Set destination path to NIM server path
+            info['destinationPath'] = nim_serverOSPath
+            # print("Destination Path: %s" % info['destinationPath'])
+            nimP.info("Destination Path: %s" % info['destinationPath'])
+            
+            
+            # print("NIM - jobID: %s" % exportDlg.nim_jobID)
+            nimP.info("JobID: %s" % exportDlg.nim_jobID)
+            userData['nim_jobID'] = exportDlg.nim_jobID
+            
+            # print("NIM - showID: %s" % exportDlg.nim_showID)
+            nimP.info("ShowID: %s" % exportDlg.nim_showID)
+            userData['nim_showID'] = exportDlg.nim_showID
+            
+            # print("NIM - shotID: %s" % exportDlg.nim_shotID)
+            # userData['nim_shotID'] = exportDlg.nim_shotID
+            
+            # print("NIM - taskID: %s" % exportDlg.nim_taskID)
+            # userData['nim_taskID'] = exportDlg.nim_taskID
+
+            # Versioning settings
+            userData['pub_autover'] = exportDlg.pub_autover
+            userData['pub_ver'] = exportDlg.pub_ver
+            
+            # Create empty dictionary for shot data
+            userData['shotData'] = {}
+            
+            # Set NIM Preset
+            nim_preset = exportDlg.nim_preset
+            info['presetPath'] = nimFlamePresetPath + '/daily/'+nim_preset+'.xml'         
+            
+            # Process in Background
+            info['isBackground'] = False
+        
+        else:
+            print("NIM - Canceled Export to NIM")
+            nimP.warning("Canceled Conform Export")
+            userData['nim_export_edit'] = False
+            info['abort'] = True
+
+    #
+    # rohtau Exports
+    #rohtauExportSequence
+    if userData['nim_export_type'] == 'rohtauExportSequence' :
+        #Set the proper 'presetPath' in the info dictionary
+        #This defines which preset is used for the custom encode job
+        #info['presetPath'] = '/path/to/export/presets/uncompressed_qt.xml'
+        
+        # print("NIM - Exporting Sequence")
+        nimP.info("Exporting Sequence")
+        userData['nim_export_sequence'] = True
+        
+        # exportDlg = nimFlameExport.NimExportSequenceDialog()
+        exportDlg = rtFlameExport.rtExportSequenceDialog()
+        exportDlg.show()
+        if exportDlg.exec_() :
+            nimP.info("Export dialog settings:")
+
+            nimP.info("User ID: %s" % exportDlg.nim_userID)
+            userData['nim_userID'] = exportDlg.nim_userID
+            
+            nimP.info("Server ID: %s" % exportDlg.nim_serverID)
+            userData['nim_serverID'] = exportDlg.nim_serverID
+            
+            nimP.info("Server OS Path: %s" % exportDlg.nim_serverOSPath)
+            nim_serverOSPath = exportDlg.nim_serverOSPath
+            userData['nim_serverOSPath'] = nim_serverOSPath
+            
+            # Set destination path to NIM server path
+            # nimP.info("Destination Path: %s" % info['destinationPath'])
+            # info['destinationPath'] = nim_serverOSPath
+            
+            
+            nimP.info("Job ID: %s" % exportDlg.nim_jobID)
+            userData['nim_jobID'] = exportDlg.nim_jobID
+            nimP.info("Job Number: %s" % exportDlg.nim_jobName)
+            userData['nim_jobName'] = exportDlg.nim_jobName
+            
+            nimP.info("Show ID: %s" % exportDlg.nim_showID)
+            userData['nim_showID'] = exportDlg.nim_showID
+            
+            nimP.info("Video Element ID: %s" % exportDlg.videoElementID)
+            userData['videoElementID'] = exportDlg.videoElementID
+            
+            nimP.info("Audio Element ID: %s" % exportDlg.audioElementID)
+            userData['audioElementID'] = exportDlg.audioElementID
+            
+            nimP.info("Open Clip Element ID: %s" % exportDlg.openClipElementID)
+            userData['openClipElementID'] = exportDlg.openClipElementID
+            
+            nimP.info("Batch Open Clip Element ID: %s" % exportDlg.batchOpenClipElementID)
+            userData['batchOpenClipElementID'] = exportDlg.batchOpenClipElementID
+            
+            nimP.info("Batch Task Type ID: %s" % exportDlg.batchTaskTypeID)
+            userData['batchTaskTypeID'] = exportDlg.batchTaskTypeID
+            userData['batchTaskTypeFolder'] = exportDlg.batchTaskTypeFolder
+
+            # FIXME: all new parameters in the export dialog are returning empty
+            # strings 
+            nimP.info("Puiblish Export: %s" % exportDlg.pub_dopub)
+            userData['pub_dopub'] = exportDlg.pub_dopub
+            nimP.info("Autover: %s"%exportDlg.pub_autover)
+            userData['pub_autover'] = exportDlg.pub_autover
+            nimP.info("Publish Version %d" % int(exportDlg.pub_ver))
+            userData['pub_ver'] = exportDlg.pub_ver
+            info['versionNumber'] = int(exportDlg.pub_ver)
+            info['versionName'] = "v" + str(exportDlg.pub_ver).zfill(3)
+
+            
+            # Create empty dictionary for shot data
+            userData['shotData'] = {}
+            
+            # Set NIM Preset
+            nim_preset = exportDlg.nim_preset
+            info['presetPath'] = nimFlamePresetPath + '/sequence/'+nim_preset+'.xml'         
+            
+            # Process in Background
+            info['isBackground'] = False
+        
+        else:
+            print("NIM - Canceled Export to NIM")
+            userData['nim_export_sequence'] = False
+            info['abort'] = True
+    
+    #rohtauExportReview
+    if userData['nim_export_type'] == 'rohtauExportReview' :
+        #Set the proper 'presetPath' in the info dictionary
+        #This defines which preset is used for the custom encode job
+        #info['presetPath'] = '/path/to/export/presets/uncompressed_qt.xml'
+        
+        nimP.info("Exporting Review")
+        userData['nim_export_daily'] = True
+        
+        exportDlg = nimFlameExport.NimExportDailyDialog()
+        exportDlg.show()
+        if exportDlg.exec_() :
             print("NIM - nim_userID: %s" % exportDlg.nim_userID)
             userData['nim_userID'] = exportDlg.nim_userID
             
@@ -303,7 +476,9 @@ def pre_custom_export(info, userData, *args, **kwargs):
             print("NIM - Canceled Export to NIM")
             userData['nim_export_edit'] = False
             info['abort'] = True
-    
+
+
+
     print("pre_custom_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     pass
 
@@ -373,8 +548,8 @@ def post_custom_export(info, userData, *args, **kwargs):
 def pre_export(info, userData, *args, **kwargs):
     print("pre_export - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     if debug :
-        print(info)
-        print(userData)
+        pprint(info)
+        pprint(userData)
     print("pre_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     pass
 
@@ -453,8 +628,8 @@ def pre_export_sequence(info, userData, *args, **kwargs):
     print("pre_export_sequence - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     
     if debug :
-        print(info)
-        print(userData)
+        pprint(info)
+        pprint(userData)
     
     # Check if Custom NIM export or Standard Export
     # If standard export then ask for NIM association
@@ -540,7 +715,6 @@ def post_export_sequence(info, userData, *args, **kwargs):
             if 'editData' in userData :
                 mov_path = userData['editData']['path']
                 result = nimFlameExport.uploadEdit(nim_showID=nim_showID, mov_path=mov_path)
-          
     
     if 'nim_export_daily' in userData :
         if userData['nim_export_daily'] == True :
@@ -678,13 +852,49 @@ def post_export_sequence(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def pre_export_asset(info, userData, *args, **kwargs):
+    # TODO: Implement publishing correctly here
+    # We first  publish elements and mark them as PENDING
+    # Here we call to resolveAndReserve() to get the final path and do the Up
+    # Version.
+    # Here we can also create the conform tasks for every shot
+    # We can publish a render, pubRender() and publish renders for the conform
+    # task.
+    # The task wil be set as in progress
+    # Do we need reviews? I prefer to add them, but it can be expensive because
+    # all the export is local.
     print("pre_export_asset - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    if debug :
-        print(info)
-        print(userData)
 
-    if 'nim_export_sequence' in userData :
-        if userData['nim_export_sequence'] == True :
+    if 'nim_export_sequence' in userData and  userData['nim_export_sequence']:
+        if 'nim_export_type' in userData and userData['nim_export_type']== 'rohtauExportSequence' :
+            # XXX: nimCreateShot is responsible of creating tyhe shot and
+            # resolve the output path.
+            result = rtFlameExport.nimCreateShot(userData['nim_showID'], info, userData)
+            info['resolvedPath'] = result['resolvedPath']
+        
+            # Build Shot Array
+            if info['shotName'] not in userData['shotData'] :
+                userData['shotData'][info['shotName']] = {}
+        
+            userData['shotData'][info['shotName']][info['assetType']] = result 
+            userData['currentShotID'] = result['nim_shotID']
+            locskeys = ('jobPath', 'shotPath', 'platesPath', 'renderPath', 'compPath')
+            for loc in locskeys:
+                userData["nim_%s"%loc] = result[loc]
+
+
+            path = rtFlameExport.buildOutputPath( info, userData )
+            info['resolvedPath'] = path
+            print("Output path")
+            print(path)
+            export_pub_info  = rtFlameExport.renderVersionAndPublishReserve( info, userData)
+            # print ("Publish Reserve")
+            # pprint(export_pub_info)
+            # TODO: Add shot locations
+            # if doing rohtau export:
+            # get Output Path
+            # if publish Reserve version
+
+        else:
             result = nimFlameExport.nimCreateShot(nim_showID=userData['nim_showID'], info=info)
         
             info['resolvedPath'] = result['resolvedPath']
@@ -697,6 +907,24 @@ def pre_export_asset(info, userData, *args, **kwargs):
             userData['currentShotID'] = result['nim_shotID']
 
 
+    # XXX: Just for testing force abort after publishing
+    # print("Info")
+    # pprint(info)
+    # print("User Data")
+    # pprint(userData)
+    info['abort'] = True
+    info['abortMessage'] = "Testing ...."
+#    abort: [Boolean] [Modifiable]
+#       Hook can set this to True if the custom export process should be
+#       aborted.
+#
+#    abortMessage: [String] [Modifiable]
+#       Error message to be displayed to the user when the export process has
+#       been aborted
+
+
+    # XXX: Temporally disable these exports
+    '''
     if 'nim_export_edit' in userData :
         if userData['nim_export_edit'] == True :
             info['resolvedPath'] = nimFlameExport.nimResolvePath(nim_showID=userData['nim_showID'], keyword_string=info['resolvedPath'])
@@ -705,6 +933,7 @@ def pre_export_asset(info, userData, *args, **kwargs):
     if 'nim_export_daily' in userData :
         if userData['nim_export_daily'] == True :
             info['resolvedPath'] = nimFlameExport.nimResolvePath(nim_shotID=userData['nim_shotID'], keyword_string=info['resolvedPath'])
+    '''
 
 
     if debug :
@@ -854,6 +1083,7 @@ def post_export_asset(info, userData, *args, **kwargs):
             if 'tapeName' in userData :
                 nim_tapeName = userData['tapeName']
             
+            # TODO: Correct publishing here
             assetTypeID = 0
             exportFile = False
             if info['assetType'] == 'video' :
@@ -942,9 +1172,11 @@ def export_overwrite_file(path, *args, **kwargs):
 #
 def get_custom_export_profiles(profiles, *args, **kwargs):
     print("get_custom_export_profiles - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    profiles['NIM Publish Sequence']         = {'nim_export_type':'NimExportSequence'}   #Adds an entry to the 'userData' dictionary
-    profiles['NIM Export Review to Show']    = {'nim_export_type':'NimExportEdit'}       #Adds an entry to the 'userData' dictionary
-    profiles['NIM Export Review to Task']    = {'nim_export_type':'NimExportDaily'}      #Adds an entry to the 'userData' dictionary
+    profiles['rohtau - Publish Sequence']   = {'nim_export_type':'rohtauExportSequence'}   #Adds an entry to the 'userData' dictionary
+    profiles['rohtau - Create Review']      = {'nim_export_type':'rohtauExportReview'}       #Adds an entry to the 'userData' dictionary
+    # profiles['NIM Publish Sequence']      = {'nim_export_type':'NimExportSequence'}   #Adds an entry to the 'userData' dictionary
+    # profiles['NIM Export Review to Show'] = {'nim_export_type':'NimExportEdit'}       #Adds an entry to the 'userData' dictionary
+    # profiles['NIM Export Review to Task'] = {'nim_export_type':'NimExportDaily'}      #Adds an entry to the 'userData' dictionary
     
     print("get_custom_export_profiles - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     pass

@@ -15,16 +15,67 @@
 
 debug=True
 
-import os
+import os, sys
+import re
+from pprint import pprint, pformat
+
+# NIM imports
+import nim_core.nim_print        as nimP
+import nim_core.nim              as Nim
+import nim_core.nim_file         as nimF
+import nim_core.nim_api          as nimAPI
+import nim_core.nim_win          as nimWin
+import nim_core.nim_rohtau       as nimRt
+import nim_core.nim_rohtau_utils as nimUtl
+from nim_core import padding 
+
+import flame
+
+nim_app = 'Flame'
+os.environ['NIM_APP'] = nim_app
+
+# Relative path to append for NIM Scripts
+nimFlamePythonPath = os.path.dirname(os.path.realpath(__file__))
+nimFlamePythonPath = nimFlamePythonPath.replace('\\','/')
+nimScriptPath = re.sub(r"\/plugins/Flame/python/py3$", "", nimFlamePythonPath)
+nimFlamePresetPathBase = os.path.join(re.sub(r"\/python/py3$", "", nimFlamePythonPath),'presets')
+
+try :
+    flame_major_version = flame.get_version_major()
+    nimFlamePresetPath = os.path.join(nimFlamePresetPathBase, flame_major_version)
+
+    if os.path.isdir(nimFlamePresetPath) == False :
+        nimFlamePresetPath = os.path.join(nimFlamePresetPathBase,'_default')
+except :
+    nimFlamePresetPath = os.path.join(nimFlamePresetPathBase,'_default')
+
+sys.path.append(nimScriptPath)
+
+import flame_widgets
+
 
 # Hook called when the user loads a project in the application.
 # project_name : Name of the loaded project -- String.
 def project_changed(project_name):
+    '''
     print("project_changed - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     os.environ['NIM_FLAME_PROJECT'] = str(project_name)
     if debug :
         print(project_name)
     print("project_changed - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    '''
+    nimP.info("New project loaded: %s"%project_name)
+    os.environ['NIM_FLAME_PROJECT'] = project_name
+    flameuser = flame.users.current_user.name
+    nimuser = nimUtl.get_nim_user()
+    nimuser = nimuser.split('@')[0]
+    if nimuser != flameuser:
+        nimP.warning("Flame user (%s) is not the same as NIM user (%s). Please check you user name in Flame and try to match NIM user name"%(flameuser, nimuser))
+        msg = "Flame user (%s) is not the same as NIM user (%s).\nCheck you are using the correct Flame user and NIM user.\nPlease change your Flame user name to match your NIM user name"%(flameuser, nimuser)
+        # nimWin.popup( title='Flame User', msg=msg, type='ok')
+        flame_widgets.FlameMessageWindow('Flame User', 'warning', msg)
+
+
     pass
 
 

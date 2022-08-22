@@ -12,19 +12,33 @@
 # agreement provided at the time of installation or download, or which
 # otherwise accompanies this software in either electronic or hard copy form.
 # *****************************************************************************
+import os,sys,re
+from subprocess import Popen
+from pprint import pprint, pformat
+
+# NIM imports
+import nim_core.nim_print        as nimP
+import nim_core.nim              as Nim
+import nim_core.nim_file         as nimF
+import nim_core.nim_api          as nimApi
+import nim_core.nim_rohtau       as nimRt
+import nim_core.nim_rohtau_utils as nimUtl
+from nim_core import padding 
 
 #  Import Python GUI packages :
 try : 
-    from PySide2 import QtWidgets as QtGui
-    from PySide2 import QtCore
+    from PySide2.QtWidgets import *
+    from PySide2.QtGui import *
+    from PySide2.QtCore import *
 except ImportError :
     try : 
-        from PySide import QtCore, QtGui
+        from PySide.QtGui import *
+        from PySide.QtCore import *
     except ImportError : 
         print("NIM: Failed to load UI Modules")
 
-import os,sys,re
-import flame
+# Flame
+import flame 
 
 nim_app = 'Flame'
 os.environ['NIM_APP'] = str(nim_app)
@@ -325,6 +339,39 @@ def get_media_panel_custom_ui_actions():
 # Same Documentation as get_media_panel_custom_ui_actions() above
 #
 def get_main_menu_custom_ui_actions():
+
+    def open_show_in_nim ( kwargs ):
+        # TODO: open NIM with the current show
+        Popen(["xdg-open", "https://nim.rohtau.com"])
+        pass
+
+    def changeUser( kwargs ):
+        nimP.info("Change User triggered")
+        print("Change User triggered")
+        #print info["selection"]
+
+        import nim_core.nim_win as Win;
+        curuser = nimUtl.get_nim_user()
+        Win.userInfo( apiUser=curuser )
+        pass
+
+    action1 = {}
+    action1[ "name" ] = "%s"%os.getenv('SHOW')
+    action1[ "caption" ] = "Environment setup for show %s"%os.getenv('SHOW')
+    action1["execute"] = open_show_in_nim
+
+    action2 = {}
+    # Add current NIM user between square brackets
+    curuser = nimUtl.get_nim_user()
+    action2[ "name" ] = "Change NIM User [%s]"%curuser
+    action2[ "caption" ] = "Change NIM User. Currently NIM user is %s"%curuser
+    action2[ "execute" ] = changeUser
+
+    group1 = {}
+    group1[ "name" ] = "rohtau > %s"%os.getenv('SHOW')
+    group1[ "actions" ] = ( action1, action2 )
+
+    return [ group1 ]
     pass
 
 

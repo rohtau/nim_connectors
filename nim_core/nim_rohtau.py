@@ -239,7 +239,7 @@ def elementTypeFolder( elementtype, parent=None, parentID=None):
     Returns
     -------
     str
-        Element folder name. empty string if error
+        Element folder name. Empty string if error
     '''
     elementname=""
     folder = ""
@@ -1243,9 +1243,6 @@ def publish_elmt( nim, elmpath=None, ID=None, start=1001, end=1001, handles=0, p
 
 
     return addelmt_result
-
-    
-
 
 
 def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=1001, handles=0, pubtask=None, userid=None,
@@ -2454,7 +2451,8 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             return res
     # print("Task:")
     # pprint(task)
-    metadata = eval(fileInfo['metadata'])
+    # metadata = eval(fileInfo['metadata'])
+    metadata = json.loads(fileInfo['metadata'])
     elementID = metadata['elementID'] if 'elementID' in metadata else 0
     elementTypeID = fileInfo['customKeys']['Element Type'] if 'Element Type' in fileInfo['customKeys'] else 0
     rendertimestr = ""
@@ -2995,7 +2993,6 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
 
     return False
 
-
 def pubImport(job, path, name='', parent='shot', parentID="", task="", element='', file="",user="", version=0, start=1001, end=1001, handles=0, overwrite=pubOverwritePolicy.NOT_ALLOW, 
               comment='', asrender=False, reviewtype=reviewType.DAILY, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
@@ -3189,8 +3186,168 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
     res['success'] = True
     return res
 
+def find_published_asset( job, parent, parentid, element, name, use_task_priority = True, verbose=False):
+    '''
+    Query the publishing system looking for the "appropriate" asset version if available.
 
+    Appropriate Version
+    ------------------
+    By "appropriate" we refer to the version of the asset that should be used at that moment.
+    - It can be published using the next tasks(less to greater priority): 
+      - track
+      - layout
+      - anim
+      - fx
+      - lighting
+    - If there are several cameras the published/approved version will be returned.
+    - If there are several cameras the latest version will be returned.
+    - If there is a collision between published or latest versions the task
+      priority will be used to decide.
+      - For instance, if there are two published cameras the one with the higher
+        task priority wins
+    - If there is a camera with a higher priority task, but older publishing date than a lower priority the user will be asked.
+      - For instance we can have to cameras loaded in the scene, one published a month ago using anim task and another published a week
+        ago with task track. In this case we will ask the user which one to select as the shot camera.
 
+    Parameters
+    ----------
+    job : str or int
+        Number or ID for job
+    name : str
+        Alternative name for publish item when importing to job.
+    parent : str
+        Parent for the published element. It could be: asset, shot or show (show is not implemented yet)
+    parentid : str or int
+        ID or name for parent. Name or ID of shot, asset or show.
+    element : str or id
+        Element type name or ID.
+    assume_high_priority : bool
+        By default latest camera tagged as published or latest publishing will be returned. No matter the task.
+        This will override this criteria and return the latest camera on higher priority task.
+    verbose : bool
+        Output extra information
+
+    Returns
+    ---------
+    dict
+        Dict with File Info of the shot camera or False if no shot camera could be found
+    '''
+    pub_parents = ('show', 'asset', 'shot')
+    pub_tasks = ('track', 'layout', 'anim', 'fx', 'light')
+    if job:
+        (jobid, jobnumber) = nimUtl.getjobIdNumberTuple( job )
+        if not jobid:
+            nimP.error("Can't get id for job: %s"%job)
+            return False
+    if parent.lower() not in pub_parents:
+        nimP.error("Publishing parent not supported: %s"%parent.lower())
+        return False
+    if not parentid:
+        nimP.error("Publishing parent ID can't be zero")
+        return False
+    if not isinstance(parentid, int) and not parentid.isnumeric():
+        parentname = parentid
+        if parent.upper() == 'SHOT':
+            parentid = nimUtl.getshotIdFromName( jobid, parentname )
+        else:
+            parentid = nimUtl.getassetIdFromName( jobid, parentname )
+            
+        if not parentid:
+            nimP.error("Couldn't find shot/asset %s in %s "%(parentname, jobnumber))
+            return False
+    else:
+        parentid=int(parentid)
+        if parent.upper() == 'SHOT':
+            parentname = nimAPI.get_shotInfo( shotID=parentid)[0]['shotName']
+        else:
+            parentname = nimAPI.get_assetInfo( shotID=parentid)[0]['assetName']
+
+    jobloc = nimUtl.getjobLocation(jobid)
+    if not jobloc:
+        nimP.error("Couldn't find job location")
+        return False
+    elementname = element
+    if isinstance(element, int) or element.isdigit():
+        elementname = nimUtl.getelementsIDDict()[int(element)]
+
+    baseloc = elementTypeFolder( element, parent, parentid )
+    if baseloc:
+        basepath = nimAPI.get_paths( item=parent, ID=parentid )['root']
+        baseloc = os.path.join(basepath, baseloc)
+    if not baseloc:
+        nimP.error("Can't get a base path for element %s in %s %s"%(element, parent.lower(), parentname))
+        return False
+    baseloc = os.path.join(os.path.dirname(jobloc), baseloc) # Remove job number folder from jobloc, is already included at the start of baseloc
+        
+    # Get name
+    if not name:
+        nimP.error("Asset publish name not provided")
+        return False
+
+    # Build dictionary with all assets published for every task
+    asset_pubs_all = {}
+    asset_pubs_selected = {}
+    has_published_asset = False
+    published_asset = None
+    latest_asset = None
+    found_asset = False
+    published_ver = None
+    for task in pub_tasks:
+        # Create basename
+        basename = buildBasename( parentname, task, name,  elemtype=elementname)
+        # print("Search for basename: %s"%basename)
+        if parent.upper() == 'SHOT':
+            vers = nimAPI.get_vers( shotID=int(parentid), basename=basename)
+        else:
+            vers = nimAPI.get_vers( assetID=int(parentid), basename=basename)
+        asset_pubs_all[task] = vers
+        for ver in vers:
+            if int(ver['isPublished']):
+                published_ver = ver
+                has_published_asset = True
+                published_asset = ver
+                break
+        if len(vers) > 0:
+            found_asset = True
+            latest_asset = vers[0] # Latest version is always the first in the array in NIM
+        asset_pubs_selected[task] = published_ver if published_ver else latest_asset
+
+    # If asset not found in any task
+    if not found_asset:
+        nimP.error("Couldn't find any asset with name: %s, type: %s published in %s %s"%(name, elementname, parent.tolower(), parentname))
+        return False
+    # If there is an asset version tag as publish, then return the latest task
+    # found with the "published" asset:
+    appropiate_asset_ver = None
+    criteria = ""
+    if has_published_asset:
+        appropiate_asset_ver = published_asset
+        criteria = "Asset tag as published/approved"
+    else:
+        # Return latest version for last task in priority
+        if use_task_priority:
+            appropiate_asset_ver = latest_asset
+            criteria = "Latest version for higher priority task"
+        else:
+            # Look for date in latest published, no matter the task
+            lastest = None
+            last_ver = None
+            for ver in asset_pubs_selected:
+                verdate = datetime.strptime(ver['date'], "%Y-%m-%d %H:%M:%S" )
+                if not lastest or verdate > latest:
+                    latest = verdate
+                    last_ver = ver
+            appropiate_asset_ver = last_ver
+            criteria = "Latest published version from all available"
+
+    if not appropiate_asset_ver:
+        nimP.error("Couldn't find an appropiate asset with name: %s, type: %s published in %s %s"%(name, elementname, parent.lower(), parentname))
+        return False
+    if verbose:
+        nimP.info("Found appropriate version (v%s) for asset %s of type %s publish in %s %s. Criteria: %s"
+                  %(appropiate_asset_ver['version'].zfill(padding), appropiate_asset_ver['basename'], elementname, parent.lower(), parentname, criteria))
+
+    return appropiate_asset_ver
 
 
 

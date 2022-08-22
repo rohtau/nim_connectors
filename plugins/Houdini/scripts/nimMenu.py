@@ -39,6 +39,8 @@ from nim_core import padding
 
 from rt import pipe
 from rt import utils
+import rt
+from rt.utils import log, getPosixPath
 
 try:
     reload  # Python 2.7
@@ -321,8 +323,44 @@ def rtCheckTimecards():
 
     pass
 
+def rtShotbuild():
+    '''
+    Start shotbuild process
+
+    WIP
+
+    Parameters
+    ----------
+    
+
+    Returns
+    ---------
+    
+
+    '''
+    log( "NIM: Shotbuild still on the works", severity=rt.Severity.Warning)
+
+    pass
 
     
+def rtShotcam():
+    '''
+    Load current camera shot if available.
+    Look pipe.load_shot_camera() for more info
+
+    Parameters
+    ----------
+    
+
+    Returns
+    ---------
+    
+
+    '''
+    log( "NIM: Load Shot Cam ")
+    pipe.load_shot_camera(openwindow=True)
+
+    pass
 
 
 if action == 'open':
@@ -371,4 +409,8 @@ elif action == 'copyfileid':
 	rtCopyHipFileID()
 elif action == 'timecards':
 	rtCheckTimecards()
+elif action == 'shotbuild':
+	rtShotbuild()
+elif action == 'shotcam':
+	rtShotcam()
 

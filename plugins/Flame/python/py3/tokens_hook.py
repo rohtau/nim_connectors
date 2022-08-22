@@ -59,6 +59,7 @@ def get_custom_token_list(context):
         return (
             {"name": "{shotName}", "displayName": "Shot Name"},
             {"name": "{task}", "displayName": "Task"},
+            '''
             {"name": "<nim_job_root>", "displayName": "NIM Job Root"},
             {"name": "<nim_job_name>", "displayName": "NIM Job Name"},
             {"name": "<nim_show_root>", "displayName": "NIM Show Root"},
@@ -68,5 +69,6 @@ def get_custom_token_list(context):
             {"name": "<nim_shot_plates>", "displayName": "NIM Shot Plates"},
             {"name": "<nim_shot_render>", "displayName": "NIM Shot Renders"},
             {"name": "<nim_shot_comp>", "displayName": "NIM Shot Comps"},
+            '''
         )
     return None

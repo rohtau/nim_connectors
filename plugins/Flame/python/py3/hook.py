@@ -1,3 +1,20 @@
+#
+# Generic hooks
+#
+import os
+from pprint import pprint, pformat
+
+# NIM imports
+import nim_core.nim_print        as nimP
+import nim_core.nim              as Nim
+import nim_core.nim_file         as nimF
+import nim_core.nim_api          as nimAPI
+import nim_core.nim_rohtau       as nimRt
+import nim_core.nim_rohtau_utils as nimUtl
+from nim_core import padding 
+ 
+import flame
+
 
 # Hook called when application is started
 # info: Information about the current executable -- dictionary
@@ -32,6 +49,12 @@
 #       Path to the loaded config file.
 #       Example: Using the previous example, default is /opt/Autodesk/flame_2016.1.2/cfg/init.cfg
 def app_started(info):
+    # print("Flame Start info:")
+    # pprint(info)
+    if 'SHOW' in os.environ and 'SHOWPATH' in os.environ:
+        nimP.info("Detected environment for show: %s"%os.getenv( 'SHOW' ))
+
+        
     pass
 
 

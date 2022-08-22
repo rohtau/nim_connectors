@@ -21,17 +21,20 @@ import time
 # from pathlib import PurePath
 import subprocess
 import getpass
+import json
 from subprocess import Popen
 from pprint     import pprint
 from pprint     import pformat
 from itertools  import groupby
 
 if sys.version_info >= (3, 0):
-    from . import nim_api as nimAPI
+    from . import nim       as Nim
+    from . import nim_api   as nimAPI
     from . import nim_prefs as nimPrefs
     from . import nim_print as nimP
 else:
-    import nim_api as nimAPI
+    import nim       as Nim
+    import nim_api   as nimAPI
     import nim_prefs as nimPrefs
     import nim_print as nimP
 
@@ -239,7 +242,7 @@ def toPosix( path, force=False ):
     else:
         return path
 
-def toNIMFramePadding(path):
+def toNIMFramePadding(path, posix=False):
     '''
     Convert frame padding to NIM format using ####
         myfile.$F4.jpg -> myfile.####.jpg
@@ -256,6 +259,8 @@ def toNIMFramePadding(path):
     ----------
     path : str
         Path to convert
+    posix : bool
+        Whether or not to convert path to Posix
 
     Returns
     ---------
@@ -274,13 +279,13 @@ def toNIMFramePadding(path):
     nimpath = re.sub('\.\d{4}\.', '.####.', nimpath) # Set frame number to nim padding (4) no subframes
     nimpath = re.sub('\.\d+\.', '.####.', nimpath) # Set frame number to nim padding
     nimpath = os.path.normpath(nimpath)
+    if posix:
+        nimpath = toPosix(nimpath)
 
     return nimpath
 
-    
 
 
-    
 
 #
 # Jobs
@@ -1930,7 +1935,8 @@ def completeFileInfoWithMetadata( fileinfo, elmts):
         True if everything when ok.
     '''
     fileinfo['startFrame'], fileinfo['endFrame'] = 0, 0
-    metadata = eval(fileinfo['metadata'])
+    # metadata = eval(fileinfo['metadata'])
+    metadata = json.loads(fileinfo['metadata'])
     if 'startFrame' in metadata:
         # Get range info from metadata
         fileinfo['startFrame'] = int(metadata['startFrame'])
@@ -1951,6 +1957,12 @@ def completeFileInfoWithMetadata( fileinfo, elmts):
         fileinfo['extraElements'] = []
         for elmid in extra_elmts_id:
             fileinfo['extraElements'].append(elmts[elmid])
+    if 'plate' in metadata and metadata['plate']:
+        fileinfo['plate'] = metadata['plate']
+    if 'src_offset' in metadata and metadata['src_offset']:
+        fileinfo['src_offset'] = int(metadata['src_offset'])
+
+
 
     
 
@@ -2045,6 +2057,27 @@ def getuserFullName( username ):
             fullname = fullname[0]
 
     return fullname
+
+def get_nim_user():
+    '''
+    Get current NIM user in nim prefs
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    str
+        Current NIM user
+
+    '''
+    nim = Nim.NIM().ingest_prefs()
+    return nim.userInfo()['name']
+
+    
+
+
+    
 
 #
 # Timecards

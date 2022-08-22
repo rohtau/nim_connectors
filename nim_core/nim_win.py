@@ -230,7 +230,7 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
                 userInput='Cancel'
         elif type=='input' :
             dialog=QtGui.QInputDialog.getText( QtGui.QInputDialog(), title, msg, \
-                QtGui.QLineEdit.Normal )
+                QtGui.QLineEdit.Normal, defaultInput )
             if dialog[1] :
                 userInput=dialog[0]
             else :
