@@ -1400,7 +1400,7 @@ def createRenderIcon( elementInfo ):
         env['PYTHONHOME'] = os.path.normpath(py2path)
         nimP.info("PYTHONHOME set to \opt\python\python27 needed for Draft's dpython.")
     else:
-        nimP.warning("Couldn't find py27 install (%s), assume default python in the system is 2.7")
+        nimP.warning("Couldn't find py27 install (%s), assume default python in the system is 2.7"%py2path)
     if 'THINKBOX_LICENSE_FILE' not in os.environ:
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
