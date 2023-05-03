@@ -1362,11 +1362,18 @@ def createRenderIcon( elementInfo ):
     '''
     import tempfile
 
+    print("Element Info")
+    pprint(elementInfo)
+
     middleframe = int(( int(elementInfo['endFrame']) - int(elementInfo['startFrame'])) / 2)
     middleframe = int(elementInfo['startFrame']) + middleframe
     middleframe = str(middleframe).zfill(imgpadding)
     middlepath = elementInfo['path'].replace('####', middleframe)
     middlepath = os.path.normpath(middlepath)
+
+    print(middleframe)
+    print(middlepath)
+
     if platform.system() == 'Windows':
         middlepath = os.path.join('C:', middlepath)
     if not os.path.exists(middlepath):
