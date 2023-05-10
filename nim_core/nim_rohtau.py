@@ -1368,7 +1368,8 @@ def createRenderIcon( elementInfo ):
     middleframe = int(( int(elementInfo['endFrame']) - int(elementInfo['startFrame'])) / 2)
     middleframe = int(elementInfo['startFrame']) + middleframe
     middleframe = str(middleframe).zfill(imgpadding)
-    middlepath = elementInfo['path'].replace('####', middleframe)
+    # middlepath = elementInfo['path'].replace('####', middleframe)
+    middlepath = os.path.join( elementInfo['path'],  elementInfo['name'].replace('####', middleframe) )
     middlepath = os.path.normpath(middlepath)
 
     print(middleframe)
@@ -1401,7 +1402,30 @@ def createRenderIcon( elementInfo ):
     cmd += " outFile=%s "%iconpath
     # Modify environment to force execution using python2.Deadline's dpython
     # only uses python 2.7 .
+    # Setup environment for standalone Draft: https://docs.thinkboxsoftware.com/products/deadline/10.2/1_User%20Manual/manual/app-draft.html#draft-standalone-ref-label
+    # Get Draft location:
+    if os.name == 'nt':
+        # draftInstallDir="c:\\studio\\tools\\deadlinerepository10\\draft\\Windows\\64bit"
+        localdraft = "c:\\opt\\Thinkbox\\draft\\Windows\\64bit"
+        studiodraft = "c:\\studio\\pipeline\\deadline\\draft\\Windows\\64bit"
+    else:
+        # draftInstallDir="/studio/pipeline/deadline/draftstudio/tools/deadlinerepository10/draft/Linux/64bit/"
+        # draftInstallDir="/studio/pipeline/deadline/draft/Linux/64bit/"
+        localdraft = "/opt/Thinkbox/draft/Linux/64bit/"
+        studiodraft = "/studio/pipeline/deadline/draft/Linux/64bit/"
+    draftloc = studiodraft
+    if os.path.isdir(localdraft):
+        draftloc = localdraft
+    if not os.path.isdir(draftloc):
+        nimP.error("Couldn't find Draft installed in any of these locations: %s, %s"%(localdraft, studiodraft))
+        return False
     env = copy.deepcopy(os.environ)
+    nimP.info("Setup environment for Draft at: %s"%draftloc)
+    # env['PYTHONHOME'] = draftloc
+    env['PYTHONHOME'] = "/opt/Thinkbox/Deadline10/lib/python2.7"
+    env['MAGICK_CONFIGURE_PATH'] = draftloc
+    env['LD_LIBRARY_PATH'] = draftloc
+    """
     py2path = "\opt\python\python27"
     if os.path.exists(py2path):
         env['PYTHONHOME'] = os.path.normpath(py2path)
@@ -1412,6 +1436,8 @@ def createRenderIcon( elementInfo ):
         nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         env.update(thinkboclivenv)
+    """
+    pprint(env)
     try:
         ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
     except subprocess.CalledProcessError as e:
@@ -2794,6 +2820,9 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     renderid = 0
     if taskid:
         # Can only publish render if there is an available task
+        icon = ""
+        # Disable icon, at the  moment there are some issues with icon creation
+        '''
         # Create icon
         if verbose:
             nimP.info("Create render icon ..")
@@ -2806,6 +2835,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             # res['msg'] = "Error creating render icon for %s"%rendername
             # res['success'] = False
             # return res
+        '''
 
         # Publish render
         if verbose:
