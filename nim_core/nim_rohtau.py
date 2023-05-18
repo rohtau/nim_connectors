@@ -2822,6 +2822,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         # Can only publish render if there is an available task
         icon = ""
         # Disable icon, at the  moment there are some issues with icon creation
+        nimP.warning("Render icon has been temporaly disabled")
         '''
         # Create icon
         if verbose:

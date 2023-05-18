@@ -64,17 +64,17 @@ def _knobInfo( nim=None ) :
     userInfo=nim.userInfo()
     knobNames=( 'nim_server', 'nim_serverID', 'nim_user', 'nim_userID',
         'nim_job', 'nim_jobID', 'nim_tab', 'nim_asset', 'nim_assetID', 'nim_show', 'nim_showID',
-        'nim_shot', 'nim_shotID', 'nim_basename', 'nim_version', 'nim_fileID', 'nim_task', 'nim_taskID', 'nim_type', 'nim_typeID', 'nim_taskFolder', 
+        'nim_shot', 'nim_shotID', 'nim_basename', 'nim_version', 'nim_fileID', 'nim_fileVer','nim_task', 'nim_taskID', 'nim_type', 'nim_typeID', 'nim_taskFolder', 
         'nim_jobPath', 'nim_shotPath', 'nim_compPath', 'nim_renderPath', 'nim_platesPath', 'nim_pubElements', 'nim_pubTasks', 'nim_APIver',
                'nim_tcpath', 'nim_tcid' )
     knobLabels=( 'Server Path', 'Server ID', 'User Name', 'User ID',
         'Job Name', 'Job ID', 'Entity', 'Asset Name', 'Asset ID', 'Show Name', 'Show ID',
-        'Shot Name', 'Shot ID', 'Basename', 'Version', 'File ID', 'Task Name', 'Task ID', 'Task Type', 'Task Type ID', 'Task Folder', 
+        'Shot Name', 'Shot ID', 'Basename', 'Version', 'File ID', 'File Version', 'Task Name', 'Task ID', 'Task Type', 'Task Type ID', 'Task Folder', 
         'Job Path', 'Shot Path', 'Comp Path', 'Renders Path', 'Plates Path', 'Publishing Elements', 'Publishing Tasks', 'NIM Version',
                 'Scene Timecard', 'Timecard ID')
     knobCmds=(  nim.server(), nim.ID('server'), userInfo['name'], userInfo['ID'],
         nim.name('job'), nim.ID('job'), nim.tab(),nim.name('asset'), nim.ID('asset'), nim.name('show'),
-        nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), nim.name('task'), '', nim.name('task'),
+        nim.ID('show'), nim.name('shot'), nim.ID('shot'), nim.name('base'), nim.version(), nim.ID('ver'), nim.version(), nim.name('task'), '', nim.name('task'),
         nim.ID('task'), nim.taskFolder(), nim.jobPath(), nim.shotPath(), nim.compPath(), nim.renderPath(), nim.platesPath(),
         str(Api.get_elementTypes()), str(Api.get_taskTypes()), version, '', 0 )
     return ( knobNames, knobLabels, knobCmds )
@@ -238,6 +238,9 @@ def set_fileid_var( fileid ):
         P.error("Can't set FileID, knob doesn't exists, has this script publish information?")
         return False
     PS.knob('nim_fileID').setValue( int(fileid) )
+    info = Api.get_verInfo( fileid )
+    fileInfo = info[0]
+    PS.knob('nim_fileVer').setValue( int(fileInfo['version']) )
 
     return True
 

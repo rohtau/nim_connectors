@@ -68,9 +68,10 @@ def set_vars( nim ) :
         raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publising information into hip file")
 
     # help(nim)
-    # print("================================")
-    # from pprint import pprint
-    # pprint(nim.get_nim())
+    print("================================")
+    P.debug( 'In Houdini set_vars' )
+    from pprint import pprint
+    pprint(nim.get_nim())
 
     #  User :
     userInfo=nim.userInfo()
@@ -94,6 +95,7 @@ def set_vars( nim ) :
     h_root.setUserData("nim_asset", str(nim.name('asset'))) 
     h_root.setUserData("nim_assetID", str(nim.ID('asset'))) 
     h_root.setUserData("nim_fileID", str(nim.ID('ver')))
+    h_root.setUserData("nim_fileVer", str(nim.version()))
 
     if nim.tab()=='SHOT' :
         h_root.setUserData("nim_name", str(nim.name('shot')))
@@ -161,6 +163,9 @@ def set_fileid_var( fileid ):
         # P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
         # return False
     h_root.setUserData("nim_fileID", str(fileid))
+    info = Api.get_verInfo( fileid )
+    fileInfo = info[0]
+    h_root.setUserData("nim_fileVer", str(fileInfo['version']))
 
     return True
 

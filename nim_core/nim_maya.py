@@ -196,6 +196,12 @@ def set_vars( nim=None ) :
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', lock=False)
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', str(nim.ID('ver')), type='string' )
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', lock=True, keyable=False)
+    #  File Version :
+    if not mc.attributeQuery( 'nim_fileVer', node='defaultRenderGlobals', exists=True) :
+        mc.addAttr( 'defaultRenderGlobals', longName='nim_fileVer', dt="string")
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=False)
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(nim.version(), type='string' )
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=True, keyable=False)
     #  Shot/Asset Name :
     if not mc.attributeQuery( 'nim_name', node='defaultRenderGlobals', exists=True) :
         mc.addAttr( 'defaultRenderGlobals', longName='nim_name', dt="string")
@@ -307,6 +313,12 @@ def set_fileid_var( fileid ):
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', lock=False)
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', str(fileid), type='string' )
     mc.setAttr( 'defaultRenderGlobals.nim_fileID', lock=True, keyable=False)
+
+    info = Api.get_verInfo( fileid )
+    fileInfo = info[0]
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=False)
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(fileInfo['version']), type='string' )
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=True, keyable=False)
 
     return True
 
