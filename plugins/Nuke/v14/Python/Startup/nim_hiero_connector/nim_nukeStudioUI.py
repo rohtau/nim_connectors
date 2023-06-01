@@ -23,6 +23,7 @@ import sys,os,re,string
 import base64
 import platform
 import ntpath
+from pprint import pprint,pformat
 
 import nim_core.UI as nimUI
 import nim_core.nim_api as nimAPI
@@ -90,7 +91,7 @@ def openDialog():
 
         # Get Server OS Path from server ID
         serverOsPathInfo = nimAPI.get_serverOSPath( verInfo[0]['serverID'], platform.system() )
-        P.info("Server OS Path: %s" % serverOsPathInfo)
+        P.info("Server OS Path: %s" % serverOsPathInfo[0]['serverOSPath'])
         if serverOsPathInfo:
             serverOSPath = serverOsPathInfo[0]['serverOSPath']
         else:

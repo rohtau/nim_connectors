@@ -9,6 +9,7 @@
 # *****************************************************************************
 
 import itertools
+from pprint import pprint,pformat
 import hiero.core
 import hiero.ui
 
@@ -231,8 +232,9 @@ class NimShotProcessorUI(NimProcessorUIBase, QtCore.QObject):
         sequences.append(sequence)
 
     trackWidget = TrackSelectionWidget(sequences,
-                                           self._preset.nonPersistentProperties()["excludedTracks"],
-                                           excludedTrackIDs = self._preset._excludedTrackIDs)
+                                       [],
+                                       self._preset.nonPersistentProperties()["excludedTracks"],
+                                       excludedTrackIDs = self._preset._excludedTrackIDs)
     hLayout.addWidget(trackWidget)
 
     tagsLayout = QtWidgets.QVBoxLayout()
