@@ -12,6 +12,7 @@ import time
 import hiero.core
 import hiero.core.FnExporterBase as FnExporterBase
 import itertools
+from pprint import pprint,pformat
 
 from hiero.core.VersionScanner import VersionScanner
 from hiero.exporters.FnExportKeywords import kFileBaseKeyword, kFileHeadKeyword, kFilePathKeyword, KeywordTooltips
@@ -292,7 +293,8 @@ class NimShotProcessor(hiero.core.ProcessorBase):
         presetId = None
 
       # For each video track
-      for track, trackCopy in zip(sequence.videoTracks(), sequenceCopy.videoTracks()) + zip(sequence.audioTracks(), sequenceCopy.audioTracks()):
+      # for track, trackCopy in zip(sequence.videoTracks(), sequenceCopy.videoTracks()) + zip(sequence.audioTracks(), sequenceCopy.audioTracks()):
+      for track, trackCopy in list(zip(sequence.videoTracks(), sequenceCopy.videoTracks())) + list(zip(sequence.audioTracks(), sequenceCopy.audioTracks())):
 
         # Unlock copied track so that items may be removed
         trackCopy.setLocked(False)
@@ -307,7 +309,8 @@ class NimShotProcessor(hiero.core.ProcessorBase):
         trackItemsToRemove = []
 
         # For each track item on track
-        for trackitem, trackitemCopy in zip(track.items(), trackCopy.items()):
+        # for trackitem, trackitemCopy in zip(track.items(), trackCopy.items()):
+        for trackitem, trackitemCopy in zip(list(track.items()), list(trackCopy.items())):
 
           trackitemCopy.unlinkAll() # Unlink to prevent accidental removal of items we want to keep
 
@@ -522,6 +525,10 @@ class NimShotProcessor(hiero.core.ProcessorBase):
       # For each entry in the shot template
       for (exportPath, preset) in self._exportTemplate.flatten():
 
+        print("Export Path")
+        print(exportPath)
+        type(exportPath)
+
         # Build TaskData seed
         taskData = hiero.core.TaskData( preset,
                                         trackitemCopy,
@@ -544,6 +551,9 @@ class NimShotProcessor(hiero.core.ProcessorBase):
         # as an attribute directly as it's only used for create comp with 
         # NukeShotExporter
         taskData.trackItemsForViews = copiedTrackItemsForViews
+
+        # print("Task Data:")
+        # pprint(taskData)
 
         # Spawn task
         task = hiero.core.taskRegistry.createTaskFromPreset(preset, taskData)
@@ -823,6 +833,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
     resolver.addResolver("{nim_shot_comp}", "NIM Shot Comp Output Directory", lambda keyword, task: shotCompPath(task))
 
     #NOTE: Use encode('ascii') on return value to avoid PyZMQ errors
+    # XXX: all encode('ascii') removed, cause problems in py3
+    # What a nightmare !!! to debug this one.
 
     def nimJobName(task):
       nim_hiero_debug = False
@@ -834,7 +846,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
           nim_jobName = nim_jobInfo[0]['jobname']
           if nim_hiero_debug:
             print ( nim_jobInfo )
-      return nim_jobName.encode('ascii')
+      # return nim_jobName.encode('ascii')
+      return nim_jobName
 
     def nimJobNumber(task):
       nim_hiero_debug = False
@@ -846,7 +859,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
           nim_jobNumber = nim_jobInfo[0]['number']
           if nim_hiero_debug:
             print ( nim_jobInfo )
-      return nim_jobNumber.encode('ascii')
+      # return nim_jobNumber.encode('ascii')
+      return nim_jobNumber
 
     def nimShowName(task):
       nim_hiero_debug = False
@@ -858,16 +872,20 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
           nim_showName = nim_showInfo[0]['showname']
           if nim_hiero_debug:
             print ( nim_showInfo )
-      return nim_showName.encode('ascii')
+      # return nim_showName.encode('ascii')
+      return nim_showName
 
     def serverOSPath(task):
-      return nimHieroConnector.g_nim_serverOSPath.encode('ascii')
+      # return nimHieroConnector.g_nim_serverOSPath.encode('ascii')
+      return nimHieroConnector.g_nim_serverOSPath
 
     def showRootPath(task):
       nim_hiero_debug = False
       if nim_hiero_debug:
-        print ( "nim_show_root: %s" % nimHieroConnector.g_nim_showFolder.encode('ascii') )
-      return nimHieroConnector.g_nim_showFolder.encode('ascii')
+        # print ( "nim_show_root: %s" % nimHieroConnector.g_nim_showFolder.encode('ascii') )
+        print ( "nim_show_root: %s" % nimHieroConnector.g_nim_showFolder )
+      # return nimHieroConnector.g_nim_showFolder.encode('ascii')
+      return nimHieroConnector.g_nim_showFolder
 
     def shotRootPath(task):
       nim_hiero_debug = False
@@ -921,7 +939,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
       if nim_hiero_debug:
         print ( "************* NIM: END RESOLVING PLATES PATH ***************" )
   
-      nim_shotPath = nim_shotPath.encode('ascii')
+      # nim_shotPath = nim_shotPath.encode('ascii')
+      nim_shotPath = nim_shotPath
       return nim_shotPath
 
     def shotPlatesPath(task):
@@ -977,7 +996,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
       if nim_hiero_debug:
         print ( "************* NIM: END RESOLVING PLATES PATH ***************" )
   
-      nim_platesPath = nim_platesPath.encode('ascii')
+      # nim_platesPath = nim_platesPath.encode('ascii')
+      nim_platesPath = nim_platesPath
       return nim_platesPath
 
     def shotRenderPath(task):
@@ -1032,7 +1052,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
       if nim_hiero_debug:
         print ( "************* NIM: END RESOLVING PLATES PATH ***************" )
   
-      nim_renderPath = nim_renderPath.encode('ascii')
+      # nim_renderPath = nim_renderPath.encode('ascii')
+      nim_renderPath = nim_renderPath
       return nim_renderPath
 
     def shotCompPath(task):
@@ -1087,7 +1108,8 @@ class NimShotProcessorPreset(hiero.core.ProcessorPreset):
       if nim_hiero_debug:
         print ( "************* NIM: END RESOLVING PLATES PATH ***************" )
   
-      nim_compPath = nim_compPath.encode('ascii')
+      # nim_compPath = nim_compPath.encode('ascii')
+      nim_compPath = nim_compPath
       return nim_compPath
 
       

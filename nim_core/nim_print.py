@@ -187,7 +187,9 @@ def error( msg='', showwindow=False ) :
         for toke in tokens :
             if isNuke:
                 nuke.tprint('NIM.Error ~> %s' % toke)
-                nuke.error('NIM.Error ~> %s' % toke )
+                # This cause an error in Hiero, we need to check that we are not in Hiero.
+                # TODO: check we are not in Hiero Nuke Studio to run error()
+                # nuke.error('NIM.Error ~> %s' % toke )
             elif isMaya:
                 om.MGlobal.displayError('NIM.Error ~> %s' % toke)
             elif isHoudini and hou.isUIAvailable():
