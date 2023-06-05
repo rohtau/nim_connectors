@@ -132,7 +132,7 @@ def set_vars( nim=None ) :
             n = None
             if  knobNames[x].endswith('Path') or knobNames[x].endswith('path'):
                 PS.addKnob( nuke.File_Knob( knobNames[x], knobLabels[x] ))
-            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version') or knobNames[x].endswith('id'):
+            elif  knobNames[x].endswith('ID') or knobNames[x].endswith('version') or knobNames[x].endswith('Ver') or knobNames[x].endswith('id'):
                 PS.addKnob( nuke.Int_Knob( knobNames[x], knobLabels[x] ))
             elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
                 PS.addKnob( nuke.Multiline_Eval_String_Knob( knobNames[x], knobLabels[x] ))
@@ -152,7 +152,7 @@ def set_vars( nim=None ) :
                 knob.setValue( correctedPath )
             #  Otherwise, set the knob as normal :
             else :
-                if knobNames[x].endswith('ID') or knobNames[x].endswith('version'):
+                if knobNames[x].endswith('ID') or knobNames[x].endswith('id') or knobNames[x].endswith('version') or knobNames[x].endswith('Ver'):
                     # nuke.tprint("Knob Name: %s, String val: %s"%(knobNames[x],knobCmds[x]))
                     knob.setValue( int(knobCmds[x]) )
                 elif  knobNames[x] in ('nim_pubElements', 'nim_pubTasks'):
@@ -1111,7 +1111,7 @@ class NIM_Node() :
     def elem_populate( self, elem='' ) :
         'Populates each of the combo boxes, when specified'
         
-        if elem is not 'job' :
+        if elem != 'job' :
             prevElem=self.elements[self.elements.index(elem)-1]
         
         if elem=='job' :

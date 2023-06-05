@@ -1388,12 +1388,13 @@ def createRenderIcon( elementInfo ):
     print("Create icon from: %s"%middlepath)
     print("Create icon at: %s"%iconpath)
 
-    # XXX: careful here these paths to dpython are harcoded. This will be a
+    # XXX: careful here these paths to python3 are harcoded. This will be a
     # problem someday ...
-    cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
+    cmd = "/opt/Thinkbox/Deadline10/bin/python3/python" # For unix like systems
     if platform.system() == 'Windows':
-        cmd = "C:\\opt\\deadline10\\bin\\dpython"
+        cmd = "C:\\opt\\deadline10\\bin\\python3\\python"
     # Default studio Draft template, or use override from envvar or override from argument.
+    # TODO: this should be using project's draft scripts
     draftTemplate="/studio/pipeline/deadline/draft/standaloneDraftCreateRenderIcon.py"
     cmd += " %s "%os.path.normpath(draftTemplate)
     # In Frame
@@ -1401,18 +1402,16 @@ def createRenderIcon( elementInfo ):
     # Out render icon path
     cmd += " outFile=%s "%iconpath
     # Modify environment to force execution using python2.Deadline's dpython
-    # only uses python 2.7 .
-    # Setup environment for standalone Draft: https://docs.thinkboxsoftware.com/products/deadline/10.2/1_User%20Manual/manual/app-draft.html#draft-standalone-ref-label
     # Get Draft location:
     if os.name == 'nt':
         # draftInstallDir="c:\\studio\\tools\\deadlinerepository10\\draft\\Windows\\64bit"
-        localdraft = "c:\\opt\\Thinkbox\\draft\\Windows\\64bit"
-        studiodraft = "c:\\studio\\pipeline\\deadline\\draft\\Windows\\64bit"
+        localdraft = "c:\\opt\\Thinkbox\\draft3\\Windows\\64bit"
+        studiodraft = "c:\\studio\\pipeline\\deadline\\draft3\\Windows\\64bit"
     else:
         # draftInstallDir="/studio/pipeline/deadline/draftstudio/tools/deadlinerepository10/draft/Linux/64bit/"
         # draftInstallDir="/studio/pipeline/deadline/draft/Linux/64bit/"
-        localdraft = "/opt/Thinkbox/draft/Linux/64bit/"
-        studiodraft = "/studio/pipeline/deadline/draft/Linux/64bit/"
+        localdraft = "/opt/Thinkbox/draft3/Linux/64bit/"
+        studiodraft = "/studio/pipeline/deadline/draft3/Linux/64bit/"
     draftloc = studiodraft
     if os.path.isdir(localdraft):
         draftloc = localdraft
@@ -1422,7 +1421,10 @@ def createRenderIcon( elementInfo ):
     env = copy.deepcopy(os.environ)
     nimP.info("Setup environment for Draft at: %s"%draftloc)
     # env['PYTHONHOME'] = draftloc
-    env['PYTHONHOME'] = "/opt/Thinkbox/Deadline10/lib/python2.7"
+    if 'PYTHONPATH' in env:
+        env['PYTHONPATH'] = "%s:%s"%(draftloc, env['PYTHONPATH'])
+    else:
+        env['PYTHONPATH'] = draftloc
     env['MAGICK_CONFIGURE_PATH'] = draftloc
     env['LD_LIBRARY_PATH'] = draftloc
     """
@@ -1437,7 +1439,7 @@ def createRenderIcon( elementInfo ):
         thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
         env.update(thinkboclivenv)
     """
-    pprint(env)
+    # pprint(env)
     try:
         ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
     except subprocess.CalledProcessError as e:
@@ -2758,8 +2760,10 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
 
     # Retrieve file info
-    # print("File version to publish render to:")
-    # pprint(fileInfo)
+    import nuke
+    nuke.tprint("PAsorrRR")
+    nuke.tprint("File version to publish render to:")
+    nuke.tprint(pformat(fileInfo))
     fileid = int(fileInfo['fileID'])
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
@@ -2775,6 +2779,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     # Check availability:
+    nuke.tprint("PAsorrRR 2")
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
         nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
@@ -2816,14 +2821,14 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # print("Render Element:")
     # pprint(elementInfo)
     nimP.info("Create render from %s in %s %s (Frames %s)"%(name, parent, parentname, frange))
+    nuke.tprint("PAsorrRR 3")
 
     renderid = 0
     if taskid:
         # Can only publish render if there is an available task
         icon = ""
         # Disable icon, at the  moment there are some issues with icon creation
-        nimP.warning("Render icon has been temporaly disabled")
-        '''
+        # nimP.warning("Render icon has been temporaly disabled")
         # Create icon
         if verbose:
             nimP.info("Create render icon ..")
@@ -2836,7 +2841,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             # res['msg'] = "Error creating render icon for %s"%rendername
             # res['success'] = False
             # return res
-        '''
 
         # Publish render
         if verbose:
