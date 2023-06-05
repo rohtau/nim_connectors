@@ -525,10 +525,6 @@ class NimShotProcessor(hiero.core.ProcessorBase):
       # For each entry in the shot template
       for (exportPath, preset) in self._exportTemplate.flatten():
 
-        print("Export Path")
-        print(exportPath)
-        type(exportPath)
-
         # Build TaskData seed
         taskData = hiero.core.TaskData( preset,
                                         trackitemCopy,
@@ -608,15 +604,13 @@ class NimShotProcessor(hiero.core.ProcessorBase):
           element_filePath = ntpath.dirname(resolvedFullPath)
           element_fileName = ntpath.basename(resolvedFullPath)
 
-          print ( "nimHieroConnector.g_nim_publishElement=",nimHieroConnector.g_nim_publishElement )
-          print ( "nimHieroConnector.g_nim_element=",nimHieroConnector.g_nim_element )
-          print ( "nimHieroConnector.g_nim_elementTypeID=",nimHieroConnector.g_nim_elementTypeID )
+          # print ( "nimHieroConnector.g_nim_publishElement=",nimHieroConnector.g_nim_publishElement )
+          # print ( "nimHieroConnector.g_nim_element=",nimHieroConnector.g_nim_element )
+          # print ( "nimHieroConnector.g_nim_elementTypeID=",nimHieroConnector.g_nim_elementTypeID )
 
           #Determine Export Preset
           presetName = preset.name()
           presetExportName = type(preset).__name__
-          print ( "preset name: %s" % presetName )
-          #print ( "export name: %s" % presetExportName )
           
           nim_prefInfo = nimPrefs.read()
           user = nim_prefInfo['NIM_User']
@@ -626,8 +620,8 @@ class NimShotProcessor(hiero.core.ProcessorBase):
             userInfo=nim.NIM().userInfo()
             user = userInfo['name']
             userID = userInfo['ID']
-          print ( "NIM: user=%s" % user )
-          print ( "NIM: userID: %s" % userID )
+          # print ( "NIM: user=%s" % user )
+          # print ( "NIM: userID: %s" % userID )
 
           if presetName == 'hiero.exporters.FnTranscodeExporter.TranscodeExporter' \
             or presetName == 'hiero.exporters.FnCopyExporter.CopyExporter' \
@@ -691,9 +685,9 @@ class NimShotProcessor(hiero.core.ProcessorBase):
               filename = element_fileName
               filepath = element_filePath
               
-              print ( "basename: %s" % basename )
-              print ( "filename: %s" % filename )
-              print ( "version: %s" % version )
+              # print ( "basename: %s" % basename )
+              # print ( "filename: %s" % filename )
+              # print ( "version: %s" % version )
 
               # Verify entry is not duplicate of existing version
               nim_doUpdate = False
@@ -702,7 +696,7 @@ class NimShotProcessor(hiero.core.ProcessorBase):
               nim_versions = {}
               nim_versionID = 0
               nim_versions = nimAPI.get_vers(shotID=nim_shotID, basename=basename)
-              print ( "Versions Returned: %s" % nim_versions )
+              # print ( "Versions Returned: %s" % nim_versions )
 
               # if file matching class / basename / filename / version
               try:

@@ -1,6 +1,8 @@
 .DS_Store
 *.pyc
 *.bak
+*.7z
+*.zip
 tags
 .tdvim
 !nimDarktheme.pyc
