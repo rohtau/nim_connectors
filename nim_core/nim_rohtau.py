@@ -2760,10 +2760,11 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
 
     # Retrieve file info
-    import nuke
-    nuke.tprint("PAsorrRR")
-    nuke.tprint("File version to publish render to:")
-    nuke.tprint(pformat(fileInfo))
+    # import nuke
+    # nuke.tprint("PAsorrRR")
+    # nuke.tprint("File version to publish render to:")
+    # nuke.tprint(pformat(fileInfo))
+
     fileid = int(fileInfo['fileID'])
     path = fileInfo['filepath']
     name =  fileInfo['filename'] 
@@ -2779,7 +2780,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     # Check availability:
-    nuke.tprint("PAsorrRR 2")
+    # nuke.tprint("PAsorrRR 2")
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
         nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
@@ -2821,7 +2822,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # print("Render Element:")
     # pprint(elementInfo)
     nimP.info("Create render from %s in %s %s (Frames %s)"%(name, parent, parentname, frange))
-    nuke.tprint("PAsorrRR 3")
+    # nuke.tprint("PAsorrRR 3")
 
     renderid = 0
     if taskid:
