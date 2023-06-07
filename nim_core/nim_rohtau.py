@@ -624,9 +624,12 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # XXX: careful here these paths to dpython are harcoded. This will be a
     # problem someday ...
     # Use Deadline's python
-    cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
+    # cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
+    # if platform.system() == 'Windows':
+        # cmd = "C:\\opt\\deadline10\\bin\\dpython"
+    cmd = "/opt/Thinkbox/Deadline10/bin/python3/python" # For unix like systems
     if platform.system() == 'Windows':
-        cmd = "C:\\opt\\deadline10\\bin\\dpython"
+        cmd = "C:\\opt\\deadline10\\bin\\python3\\python"
     isstillframe = False
     frameslist = frames.split('-')
     if frameslist[0] == frameslist[1]:
@@ -688,6 +691,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     cmd += " frameList=%s-%s"%(start, end)
     # In Seq
     path = nimUtl.toNIMFramePadding(infile)
+
     if platform.system() == 'Windows':
         path = os.path.join('C:', path)
     cmd += " inFile=%s "%path
@@ -718,23 +722,65 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
             raise
     outdraft = os.path.join(outdraft, draftname)
     cmd += " outFile=%s "%outdraft
-    # Modify environment to force execution using python2.Deadline's dpython
-    # only uses python 2.7 .
+    # Modify environment to allow Draft python module load
+    # Get Draft location:
+    if os.name == 'nt':
+        # draftInstallDir="c:\\studio\\tools\\deadlinerepository10\\draft\\Windows\\64bit"
+        localdraft = "c:\\opt\\Thinkbox\\draft3\\Windows\\64bit"
+        studiodraft = "c:\\studio\\pipeline\\deadline\\draft3\\Windows\\64bit"
+    else:
+        # draftInstallDir="/studio/pipeline/deadline/draftstudio/tools/deadlinerepository10/draft/Linux/64bit/"
+        # draftInstallDir="/studio/pipeline/deadline/draft/Linux/64bit/"
+        localdraft = "/opt/Thinkbox/draft3/Linux/64bit/"
+        studiodraft = "/studio/pipeline/deadline/draft3/Linux/64bit/"
+    draftloc = studiodraft
+    if os.path.isdir(localdraft):
+        draftloc = localdraft
+    if not os.path.isdir(draftloc):
+        nimP.error("Couldn't find Draft installed in any of these locations: %s, %s"%(localdraft, studiodraft))
+        return False
     env = copy.deepcopy(os.environ)
+    nimP.info("Setup environment for Draft at: %s"%draftloc)
+    # env['PYTHONHOME'] = draftloc
+    if 'PYTHONPATH' in env:
+        env['PYTHONPATH'] = "%s:%s"%(draftloc, env['PYTHONPATH'])
+    else:
+        env['PYTHONPATH'] = draftloc
+    env['MAGICK_CONFIGURE_PATH'] = draftloc
+    env['LD_LIBRARY_PATH'] = draftloc
     # env['PYTHONHOME'] = "C:\opt\python\python27"
-    env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
-    if 'THINKBOX_LICENSE_FILE' not in os.environ:
-        nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
-        thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        env.update(thinkboclivenv)
+    # env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
+    # if 'THINKBOX_LICENSE_FILE' not in os.environ:
+        # nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
+        # thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
+        # env.update(thinkboclivenv)
     # print("Slate command:")
     # print(cmd)
+    '''
     if not runAsyncCommand( cmd, env=env, timeout=10*60 ):
         if isstillframe:
             nimP.error("Can't create review image: %s"%outdraft)
         else:
             nimP.error("Can't create review movie: %s"%outdraft)
         return False
+    '''
+    try:
+        ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
+    except subprocess.CalledProcessError as e:
+        nimP.error("Draft command for render review generation: %s "%cmd)
+        nimP.error("Command: %s"%e.cmd)
+        if e.output:
+            nimP.error("Output: %s"%e.output)
+        if sys.version_info >= (3,0):
+            if e.stderr:
+                nimP.error("Stderr: %s"%e.stderr)
+        nimP.error("Error code: %d"%e.returncode)
+        return False
+    except FileNotFoundError:
+        nimP.error( "Can't find command in path %s"%cmd.split()[0])
+        return False
+    print("Output:")
+    print(ret)
     
     return outdraft
 
@@ -1362,8 +1408,8 @@ def createRenderIcon( elementInfo ):
     '''
     import tempfile
 
-    print("Element Info")
-    pprint(elementInfo)
+    # print("Element Info")
+    # pprint(elementInfo)
 
     middleframe = int(( int(elementInfo['endFrame']) - int(elementInfo['startFrame'])) / 2)
     middleframe = int(elementInfo['startFrame']) + middleframe
@@ -1371,9 +1417,6 @@ def createRenderIcon( elementInfo ):
     # middlepath = elementInfo['path'].replace('####', middleframe)
     middlepath = os.path.join( elementInfo['path'],  elementInfo['name'].replace('####', middleframe) )
     middlepath = os.path.normpath(middlepath)
-
-    print(middleframe)
-    print(middlepath)
 
     if platform.system() == 'Windows':
         middlepath = os.path.join('C:', middlepath)
@@ -1385,8 +1428,8 @@ def createRenderIcon( elementInfo ):
     rendername = filename.split('.')[0]
     iconname = rendername + ".jpg"
     iconpath = os.path.join(tempfile.gettempdir(), iconname)
-    print("Create icon from: %s"%middlepath)
-    print("Create icon at: %s"%iconpath)
+    # print("Create icon from: %s"%middlepath)
+    # print("Create icon at: %s"%iconpath)
 
     # XXX: careful here these paths to python3 are harcoded. This will be a
     # problem someday ...
@@ -1401,7 +1444,7 @@ def createRenderIcon( elementInfo ):
     cmd += " inFile=%s "%middlepath
     # Out render icon path
     cmd += " outFile=%s "%iconpath
-    # Modify environment to force execution using python2.Deadline's dpython
+    # Modify environment to allow Draft python module load
     # Get Draft location:
     if os.name == 'nt':
         # draftInstallDir="c:\\studio\\tools\\deadlinerepository10\\draft\\Windows\\64bit"
@@ -2760,13 +2803,9 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
 
     # Retrieve file info
-    # import nuke
-    # nuke.tprint("PAsorrRR")
-    # nuke.tprint("File version to publish render to:")
-    # nuke.tprint(pformat(fileInfo))
-
     fileid = int(fileInfo['fileID'])
-    path = fileInfo['filepath']
+    path = os.path.join(fileInfo['filepath'], fileInfo['filename'] )
+    path = os.path.normpath(path)
     name =  fileInfo['filename'] 
     # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
     fileparts = nimUtl.splitName(name)
@@ -2780,7 +2819,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
     # Check availability:
-    # nuke.tprint("PAsorrRR 2")
+
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
         nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))
@@ -2822,7 +2861,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
     # print("Render Element:")
     # pprint(elementInfo)
     nimP.info("Create render from %s in %s %s (Frames %s)"%(name, parent, parentname, frange))
-    # nuke.tprint("PAsorrRR 3")
 
     renderid = 0
     if taskid:
@@ -2972,7 +3010,9 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     fileInfo = info[0]
     # print("File Info:")
     # pprint(info)
-    path = fileInfo['filepath']
+    # path = fileInfo['filepath']
+    path = os.path.join(fileInfo['filepath'], fileInfo['filename'] )
+    path = os.path.normpath(path)
     name =  fileInfo['filename']
     # (base, shotname, task, tag, ver) = nimUtl.splitName(name)
     fileparts = nimUtl.splitName(name)
