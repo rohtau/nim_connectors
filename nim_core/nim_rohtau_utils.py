@@ -2020,6 +2020,7 @@ def getusersIDDict():
     Create a dictionary with ID as keys and user name as value
     Ideal to search users by ID.
 
+
     Returns:
         dict -- Dictionary in the form {ID(int) : NAME(str)}
     '''
@@ -2033,22 +2034,32 @@ def getusersIDDict():
         usersid[int(user['ID'])] = user['username']
     return usersid
 
-def getuserFullName( username ):
+def getuserFullName( username="" ):
     '''
     Given  the login name, get user Full Name.
     At the moment only windows version is implemented.
     On Linux the username will be returned
+
+    Parameters
+    ----------
+    username : str
+        User login name. rohtau.com domain is optional
+
 
     Returns
     -------
     str
         Full Name for the user. Or login username if it is not implemented for the platform.
     '''
+    if not username:
+        username = getpass.getuser()
     fullname = username
     if platform.system() == 'Windows':
-        username = getpass.getuser()
+        # p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             # universal_newlines=True)
+        # Encode streams in unicode_escape to avoid errors with strange charatcers, like  ñ
         p = subprocess.Popen('net user %s /domain' % username, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             universal_newlines=True)
+                             universal_newlines=True, encoding='unicode_escape')
         info, err = p.stdout.read(), p.stderr.read()
         fullname = re.findall(r'Full Name\s+(.*\S)', info)
         if not fullname:
