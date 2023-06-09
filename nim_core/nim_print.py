@@ -20,6 +20,8 @@ import os
 isNuke = False
 try:
     import nuke
+    if not hasattr(nuke, 'tprint'):
+        raise ImportError
     isNuke = True
 except ImportError:
     pass

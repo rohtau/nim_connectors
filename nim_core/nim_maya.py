@@ -200,7 +200,7 @@ def set_vars( nim=None ) :
     if not mc.attributeQuery( 'nim_fileVer', node='defaultRenderGlobals', exists=True) :
         mc.addAttr( 'defaultRenderGlobals', longName='nim_fileVer', dt="string")
     mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=False)
-    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(nim.version(), type='string' )
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(nim.version(), type='string' ))
     mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=True, keyable=False)
     #  Shot/Asset Name :
     if not mc.attributeQuery( 'nim_name', node='defaultRenderGlobals', exists=True) :
