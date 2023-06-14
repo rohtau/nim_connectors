@@ -200,7 +200,7 @@ def set_vars( nim=None ) :
     if not mc.attributeQuery( 'nim_fileVer', node='defaultRenderGlobals', exists=True) :
         mc.addAttr( 'defaultRenderGlobals', longName='nim_fileVer', dt="string")
     mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=False)
-    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(nim.version(), type='string' ))
+    mc.setAttr( 'defaultRenderGlobals.nim_fileVer', str(nim.version()), type='string' )
     mc.setAttr( 'defaultRenderGlobals.nim_fileVer', lock=True, keyable=False)
     #  Shot/Asset Name :
     if not mc.attributeQuery( 'nim_name', node='defaultRenderGlobals', exists=True) :
@@ -429,8 +429,8 @@ def get_vars( nim=None ) :
     '''
     if mc.objExists( 'defaultRenderGlobals.nim_fileID' ) :
         value=mc.getAttr( 'defaultRenderGlobals.nim_fileID' )
-        if nim_fileID is not None:
-            nim.set_ID( elem='file', ID=nim_fileID )
+        if value is not None:
+            nim.set_ID( elem='file', ID=value )
             P.info('Reading nim_fileID')
         else:
             P.error('Failed reading nim_fileID')
