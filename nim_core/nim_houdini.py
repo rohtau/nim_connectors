@@ -68,10 +68,10 @@ def set_vars( nim ) :
         raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publising information into hip file")
 
     # help(nim)
-    print("================================")
-    P.debug( 'In Houdini set_vars' )
-    from pprint import pprint
-    pprint(nim.get_nim())
+    # print("================================")
+    # P.debug( 'In Houdini set_vars' )
+    # from pprint import pprint
+    # pprint(nim.get_nim())
 
     #  User :
     userInfo=nim.userInfo()
