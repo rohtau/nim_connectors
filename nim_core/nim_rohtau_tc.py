@@ -221,7 +221,8 @@ def logTC(job, jobid, entity='SHOT', scenepath='', parent='', parentid=0, task='
         if userid != myuserid:
             pubtask = nimUtl.getuserTask(myuserid, typeid, entity, parentid)
             if not pubtask:
-                nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task), envvar=sentinel_envvar)
+                # nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task), envvar=sentinel_envvar)
+                nimP.warning("Time Cards Tracking disable. No task available for user %s %s->%s"%(myuser, parent, task))
                 return ("", -1) # Disable tracking setting tcid to -1
             taskid = int(pubtask['taskID'])
         
