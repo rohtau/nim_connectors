@@ -599,8 +599,10 @@ def getTaskNameFromVars(tasktypeid):
         return False
     tasks = eval(tasksKnob.value())
     for task in tasks:
-        if int(task['ID'].encode('ascii')) == tasktypeid:
-            return task['name'].encode('ascii')
+        # if int(task['ID'].encode('ascii')) == tasktypeid:
+            # return task['name'].encode('ascii')
+        if int(task['ID']) == tasktypeid:
+            return task['name']
 
     # Not found
     warning("Task with ID %d, not found in Publishing Tasks in NIM script's data"%tasktypeid)

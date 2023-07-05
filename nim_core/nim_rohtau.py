@@ -1188,6 +1188,10 @@ def checkFileAndElementPublished( nim ):
         metadata = json.loads(file['metadata'])
         if 'elementID' in metadata:
             # Try to use the element linked to our file
+            print("Shot ID")
+            print(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset'))
+            print("Element ID")
+            print(nim.ID('element'))
             elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
             element = next((elm for elm in elmts if elm['ID']==metadata['elementID']), None)
     # try to find at least a valid element if file is not published
