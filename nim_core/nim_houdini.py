@@ -787,21 +787,21 @@ def set_globals():
         first = 1001 # We always start at 1001 by convention
         last = 1001 + frames + (2*handles) - 1
         hou.playbar.setFrameRange(first, last)
-        hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
-        hou.setFrame(first+shotglobals['handles'])
+        hou.playbar.setPlaybackRange(first+handles, (last-handles))
+        hou.setFrame(first+handles)
         hou.putenv('SHOTSTART', str(first))
         hou.putenv('SHOTEND', str(last))
-        hou.putenv('SHOTSTARTCUT', str(first+shotglobals['handles']))
-        hou.putenv('SHOTENDCUT', str(last-shotglobals['handles']))
+        hou.putenv('SHOTSTARTCUT', str(first+handles))
+        hou.putenv('SHOTENDCUT', str(last-handles))
         hou.putenv('SHOTFRAMES', str(frames))
-        hou.putenv('SHOTHANDLES', str(shotglobals['handles']))
+        hou.putenv('SHOTHANDLES', str(handles))
         if not hou.getenv('SHOTPREROLL'):
             hou.putenv('SHOTPREROLL', str(0))
         hou.putenv('SHOTSIMSTART', str(first-int(hou.getenv('SHOTPREROLL'))))
 
 
-        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
-                                                                                   last-shotglobals['handles'])
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, 
+                                                                                   last-handles)
     else:
         msg += "- WARNING: No Frame Range information for this shot"
 
