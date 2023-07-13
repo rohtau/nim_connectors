@@ -674,9 +674,9 @@ def getShowGlobals( job):
 
     # Show
     # pprint(jobinfo)
-    jobglobals['name'] = jobinfo['jobname'].encode('ascii')
-    jobglobals['number'] = jobinfo['number'].encode('ascii')
-    jobglobals['description'] = jobinfo['description'].encode('ascii') if jobinfo['description'] else ""
+    jobglobals['name'] = jobinfo['jobname']
+    jobglobals['number'] = jobinfo['number']
+    jobglobals['description'] = jobinfo['description'] if jobinfo['description'] else ""
     jobglobals['id'] = int(jobinfo['ID'])
     # Custom defaults:
     jobglobals['output_res']    = '1920x1080' # Default resolution to HD if not provided
@@ -844,11 +844,11 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
     if sys.version_info >= (3, 0):
         shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName']
     else:
-        shotglobals['name'] = shotinfo['shotName'].encode('ascii') if entity_type=='SHOT' else shotinfo['assetName'].encode('ascii') 
+        shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName'] 
     if sys.version_info >= (3, 0):
         shotglobals['description'] = shotinfo['description']
     else:
-        shotglobals['description'] = shotinfo['description'].encode('ascii')
+        shotglobals['description'] = shotinfo['description']
     shotglobals['id'] = int(shotid)
     if entity_type=='SHOT':
         shotglobals['frames'] = int(shotinfo['frames']) if shotinfo['frames'] else 0

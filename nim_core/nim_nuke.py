@@ -970,6 +970,7 @@ def set_globals():
         return False
     jobid = int(PS.knob('nim_jobID').value())
     jobglobals = nimUtl.getShowGlobals( jobid )
+    # nuke.tprint(pformat(jobglobals))
 
     msg = ""
 
