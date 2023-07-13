@@ -721,6 +721,15 @@ def set_globals():
     - FPS
     - Shot range
 
+    Shot Range
+    ----------
+    Shot range is solved usinmg the frames length and the handles.
+    Out first frame is always 1001, then we add the length and finally the handles.
+    For instance a shot wit 10 frames and 8 framss  handles will havea full length of:
+    1001-1026
+    The cut length is 1009-1018
+
+
     Parameters
     ----------
 
@@ -774,8 +783,9 @@ def set_globals():
         frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
         # Save current range
         stash_frame_range()
+        handles = shotglobals['handles']
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + frames - 1
+        last = 1001 + frames + (2*handles) - 1
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+shotglobals['handles'], (last-shotglobals['handles']))
         hou.setFrame(first+shotglobals['handles'])
