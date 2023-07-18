@@ -802,7 +802,8 @@ def setupWriteForRendering( renderscene, writeNode, fileid=0, deps=None ):
     
     # Write metadata output knob
     outmetadataKnob = writeNode.knob('metadata')
-    outmetadataKnob.setValue('all metadata')
+    if  outmetadataKnob:
+        outmetadataKnob.setValue('all metadata')
 
     # Sticky Note:
     stickynode = nuke.toNode("__renderStickyNote")
