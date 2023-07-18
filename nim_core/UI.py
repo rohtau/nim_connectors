@@ -625,6 +625,11 @@ class GUI(QtGui.QMainWindow) :
         #  Tag widget :
         self.tagLabel = QtGui.QLabel("Tag:")
         self.nim.set_input( elem='tag', widget=QtGui.QLineEdit() )
+
+        regex=QtCore.QRegExp("^[a-z-A-Z0-9][a-z-A-Z0-9_]+")
+        validator = QtGui2.QRegExpValidator(regex)
+        self.nim.Input('tag').setValidator(validator)
+
         self.tagPresets = QtGui.QComboBox()
         self.tagPresets.addItems(standardTags)
         self.tagPresets.setToolTip("Presets and avaliable tags")

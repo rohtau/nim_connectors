@@ -785,7 +785,7 @@ def set_globals():
         stash_frame_range()
         handles = shotglobals['handles']
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + frames + (2*handles) - 1
+        last = first + frames + (2*handles) - 1
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+handles, (last-handles))
         hou.setFrame(first+handles)
@@ -849,7 +849,7 @@ def set_shot_range():
         frames = frames
         stash_frame_range()
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + frames - 1
+        last = first + frames + (2*handles) - 1
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+handles, (last-handles))
         hou.setFrame(first+handles)
@@ -901,7 +901,7 @@ def set_preroll():
             frames = frames
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
-            last = 1001 + frames - 1
+            last = first + frames + (2*handles) - 1
             preroll = int(res[1])
             first = first - preroll
             hou.playbar.setFrameRange(first, last)
@@ -950,7 +950,7 @@ def set_sim_range():
             hou.setUpdateMode(hou.updateMode.Manual)
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
-            last = 1001 + frames - 1
+            last = first + frames + (2*handles) - 1
             first = first - preroll
             hou.playbar.setFrameRange(first, last)
             hou.playbar.setPlaybackRange(first, last)
