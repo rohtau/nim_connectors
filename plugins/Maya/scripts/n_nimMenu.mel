@@ -24,7 +24,9 @@ global proc n_nimMenu()
 	string $nimReferece                = "python(\"import nim_core.UI as UI; UI.mk('LOAD', ref=True)\")";
 	string $nimSaveAs                  = "python(\"import nim_core.UI as UI; UI.mk('SAVE')\")";
 	string $nimExportSelected          = "python(\"import nim_core.UI as UI; UI.mk( mode='SAVE', _export=True )\")";
-	string $nimVersionUp               = "python(\"import nim_core.nim_api as Api; Api.versionUp()\")";
+    // since this is using MEL is not easy to retrieve the padding variable in nim_core.
+    // For the time being we harcode it to 3, our default
+	string $nimVersionUp               = "python(\"import nim_core.nim_api as Api; Api.versionUp( padding=3)\")";
 	string $nimPublish                 = "python(\"import nim_core.UI as UI; UI.mk('PUB')\")";
 	string $nimReload                  = "python( \"import nim_core.nim_file as F; F.scripts_reload()\")";
 	string $nimChangeUser              = "python( \"import nim_core.nim_win as Win; Win.userInfo()\")";

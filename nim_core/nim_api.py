@@ -900,6 +900,8 @@ def get_app() :
     except :pass
     try :
         import nuke
+        if not hasattr(nuke, 'tprint'):
+            raise ImportError
         return 'Nuke'
     except : pass
     try :

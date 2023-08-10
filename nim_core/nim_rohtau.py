@@ -568,6 +568,9 @@ def runAsyncCommand( cmd, env=None, timeout=120 ):
             
     if proc.returncode != 0:
         nimP.error( "Command Failed (ErrorCode %d): %s"%(proc.returncode, cmd))
+        # nimP.error( "Failed command Output:\n%s"%proc.output)
+        nimP.error( "StdErro command Output:\n%s"%proc.stderr)
+        nimP.error( "StdOut command Output:\n%s"%proc.stdout)
         return False
 
     return True
@@ -617,16 +620,9 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     str
         Path to draft movie/image or False if error.
     '''
-    # set PYTHONPATH=c:\dev\deadlinerepository10\draft\Windows\64bit
-    # set MAGICK_CONFIGURE_PATH=c:\dev\deadlinerepository10\draft\Windows\64bit 
-    #  \opt\deadline10\bin\dpython \studio\pipeline\deadline\draft\DraftCreateSimpleMovie.py frameList start-end inFile renderedframespath outFile renderoutput/Draft/draft.mov
-
     # XXX: careful here these paths to dpython are harcoded. This will be a
     # problem someday ...
     # Use Deadline's python
-    # cmd = "/opt/Thinkbox/Deadline10/bin/dpython" # For unix like systems
-    # if platform.system() == 'Windows':
-        # cmd = "C:\\opt\\deadline10\\bin\\dpython"
     cmd = "/opt/Thinkbox/Deadline10/bin/python3/python" # For unix like systems
     if platform.system() == 'Windows':
         cmd = "C:\\opt\\deadline10\\bin\\python3\\python"
@@ -645,6 +641,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     if 'RT_DRAFT_TEMPLATE' in os.environ:
         draftTemplate = os.getenv('RT_DRAFT_TEMPLATE')
     if drafttemplate:
+        # Use Draft Template if provided
         draftTemplate = drafttemplate
     cmd += " %s "%os.path.normpath(draftTemplate)
     # Frames list
@@ -741,20 +738,15 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         return False
     env = copy.deepcopy(os.environ)
     nimP.info("Setup environment for Draft at: %s"%draftloc)
-    # env['PYTHONHOME'] = draftloc
+    # Setup the next env vars to Draft install location: PYTHONPATH, MAGICK_CONFIGURE_PATH and for linux LD_LIBRARY_PATH
+    # This is needed in order to load the Draft module:
+    # https://docs.thinkboxsoftware.com/products/deadline/10.2/1_User%20Manual/manual/app-draft.html#draft-standalone-ref-label
     if 'PYTHONPATH' in env:
         env['PYTHONPATH'] = "%s:%s"%(draftloc, env['PYTHONPATH'])
     else:
         env['PYTHONPATH'] = draftloc
     env['MAGICK_CONFIGURE_PATH'] = draftloc
     env['LD_LIBRARY_PATH'] = draftloc
-    # env['PYTHONHOME'] = "C:\opt\python\python27"
-    # env['PYTHONHOME'] = os.path.normpath("\opt\python\python27")
-    # if 'THINKBOX_LICENSE_FILE' not in os.environ:
-        # nimP.warning("THINKBOX_LICENSE_FILE not present in environment. Initializing to: 27008@lic-server.rohtau.com")
-        # thinkboclivenv = {'THINKBOX_LICENSE_FILE' : '27008@lic-server.rohtau.com'}
-        # env.update(thinkboclivenv)
-    # print("Slate command:")
     # print(cmd)
     '''
     if not runAsyncCommand( cmd, env=env, timeout=10*60 ):
@@ -765,7 +757,9 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         return False
     '''
     try:
-        ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
+        # Old subprocess callback using check_output. Now using the new run() interface. Maya has issues with the old interface.
+        # ret = subprocess.check_output(cmd, shell=True, env=env, universal_newlines=True)
+        ret = subprocess.run(cmd, shell=True, env=env, universal_newlines=True, capture_output=True, check=True)
     except subprocess.CalledProcessError as e:
         nimP.error("Draft command for render review generation: %s "%cmd)
         nimP.error("Command: %s"%e.cmd)
@@ -779,8 +773,32 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     except FileNotFoundError:
         nimP.error( "Can't find command in path %s"%cmd.split()[0])
         return False
-    print("Output:")
-    print(ret)
+    # Just in case check return codes and output file ...
+    if ret.returncode != 0:
+        nimP.error("Draft command for render review generation: %s "%cmd)
+        nimP.error("Command: %s"%ret.args)
+        if ret.stdout:
+            nimP.error("Output: %s"%ret.stdout)
+        if sys.version_info >= (3,0):
+            if ret.stderr:
+                nimP.error("Stderr: %s"%ret.stderr)
+        nimP.error("Error code: %d"%ret.returncode)
+        return False
+    elif not os.path.isfile(outdraft):
+        # For some reason the command didnt return an error code but the output draft file doesnt exists
+        nimP.error("Draft command failed, output doesn't exist: %s"%outdraft)
+        nimP.error("Command: %s"%ret.args)
+        if ret.stdout:
+            nimP.error("Output: %s"%ret.stdout)
+        if sys.version_info >= (3,0):
+            if ret.stderr:
+                nimP.error("Stderr: %s"%ret.stderr)
+        nimP.error("Error code: %d"%ret.returncode)
+        return False
+    else:
+        nimP.info("Flipbook command output:\n%s"%ret.stdout)
+    # print("Output:")
+    # print(ret)
     
     return outdraft
 
