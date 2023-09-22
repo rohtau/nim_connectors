@@ -3401,21 +3401,36 @@ def find_published_asset( job, parent, parentid, element, name, use_task_priorit
         # Create basename
         basename = buildBasename( parentname, task, name,  elemtype=elementname)
         # print("Search for basename: %s"%basename)
+        '''
         if parent.upper() == 'SHOT':
-            vers = nimAPI.get_vers( shotID=int(parentid), basename=basename)
+            vers = getPublishedVers ( basename, parent='SHOT', parentID=parentid, pub=2):
+            # vers = nimAPI.get_vers( shotID=int(parentid), basename=basename)
         else:
-            vers = nimAPI.get_vers( assetID=int(parentid), basename=basename)
-        asset_pubs_all[task] = vers
-        for ver in vers:
-            if int(ver['isPublished']):
-                published_ver = ver
-                has_published_asset = True
-                published_asset = ver
-                break
-        if len(vers) > 0:
-            found_asset = True
-            latest_asset = vers[0] # Latest version is always the first in the array in NIM
-        asset_pubs_selected[task] = published_ver if published_ver else latest_asset
+            vers = getPublishedVers ( basename, parent='ASSET', parentID=parentid, pub=2):
+            # vers = nimAPI.get_vers( assetID=int(parentid), basename=basename)
+        '''
+        vers = getPublishedVers ( basename, parent=parent.upper(), parentID=parentid, pub=2)
+        if vers:
+            asset_pubs_all[task] = vers
+            for ver in vers:
+                if int(ver['isPublished']):
+                    published_ver = ver
+                    has_published_asset = True
+                    published_asset = ver
+                    break
+            if len(vers) > 0:
+                found_asset = True
+                latest_asset = vers[0] # Latest version is always the first in the array in NIM
+            asset_pubs_selected[task] = published_ver if published_ver else latest_asset
+
+    """
+    print("\n\n---All asset published:")
+    pprint(asset_pubs_all)
+    print("\n\n--- Published Assets")
+    pprint(asset_pubs_selected)
+
+    print("Has Published versions: %d"%has_published_asset)
+    """
 
     # If asset not found in any task
     if not found_asset:
