@@ -1,9 +1,9 @@
 //******************************************************************************
 //
 // Filename: nimPremiere.jsx
-// Version:  v4.0.55.200807
+// Version:  v5.3.0.221027
 //
-// Copyright (c) 2014-2020 NIM Labs LLC
+// Copyright (c) 2014-2022 NIM Labs LLC
 // All rights reserved.
 //
 // Use of this software is subject to the terms of the NIM Labs license
@@ -17,7 +17,7 @@ if(typeof JSON!=='object'){JSON={};}(function(){'use strict';function f(n){retur
 
 $._nim_PPP_={
 	
-	version : '4.0.55',
+	version : '5.3.0',
 	debug : false,
 	debug_level : 0,
 	exportJobs : {},
@@ -701,12 +701,11 @@ $._nim_PPP_={
 			var time			= activeSequence.CTI.timecode; 	// CTI = Current Time Indicator.
 			var removeThese 	= /:|;/ig;    					// Why? Because Windows chokes on colons.
 			var timeName = time.replace(removeThese, '_');
-			
-			//var outputPath		= new File("~/.nim/tmp");
 			var outputPath = new File($._nim_PPP_.nimTempDirectory);
 
 			var outputName 		= activeSequence.name+"_"+timeName+"_"+$._nim_PPP_.guid();
-			outputName = outputName.replace(/\ /g,'_');
+			outputName = outputName.replace(/\s|\.|\ /g, '_'); 	// Remove all spaces and periods
+
 			var outputFileName	= outputPath.fsName + $._nim_PPP_.getSep() + outputName;
 
 			try {

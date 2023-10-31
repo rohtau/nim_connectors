@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_nuke.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -93,7 +93,7 @@ def set_vars( nim=None ) :
                 knob.setValue( correctedPath )
             #  Otherwise, set the knob as normal :
             else :
-                knob.setValue( knobCmds[x] )
+                knob.setValue( str(knobCmds[x]) )
         knob.setEnabled( False )
     
     P.info( '    Done setting Nuke Vars.' )
@@ -288,7 +288,7 @@ class NIM_Node() :
     def elem_populate( self, elem='' ) :
         'Populates each of the combo boxes, when specified'
         
-        if elem is not 'job' :
+        if elem != 'job' :
             prevElem=self.elements[self.elements.index(elem)-1]
         
         if elem=='job' :

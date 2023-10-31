@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_maya.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -39,7 +39,7 @@ except ImportError :
                 print("NIM: Failed to load UI Modules - Maya")
 
 #  Variables :
-version='v5.1.2'
+version='v6.0.4'
 winTitle='NIM_'+version
 
 def get_mainWin() :
@@ -468,7 +468,8 @@ def makeProject(projectLocation='', renderPath='') :
         ruleValue = fileRules[i+1]
         mc.workspace(fr=(ruleName,ruleValue))
         if createDirectories :
-            mc.workspace(create=ruleValue)
+            if ruleValue != '' :
+                mc.workspace(create=ruleValue)
 
     #Adding images folder to project
     mc.workspace(create='images')

@@ -2,10 +2,10 @@
 #******************************************************************************
 #
 # Filename:    projectHook.py
-# Version:     v5.0.11.210722
+# Version:     v6.0.4.230905
 # Compatible:  Python 3.x
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -64,8 +64,9 @@ def project_changed(project_name):
         print(project_name)
     print("project_changed - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     '''
+    print("project_changed - START")
     nimP.info("New project loaded: %s"%project_name)
-    os.environ['NIM_FLAME_PROJECT'] = project_name
+    os.environ['NIM_FLAME_PROJECT'] = str(project_name)
     flameuser = flame.users.current_user.name
     nimuser = nimUtl.get_nim_user()
     nimuser = nimuser.split('@')[0]
@@ -75,6 +76,7 @@ def project_changed(project_name):
         # nimWin.popup( title='Flame User', msg=msg, type='ok')
         flame_widgets.FlameMessageWindow('Flame User', 'warning', msg)
 
+    print("project_changed - END")
 
     pass
 

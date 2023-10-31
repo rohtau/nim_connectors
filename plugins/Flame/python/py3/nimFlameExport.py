@@ -2,10 +2,10 @@
 #******************************************************************************
 #
 # Filename: 	Flame/python/nimFlameExport.py
-# Version:     	v5.0.11.210722
+# Version:     	v6.0.4.230905
 # Compatible:	Python 3.x
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -29,7 +29,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 
-flameConnectorVersion = "5.0.11.210722"
+flameConnectorVersion = "6.0.4.230905"
 
 # Relative path to append for NIM Scripts
 nimFlamePythonPath = os.path.dirname(os.path.realpath(__file__))
@@ -229,6 +229,76 @@ class NimScanForVersionsDialog(QDialog):
         pixmap.fill(Qt.transparent)
         self.clearPix = QIcon(pixmap)
 
+		# Progress Bar
+		horizontalLayout_progress = QHBoxLayout()
+		horizontalLayout_progress.setSpacing(-1)
+		horizontalLayout_progress.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_progress.setObjectName("horizontalLayout_progress")
+		self.progressBar = QProgressBar(self)
+		self.progressBar.setGeometry(200, 80, 250, 20)
+		horizontalLayout_progress.addWidget(self.progressBar)
+		horizontalLayout_progress.setStretch(1, 40)
+
+		# JOBS: List box for job selection
+		horizontalLayout_job = QHBoxLayout()
+		horizontalLayout_job.setSpacing(-1)
+		horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_job.setObjectName("horizontalLayout_job")
+		self.nimJobLabel = QLabel()
+		self.nimJobLabel.setFixedWidth(120)
+		self.nimJobLabel.setText("Job:")
+		horizontalLayout_job.addWidget(self.nimJobLabel)
+		self.nim_jobChooser = QComboBox()
+		self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
+		self.nim_jobChooser.setMinimumHeight(28)
+		self.nim_jobChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_job.addWidget(self.nim_jobChooser)
+		horizontalLayout_job.setStretch(1, 40)
+		
+
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if self.nim_jobID:
+					if str(self.nim_jobID) == str(value):
+						print("Found matching jobID, job=", key)
+						self.pref_job = key
+						jobIndex = jobIter
+				else:
+					if str(self.pref_job) == str(value):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+					elif str(self.pref_job) == str(key):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+				jobIter += 1
+
+			if self.pref_job != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+		
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+
 
         # Header
         horizontalLayout_header = QHBoxLayout()
@@ -298,6 +368,32 @@ class NimScanForVersionsDialog(QDialog):
                 self.nim_jobChooser.setCurrentIndex(jobIndex)
 
         self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+
+	def nim_updateShow(self):
+		self.nim_shows = {}
+		self.nim_shows = nimAPI.get_shows(self.nim_jobID)
+		#print self.nim_shows
+
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+						if str(self.pref_show) == str(value):
+							print("Found matching Show Name, show=", key)
+							showIndex = showIter
+						showIter += 1
+
+					if self.pref_show != '':
+						self.nim_showChooser.setCurrentIndex(showIndex)
+		except:
+			pass
 
 
         # SHOWS: List box for show selection
@@ -639,6 +735,134 @@ class NimBuildOpenClipsFromElementDialog(QDialog):
         horizontalLayout_job.addWidget(self.nim_jobChooser)
         horizontalLayout_job.setStretch(1, 40)
 
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if self.nim_jobID:
+					if str(self.nim_jobID) == str(value):
+						print("Found matching jobID, job=", key)
+						self.pref_job = key
+						jobIndex = jobIter
+				else:
+					if str(self.pref_job) == str(value):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+					elif str(self.pref_job) == str(key):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+				jobIter += 1
+
+			if self.pref_job != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+		
+		# SERVERS: List box for server selection
+		horizontalLayout_server = QHBoxLayout()
+		horizontalLayout_server.setSpacing(-1)
+		horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_server.setObjectName("horizontalLayout_server")
+		self.nimServerLabel = QLabel()
+		self.nimServerLabel.setFixedWidth(120)
+		self.nimServerLabel.setText("Server:")
+		horizontalLayout_server.addWidget(self.nimServerLabel)
+		self.nim_serverChooser = QComboBox()
+		self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
+		self.nim_serverChooser.setMinimumHeight(28)
+		self.nim_serverChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_server.addWidget(self.nim_serverChooser)
+		horizontalLayout_server.setStretch(1, 40)
+		self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+	
+
+		# Add the standard ok/cancel buttons, default to ok.
+		self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText(" Build Open Clips ")
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Scans the selected show for element types that match the batchOpenClip and adds them to the batchOpenClip.")
+		self._buttonbox.accepted.connect(self.acceptTest)
+		self._buttonbox.rejected.connect(self.reject)
+		horizontalLayout_OkCancel = QHBoxLayout()
+		horizontalLayout_OkCancel.setSpacing(-1)
+		horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
+		spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		horizontalLayout_OkCancel.addItem(spacerItem4)
+		horizontalLayout_OkCancel.addWidget(self._buttonbox)
+		horizontalLayout_OkCancel.setStretch(1, 40)
+
+		groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
+		#groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_commentDesc)
+		groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_progress)
+		groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
+		groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
+		groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
+		groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		self.setLayout(groupLayout)
+		layout.addWidget(groupBox)
+
+		self.nim_jobChanged() #trigger job changed to load choosers
+
+
+	def nim_jobChanged(self):
+		'''Action when job is selected'''
+		#print "JOB CHANGED"
+		job = self.nim_jobChooser.currentText()
+		self.nim_jobID = self.nim_jobs[job]
+		self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
+
+		self.nim_updateServer()
+		self.nim_updateShow()
+		
+
+	def nim_updateServer(self):
+		self.nim_servers = {}
+		self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
+		self.nim_serverID = ''
+		self.nim_serverOSPath = ''
+		self.nim_serverDict = {}
+		serverIndex = 0
+		serverIter = 0
+		try:
+			self.nim_serverChooser.clear()
+			if self.nim_serverChooser:
+				if len(self.nim_servers)>0:  
+					for server in self.nim_servers:
+						self.nim_serverDict[server['server']] = server['ID']
+					for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
+						self.nim_serverChooser.addItem(self.clearPix, key)
+						if str(self.pref_serverID) == str(value):
+							print("Found server preference=", key)
+							serverIndex = serverIter
+						
+						serverIter += 1
+
+					if self.pref_serverID != '':
+						self.nim_serverChooser.setCurrentIndex(serverIndex)
+		except:
+			pass
+
 
         # JOBS: Add dictionary in ordered list
         jobIndex = 0
@@ -720,6 +944,22 @@ class NimBuildOpenClipsFromElementDialog(QDialog):
         groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
         groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
         groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+						if str(self.pref_show) == str(value):
+							print("Found matching Show Name, show=", key)
+							showIndex = showIter
+						showIter += 1
 
         self.setLayout(groupLayout)
         layout.addWidget(groupBox)
@@ -1028,21 +1268,152 @@ class NimBuildOpenClipsFromProjectDialog(QDialog):
         horizontalLayout_progress.setStretch(1, 40)
 
 
-        # JOBS: List box for job selection
-        horizontalLayout_job = QHBoxLayout()
-        horizontalLayout_job.setSpacing(-1)
-        horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_job.setObjectName("horizontalLayout_job")
-        self.nimJobLabel = QLabel()
-        self.nimJobLabel.setFixedWidth(120)
-        self.nimJobLabel.setText("Job:")
-        horizontalLayout_job.addWidget(self.nimJobLabel)
-        self.nim_jobChooser = QComboBox()
-        self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
-        self.nim_jobChooser.setMinimumHeight(28)
-        self.nim_jobChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_job.addWidget(self.nim_jobChooser)
-        horizontalLayout_job.setStretch(1, 40)
+		# JOBS: List box for job selection
+		horizontalLayout_job = QHBoxLayout()
+		horizontalLayout_job.setSpacing(-1)
+		horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_job.setObjectName("horizontalLayout_job")
+		self.nimJobLabel = QLabel()
+		self.nimJobLabel.setFixedWidth(120)
+		self.nimJobLabel.setText("Job:")
+		horizontalLayout_job.addWidget(self.nimJobLabel)
+		self.nim_jobChooser = QComboBox()
+		self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
+		self.nim_jobChooser.setMinimumHeight(28)
+		self.nim_jobChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_job.addWidget(self.nim_jobChooser)
+		horizontalLayout_job.setStretch(1, 40)
+		
+
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if self.nim_jobID:
+					if str(self.nim_jobID) == str(value):
+						print("Found matching jobID, job=", key)
+						self.pref_job = key
+						jobIndex = jobIter
+				else:
+					if str(self.pref_job) == str(value):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+					if str(self.pref_job) == str(key):
+						print("Found matching Job Name, job=", key)
+						jobIndex = jobIter
+				jobIter += 1
+
+			if self.pref_job != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+		
+		# SERVERS: List box for server selection
+		horizontalLayout_server = QHBoxLayout()
+		horizontalLayout_server.setSpacing(-1)
+		horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_server.setObjectName("horizontalLayout_server")
+		self.nimServerLabel = QLabel()
+		self.nimServerLabel.setFixedWidth(120)
+		self.nimServerLabel.setText("Server:")
+		horizontalLayout_server.addWidget(self.nimServerLabel)
+		self.nim_serverChooser = QComboBox()
+		self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
+		self.nim_serverChooser.setMinimumHeight(28)
+		self.nim_serverChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_server.addWidget(self.nim_serverChooser)
+		horizontalLayout_server.setStretch(1, 40)
+		self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+	
+
+		# Add the standard ok/cancel buttons, default to ok.
+		self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText(" Build Open Clips ")
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Scans the selected show for element types that match the batchOpenClip and adds them to the batchOpenClip.")
+		self._buttonbox.accepted.connect(self.acceptTest)
+		self._buttonbox.rejected.connect(self.reject)
+		horizontalLayout_OkCancel = QHBoxLayout()
+		horizontalLayout_OkCancel.setSpacing(-1)
+		horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
+		spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		horizontalLayout_OkCancel.addItem(spacerItem4)
+		horizontalLayout_OkCancel.addWidget(self._buttonbox)
+		horizontalLayout_OkCancel.setStretch(1, 40)
+
+		groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
+		#groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_commentDesc)
+		#groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_comment2Desc)
+		#groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_comment3Desc)
+		groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_progress)
+		groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
+		groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
+		groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
+		groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		self.setLayout(groupLayout)
+		layout.addWidget(groupBox)
+
+		self.nim_jobChanged() #trigger job changed to load choosers
+
+
+	def nim_jobChanged(self):
+		'''Action when job is selected'''
+		#print "JOB CHANGED"
+		job = self.nim_jobChooser.currentText()
+		self.nim_jobID = self.nim_jobs[job]
+		self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
+
+		self.nim_updateServer()
+		self.nim_updateShow()
+		
+
+	def nim_updateServer(self):
+		self.nim_servers = {}
+		self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
+		self.nim_serverID = ''
+		self.nim_serverOSPath = ''
+		self.nim_serverDict = {}
+		serverIndex = 0
+		serverIter = 0
+		try:
+			self.nim_serverChooser.clear()
+			if self.nim_serverChooser:
+				if len(self.nim_servers)>0:  
+					for server in self.nim_servers:
+						self.nim_serverDict[server['server']] = server['ID']
+					for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
+						self.nim_serverChooser.addItem(self.clearPix, key)
+						if str(self.pref_serverID) == str(value):
+							print("Found server preference=", key)
+							serverIndex = serverIter
+						
+						serverIter += 1
+
+					if self.pref_serverID != '':
+						self.nim_serverChooser.setCurrentIndex(serverIndex)
+		except:
+			pass
 
 
         # JOBS: Add dictionary in ordered list
@@ -1127,6 +1498,22 @@ class NimBuildOpenClipsFromProjectDialog(QDialog):
         groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
         groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
         groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+						if str(self.pref_show) == str(value):
+							print("Found matching Show Name, show=", key)
+							showIndex = showIter
+						showIter += 1
 
         self.setLayout(groupLayout)
         layout.addWidget(groupBox)
@@ -1369,1611 +1756,1602 @@ class NimBatchExportDialog(QDialog):
 
 
 class NimExportSequenceDialog(QDialog):
-    def __init__(self, parent=None):
-        super(NimExportSequenceDialog, self).__init__(parent)
-
-        self.result = ""
-        QApplication.setOverrideCursor(Qt.ArrowCursor)
-        try:
-            self.app = 'Flame'
-            self.prefs=nimPrefs.read()
-            print("NIM - Prefs: ")
-            print(self.prefs)
-
-            if 'NIM_User' in self.prefs :
-                self.user=self.prefs['NIM_User']
-            else :
-                self.user = ''
-
-            # Read Flame specific prefs
-            self.flamePrefs = readFlamePrefs()
-
-            print("NIM - Prefs successfully read")
-
-        except:
-            print("NIM - Failed to read NIM prefs")
-            print('NIM - ERROR: %s' % traceback.print_exc())
-            self.app='Flame'
-            self.user=''
-            pass
-
-        self.nim_OS = platform.system()
-
-        try:
-            self.nim_userID = nimAPI.get_userID(self.user)
-            if not self.nim_userID :
-                nimUI.GUI().update_user()
-                userInfo=nim.NIM().userInfo()
-                self.user = userInfo['name']
-                self.nim_userID = userInfo['ID']
-        except:
-            # failing on user
-            print("NIM - Failed to get userID")
-            self.nim_userID = 0
-
-        print("NIM - user=%s" % self.user)
-        print("NIM - userID=%s" % self.nim_userID)
-
-        self.nim_jobPaths = {}
-        self.nim_showPaths = {}
-        self.nim_shotPaths = {}
-        self.nim_showFolder = ''
-        self.nim_servers = {}
-        self.nim_serverID = None
-        self.nim_serverOSPath = ''
-
-
-        #Get NIM Element Types
-        self.nim_elementTypes = []
-        self.nim_elementTypesDict = {}
-        self.nim_elementTypes = nimAPI.get_elementTypes()
-        if len(self.nim_elementTypes)>0:
-            for element in self.nim_elementTypes:
-                self.nim_elementTypesDict[element['name']] = element['ID']
-
-        self.videoElement = ''
-        self.videoElementID = 0
-        self.audioElement = ''
-        self.audioElementID = 0
-        self.openClipElement = ''
-        self.openClipElementID = 0
-        self.batchOpenClipElement = ''
-        self.batchOpenClipElementID = 0
-
-
-        #Get NIM Task Types
-        self.nim_taskTypes = []
-        self.nim_taskTypesDict = {}
-        self.nim_taskFolderDict = {}
-        self.nim_taskTypes = nimAPI.get_tasks(app='FLAME', userType='all')
-        if len(self.nim_taskTypes)>0:
-            for task in self.nim_taskTypes:
-                self.nim_taskTypesDict[task['name']] = task['ID']
-                self.nim_taskFolderDict[task['ID']] = task['folder']
-
-        self.batchTaskType = ''
-        self.batchTaskTypeID = 0
-        self.batchTaskTypeFolder = ''
-
-
-        #Get NIM Jobs
-        self.nim_jobID = None
-        # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
-        self.nim_jobs = nimUtl.getjobs(userid=int(self.nim_userID))
-        if not self.nim_jobs :
-            print("No Jobs Found")
-            self.nim_jobs["None"]="0"
-
-        self.nim_shows = []
-        self.nim_showDict = {}
-        self.nim_showID = None
-
-        self.setWindowTitle("NIM: Export Sequence")
-        self.setStyleSheet("QLabel {font: 14pt}")
-        self.setSizeGripEnabled(True)
-
-        self._exportTemplate = None
-
-        tag_jobID = None
-        tag_showID = None
-
-
-
-        layout = QVBoxLayout()
-        formLayout = QFormLayout()
-        groupBox = QGroupBox()
-        groupLayout = QFormLayout()
-        groupBox.setLayout(groupLayout)
-
-        pixmap = QPixmap(1, 24)
-        pixmap.fill(Qt.transparent)
-        self.clearPix = QIcon(pixmap)
-
-
-        # Flame 2 NIM image
-        # 400x88
-        # PRESETS: List box for preset selection
-        horizontalLayout_header = QHBoxLayout()
-        horizontalLayout_header.setSpacing(-1)
-        horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_header.setObjectName("horizontalLayout_header")
-        connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
-        self.nimConnectorHeader = QLabel()
-        self.nimConnectorHeader.setPixmap(connectorImage)
-        horizontalLayout_header.addWidget(self.nimConnectorHeader)
-
-
-        # PRESETS: List box for preset selection
-        horizontalLayout_preset = QHBoxLayout()
-        horizontalLayout_preset.setSpacing(-1)
-        horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_preset.setObjectName("horizontalLayout_preset")
-        self.nimPresetLabel = QLabel()
-        self.nimPresetLabel.setFixedWidth(120)
-        self.nimPresetLabel.setText("Preset:")
-        horizontalLayout_preset.addWidget(self.nimPresetLabel)
-        self.nim_presetChooser = QComboBox()
-        self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
-        self.nim_presetChooser.setMinimumHeight(28)
-        self.nim_presetChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_preset.addWidget(self.nim_presetChooser)
-        horizontalLayout_preset.setStretch(1, 40)
-
-        presetList = self.nim_getPresets()
-
-        if len(presetList) > 0:
-            presetIndex = 0
-            presetIter = 0
-            for preset in presetList :
-                self.nim_presetChooser.addItem(self.clearPix, preset)
-                # Set Preference
-                if self.flamePrefs['sequencePreset'] == preset:
-                    presetIndex = presetIter
-                presetIter += 1
-
-            if self.flamePrefs['sequencePreset'] != '':
-                self.nim_presetChooser.setCurrentIndex(presetIndex)
-
-        self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
-
-        # JOBS: List box for job selection
-        horizontalLayout_job = QHBoxLayout()
-        horizontalLayout_job.setSpacing(-1)
-        horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_job.setObjectName("horizontalLayout_job")
-        self.nimJobLabel = QLabel()
-        self.nimJobLabel.setFixedWidth(120)
-        self.nimJobLabel.setText("Job:")
-        horizontalLayout_job.addWidget(self.nimJobLabel)
-        self.nim_jobChooser = QComboBox()
-        self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
-        self.nim_jobChooser.setMinimumHeight(28)
-        self.nim_jobChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_job.addWidget(self.nim_jobChooser)
-        horizontalLayout_job.setStretch(1, 40)
-
-        # JOBS: Add dictionary in ordered list
-        jobIndex = 0
-        jobIter = 0
-        if len(self.nim_jobs)>0:
-            for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
-                # self.nim_jobChooser.addItem(self.clearPix, key)
-                # key = key.decode('utf-8')
-                # self.nim_jobChooser.addItem(self.clearPix, key.decode('utf-8'))
-                self.nim_jobChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['jobID'] == value:
-                    # print("Found matching Job Name, job=", key)
-                    jobIndex = jobIter
-            jobIter += 1
-
-            if self.flamePrefs['jobID'] != '':
-                self.nim_jobChooser.setCurrentIndex(jobIndex)
-
-        self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
-
-
-        # SERVERS: List box for server selection
-        horizontalLayout_server = QHBoxLayout()
-        horizontalLayout_server.setSpacing(-1)
-        horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_server.setObjectName("horizontalLayout_server")
-        self.nimServerLabel = QLabel()
-        self.nimServerLabel.setFixedWidth(120)
-        self.nimServerLabel.setText("Server:")
-        horizontalLayout_server.addWidget(self.nimServerLabel)
-        self.nim_serverChooser = QComboBox()
-        self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
-        self.nim_serverChooser.setMinimumHeight(28)
-        self.nim_serverChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_server.addWidget(self.nim_serverChooser)
-        horizontalLayout_server.setStretch(1, 40)
-        self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
-
-        # SHOWS: List box for show selection
-        horizontalLayout_show = QHBoxLayout()
-        horizontalLayout_show.setSpacing(-1)
-        horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_show.setObjectName("horizontalLayout_show")
-        self.nimShowLabel = QLabel()
-        self.nimShowLabel.setFixedWidth(120)
-        self.nimShowLabel.setText("Show:")
-        horizontalLayout_show.addWidget(self.nimShowLabel)
-        self.nim_showChooser = QComboBox()
-        self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
-        self.nim_showChooser.setMinimumHeight(28)
-        self.nim_showChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_show.addWidget(self.nim_showChooser)
-        horizontalLayout_show.setStretch(1, 40)
-        self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
-
-
-
-        # -- ELEMENT TYPES -- #
-
-        horizontalLayout_elementSpacer = QHBoxLayout()
-        horizontalLayout_elementSpacer.setSpacing(-1)
-        horizontalLayout_elementSpacer.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_elementSpacer.setObjectName("horizontalLayout_elementSpacer")
-        elementSpacer = QLabel()
-        elementSpacer.setText("")
-        horizontalLayout_elementSpacer.addWidget(elementSpacer)
-        horizontalLayout_elementSpacer.setStretch(1, 40)
-
-
-        # Elements Label
-        horizontalLayout_elementDesc = QHBoxLayout()
-        horizontalLayout_elementDesc.setSpacing(-1)
-        horizontalLayout_elementDesc.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_elementDesc.setObjectName("horizontalLayout_elementDesc")
-        self.nimElementSectionLabel = QLabel()
-        self.nimElementSectionLabel.setText("Select the NIM element type to assign exported media:")
-        horizontalLayout_elementDesc.addWidget(self.nimElementSectionLabel)
-        horizontalLayout_elementDesc.setStretch(1, 40)
-
-
-
-        # video - exported media
-        horizontalLayout_video = QHBoxLayout()
-        horizontalLayout_video.setSpacing(-1)
-        horizontalLayout_video.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_video.setObjectName("horizontalLayout_video")
-        self.nimVideoLabel = QLabel()
-        self.nimVideoLabel.setFixedWidth(120)
-        self.nimVideoLabel.setText("Video Out:")
-        horizontalLayout_video.addWidget(self.nimVideoLabel)
-        self.nim_videoChooser = QComboBox()
-        self.nim_videoChooser.setToolTip("Choose the NIM element type to associate with exported video media.")
-        self.nim_videoChooser.setMinimumHeight(28)
-        self.nim_videoChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_video.addWidget(self.nim_videoChooser)
-        horizontalLayout_video.setStretch(1, 40)
-
-        if len(self.nim_elementTypesDict)>0:
-            videoIndex = 0
-            videoIter = 0
-            for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
-                self.nim_videoChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['videoElementID'] == value:
-                    print("Found video element preference=", key)
-                    videoIndex = videoIter
-                videoIter += 1
-
-            if self.flamePrefs['videoElementID'] != '':
-                self.nim_videoChooser.setCurrentIndex(videoIndex)
-
-        self.nim_videoChooser.currentIndexChanged.connect(self.nim_videoElementChanged)
-
-
-        # audio - exported media
-        horizontalLayout_audio = QHBoxLayout()
-        horizontalLayout_audio.setSpacing(-1)
-        horizontalLayout_audio.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_audio.setObjectName("horizontalLayout_audio")
-        self.nimAudioLabel = QLabel()
-        self.nimAudioLabel.setFixedWidth(120)
-        self.nimAudioLabel.setText("Audio Out:")
-        horizontalLayout_audio.addWidget(self.nimAudioLabel)
-        self.nim_audioChooser = QComboBox()
-        self.nim_audioChooser.setToolTip("Choose the NIM element type to associate with exported audio media.")
-        self.nim_audioChooser.setMinimumHeight(28)
-        self.nim_audioChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_audio.addWidget(self.nim_audioChooser)
-        horizontalLayout_audio.setStretch(1, 40)
-
-        if len(self.nim_elementTypesDict)>0:
-            audioIndex = 0
-            audioIter = 0
-            for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
-                self.nim_audioChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['audioElementID'] == value:
-                    print("Found audio element preference=", key)
-                    audioIndex = audioIter
-                audioIter += 1
-
-            if self.flamePrefs['audioElementID'] != '':
-                self.nim_audioChooser.setCurrentIndex(audioIndex)
-
-        self.nim_audioChooser.currentIndexChanged.connect(self.nim_audioElementChanged)
-
-        # openClip - Source Clip
-        horizontalLayout_openClip = QHBoxLayout()
-        horizontalLayout_openClip.setSpacing(-1)
-        horizontalLayout_openClip.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_openClip.setObjectName("horizontalLayout_openClip")
-        self.nimOpenClipLabel = QLabel()
-        self.nimOpenClipLabel.setFixedWidth(120)
-        self.nimOpenClipLabel.setText("BatchFX In:")
-        horizontalLayout_openClip.addWidget(self.nimOpenClipLabel)
-        self.nim_openClipChooser = QComboBox()
-        self.nim_openClipChooser.setToolTip("Choose the NIM element type to associate new elements with the BatchFX Open Clip.\nThe source open clip is the read node used when promoting a timeline clip to BatchFX.\nNew elements added to the Open Clip will appear as versions on the BatchFX read node.")
-        self.nim_openClipChooser.setMinimumHeight(28)
-        self.nim_openClipChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_openClip.addWidget(self.nim_openClipChooser)
-        horizontalLayout_openClip.setStretch(1, 40)
-
-        if len(self.nim_elementTypesDict)>0:
-            sourceIndex = 0
-            sourceIter = 0
-            for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
-                self.nim_openClipChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['sourceElementID'] == value:
-                    print("Found source element preference=", key)
-                    sourceIndex = sourceIter
-                sourceIter += 1
-
-            if self.flamePrefs['sourceElementID'] != '':
-                self.nim_openClipChooser.setCurrentIndex(sourceIndex)
-
-        self.nim_openClipChooser.currentIndexChanged.connect(self.nim_openClipElementChanged)
-
-        # video - exported media
-        horizontalLayout_batchOpenClip = QHBoxLayout()
-        horizontalLayout_batchOpenClip.setSpacing(-1)
-        horizontalLayout_batchOpenClip.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_batchOpenClip.setObjectName("horizontalLayout_batchOpenClip")
-        self.nimBatchOpenClipLabel = QLabel()
-        self.nimBatchOpenClipLabel.setFixedWidth(120)
-        self.nimBatchOpenClipLabel.setText("Timeline In:")
-        horizontalLayout_batchOpenClip.addWidget(self.nimBatchOpenClipLabel)
-        self.nim_batchOpenClipChooser = QComboBox()
-        self.nim_batchOpenClipChooser.setToolTip("Choose the NIM element type to associate new elements with the Timeline Open Clip.\nThe Timeline Open Clip is used directly on a published Timeline.\nNew elements added to the Open Clip will appear as clip versions on the Timeline.")
-        self.nim_batchOpenClipChooser.setMinimumHeight(28)
-        self.nim_batchOpenClipChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_batchOpenClip.addWidget(self.nim_batchOpenClipChooser)
-        horizontalLayout_batchOpenClip.setStretch(1, 40)
-
-        if len(self.nim_elementTypesDict)>0:
-            batchIndex = 0
-            batchIter = 0
-            for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
-                self.nim_batchOpenClipChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['batchElementID'] == value:
-                    print("Found batch element preference=", key)
-                    batchIndex = batchIter
-                batchIter += 1
-
-            if self.flamePrefs['batchElementID'] != '':
-                self.nim_batchOpenClipChooser.setCurrentIndex(batchIndex)
-
-        self.nim_batchOpenClipChooser.currentIndexChanged.connect(self.nim_batchOpenClipElementChanged)
-
-
-        # -- TASK TYPES -- #
-
-        horizontalLayout_taskSpacer = QHBoxLayout()
-        horizontalLayout_taskSpacer.setSpacing(-1)
-        horizontalLayout_taskSpacer.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_taskSpacer.setObjectName("horizontalLayout_taskSpacer")
-        taskSpacer = QLabel()
-        taskSpacer.setText("")
-        horizontalLayout_taskSpacer.addWidget(taskSpacer)
-        horizontalLayout_taskSpacer.setStretch(1, 40)
-
-
-        # Task Label
-        horizontalLayout_taskDesc = QHBoxLayout()
-        horizontalLayout_taskDesc.setSpacing(-1)
-        horizontalLayout_taskDesc.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_taskDesc.setObjectName("horizontalLayout_taskDesc")
-        self.nimElementSectionLabel = QLabel()
-        self.nimElementSectionLabel.setText("Select the NIM task type to assign exported batch files:")
-        horizontalLayout_taskDesc.addWidget(self.nimElementSectionLabel)
-        horizontalLayout_taskDesc.setStretch(1, 40)
-
-
-        # batch - versioned comps
-        horizontalLayout_batch = QHBoxLayout()
-        horizontalLayout_batch.setSpacing(-1)
-        horizontalLayout_batch.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_batch.setObjectName("horizontalLayout_batch")
-        self.nimBatchLabel = QLabel()
-        self.nimBatchLabel.setFixedWidth(120)
-        self.nimBatchLabel.setText("Batch Files:")
-        horizontalLayout_batch.addWidget(self.nimBatchLabel)
-        self.nim_batchChooser = QComboBox()
-        self.nim_batchChooser.setToolTip("Select the NIM task type to assign exported batch files.")
-        self.nim_batchChooser.setMinimumHeight(28)
-        self.nim_batchChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_batch.addWidget(self.nim_batchChooser)
-        horizontalLayout_batch.setStretch(1, 40)
-
-        if len(self.nim_taskTypesDict)>0:
-            batchFileIndex = 0
-            batchFileIter = 0
-            for key, value in sorted(list(self.nim_taskTypesDict.items()), reverse=False):
-                self.nim_batchChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['batchTaskTypeID'] == value:
-                    print("Found batchFile element preference=", key)
-                    batchFileIndex = batchFileIter
-                batchFileIter += 1
-
-            if self.flamePrefs['batchTaskTypeID'] != '':
-                self.nim_batchChooser.setCurrentIndex(batchFileIndex)
-
-        self.nim_batchChooser.currentIndexChanged.connect(self.nim_batchTaskChanged)
-
-
-        # Add the standard ok/cancel buttons, default to ok.
-        self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for each selected preset")
-        self._buttonbox.accepted.connect(self.acceptTest)
-        self._buttonbox.rejected.connect(self.reject)
-        horizontalLayout_OkCancel = QHBoxLayout()
-        horizontalLayout_OkCancel.setSpacing(-1)
-        horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
-        spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        horizontalLayout_OkCancel.addItem(spacerItem4)
-        horizontalLayout_OkCancel.addWidget(self._buttonbox)
-        horizontalLayout_OkCancel.setStretch(1, 40)
-
-
-        groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
-
-        groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
-        groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
-        groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
-        groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
-
-        groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_elementSpacer)
-        groupLayout.setLayout(6, QFormLayout.SpanningRole, horizontalLayout_elementDesc)
-        groupLayout.setLayout(7, QFormLayout.SpanningRole, horizontalLayout_video)
-        groupLayout.setLayout(8, QFormLayout.SpanningRole, horizontalLayout_audio)
-        groupLayout.setLayout(9, QFormLayout.SpanningRole, horizontalLayout_openClip)
-        groupLayout.setLayout(10, QFormLayout.SpanningRole, horizontalLayout_batchOpenClip)
-
-        groupLayout.setLayout(11, QFormLayout.SpanningRole, horizontalLayout_taskSpacer)
-        groupLayout.setLayout(12, QFormLayout.SpanningRole, horizontalLayout_taskDesc)
-        groupLayout.setLayout(13, QFormLayout.SpanningRole, horizontalLayout_batch)
-
-        groupLayout.setLayout(14, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
-
-        self.setLayout(groupLayout)
-        layout.addWidget(groupBox)
-
-        self.nim_jobChanged() #trigger job changed to load choosers
-
-
-    def nim_getPresets(self):
-        presetList = []
-        for preset in os.listdir(nimFlamePresetPath+'/sequence'):
-            print("PRESET: %s" % preset)
-            if preset.endswith(".xml"):
-                presetName = preset.rpartition('.')[0]
-                presetList.append(presetName)
-
-        return presetList
-
-
-    def nim_presetChanged(self):
-        '''Action when task type is selected'''
-        self.nim_preset = self.nim_presetChooser.currentText()
-
-
-    def nim_jobChanged(self):
-        '''Action when job is selected'''
-        #print "JOB CHANGED"
-        job = self.nim_jobChooser.currentText()
-        self.nim_jobID = self.nim_jobs[job]
-        self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
-
-        self.nim_updateServer()
-        self.nim_updateShow()
-
-
-    def nim_updateServer(self):
-        self.nim_servers = {}
-        self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
-        self.nim_serverID = ''
-        self.nim_serverOSPath = ''
-        self.nim_serverDict = {}
-        serverIndex = 0
-        serverIter = 0
-        try:
-            self.nim_serverChooser.clear()
-            if self.nim_serverChooser:
-                if len(self.nim_servers)>0:  
-                    for server in self.nim_servers:
-                        self.nim_serverDict[server['server']] = server['ID']
-                    for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
-                        self.nim_serverChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['serverID'] == value:
-                            print("Found server preference=", key)
-                            serverIndex = serverIter
-
-                        serverIter += 1
-
-                    if self.flamePrefs['serverID'] != '':
-                        self.nim_serverChooser.setCurrentIndex(serverIndex)
-        except:
-            pass
-
-
-    def nim_serverChanged(self):
-        '''Action when job is selected'''
-        #print "SERVER CHANGED"
-        serverName = self.nim_serverChooser.currentText()
-        if serverName:
-            print("NIM: server=%s" % serverName)
-            serverID = self.nim_serverDict[serverName]
-            self.nim_serverID = serverID
-
-            serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
-            if serverInfo:
-                if len(serverInfo)>0:
-                    self.nim_serverOSPath = serverInfo[0]['serverOSPath']
-                    print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
-                else:
-                    print("NIM: No Server Found")
-            else:
-                print("NIM: No Data Returned")
-
-
-    def nim_updateShow(self):
-        self.nim_shows = {}
-        self.nim_shows = nimAPI.get_shows(self.nim_jobID)
-
-        showIndex = 0
-        showIter = 0
-        self.nim_showDict = {}
-        try:
-            self.nim_showChooser.clear()
-            if self.nim_showChooser:
-                if len(self.nim_shows)>0:  
-                    for show in self.nim_shows:
-                        self.nim_showDict[show['showname']] = show['ID']
-                    for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
-                        self.nim_showChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['showID'] == value:
-                            print("Found show preference=", key)
-                            showIndex = showIter
-
-                        showIter += 1
-
-                    if self.flamePrefs['showID'] != '':
-                        self.nim_showChooser.setCurrentIndex(showIndex)
-        except:
-            pass
-
-
-    def nim_showChanged(self):
-        '''Action when job is selected'''
-        #print "SHOW CHANGED"
-        showname = self.nim_showChooser.currentText()
-        if showname:
-            print("NIM: show=%s" % showname)
-
-            showID = self.nim_showDict[showname]
-
-            ##set showID
-            self.nim_showID = showID
-
-            self.nim_showPaths = nimAPI.get_paths('show', showID)
-            if self.nim_showPaths:
-                if len(self.nim_showPaths)>0:
-                    #print "NIM: showPaths=", self.nim_showPaths
-                    self.nim_showFolder = self.nim_showPaths['root']
-                else:
-                    print("NIM: No Show Paths Found")
-            else:
-                print("NIM: No Data Returned")
-
-
-    def nim_videoElementChanged(self):
-        '''Action when video type is selected'''
-        self.videoElement = self.nim_videoChooser.currentText()
-        self.videoElementID = self.nim_elementTypesDict[self.videoElement]
-
-
-    def nim_audioElementChanged(self):
-        '''Action when video type is selected'''
-        self.audioElement = self.nim_audioChooser.currentText()
-        self.audioElementID = self.nim_elementTypesDict[self.audioElement]
-
-
-    def nim_openClipElementChanged(self):
-        '''Action when video type is selected'''
-        self.openClipElement = self.nim_openClipChooser.currentText()
-        self.openClipElementID = self.nim_elementTypesDict[self.openClipElement]
-
-
-    def nim_batchOpenClipElementChanged(self):
-        '''Action when video type is selected'''
-        self.batchOpenClipElement = self.nim_batchOpenClipChooser.currentText()
-        self.batchOpenClipElementID = self.nim_elementTypesDict[self.batchOpenClipElement]
-
-
-    def nim_batchTaskChanged(self):
-        '''Action when task type is selected'''
-        self.batchTaskType = self.nim_batchChooser.currentText()
-        self.batchTaskTypeID = self.nim_taskTypesDict[self.batchTaskType]
-        self.batchTaskTypeFolder = self.nim_taskFolderDict[self.batchTaskTypeID]
-
-
-    def acceptTest(self):
-        # Get Current Values For Static Objects
-        self.nim_preset = self.nim_presetChooser.currentText()
-        self.videoElement = self.nim_videoChooser.currentText()
-        self.videoElementID = self.nim_elementTypesDict[self.videoElement]
-        self.audioElement = self.nim_audioChooser.currentText()
-        self.audioElementID = self.nim_elementTypesDict[self.audioElement]
-        self.openClipElement = self.nim_openClipChooser.currentText()
-        self.openClipElementID = self.nim_elementTypesDict[self.openClipElement]
-        self.batchOpenClipElement = self.nim_batchOpenClipChooser.currentText()
-        self.batchOpenClipElementID = self.nim_elementTypesDict[self.batchOpenClipElement]
-        self.batchTaskType = self.nim_batchChooser.currentText()
-        self.batchTaskTypeID = self.nim_taskTypesDict[self.batchTaskType]
-        self.batchTaskTypeFolder = self.nim_taskFolderDict[self.batchTaskTypeID]
-
-        # Saving NIM Preferences
-        nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
-        nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
-        nimPrefs.update( 'Show', 'Flame', self.nim_showID )
-
-        # Save Flame-NIM preferences for element associations
-        self.flamePrefs["sequencePreset"] = self.nim_preset
-        self.flamePrefs["jobID"] = self.nim_jobID
-        self.flamePrefs["serverID"] = self.nim_serverID
-        self.flamePrefs["showID"] = self.nim_showID
-        self.flamePrefs["videoElementID"] = self.videoElementID
-        self.flamePrefs["audioElementID"] = self.audioElementID
-        self.flamePrefs["sourceElementID"] = self.openClipElementID
-        self.flamePrefs["batchElementID"] = self.batchOpenClipElementID
-        self.flamePrefs["batchTaskTypeID"] = self.batchTaskTypeID
-        writeFlamePrefs(self.flamePrefs)
-
-        self.accept()
+	def __init__(self, parent=None):
+		super(NimExportSequenceDialog, self).__init__(parent)
+
+		self.result = ""
+		QApplication.setOverrideCursor(Qt.ArrowCursor)
+		try:
+			self.app = 'Flame'
+			self.prefs=nimPrefs.read()
+
+			if 'NIM_User' in self.prefs :
+				self.user=self.prefs['NIM_User']
+			else :
+				self.user = ''
+
+			# Read Flame specific prefs
+			self.flamePrefs = readFlamePrefs()
+
+			print("NIM - Prefs successfully read")
+
+		except:
+			print("NIM - Failed to read NIM prefs")
+			print('NIM - ERROR: %s' % traceback.print_exc())
+			self.app='Flame'
+			self.user=''
+			pass
+
+		self.nim_OS = platform.system()
+		
+		try:
+			self.nim_userID = nimAPI.get_userID(self.user)
+			if not self.nim_userID :
+				nimUI.GUI().update_user()
+				userInfo=nim.NIM().userInfo()
+				self.user = userInfo['name']
+				self.nim_userID = userInfo['ID']
+		except:
+			# failing on user
+			print("NIM - Failed to get userID")
+			self.nim_userID = 0
+
+		print("NIM - user=%s" % self.user)
+		print("NIM - userID=%s" % self.nim_userID)
+
+		self.nim_jobPaths = {}
+		self.nim_showPaths = {}
+		self.nim_shotPaths = {}
+		self.nim_showFolder = ''
+		self.nim_servers = {}
+		self.nim_serverID = None
+		self.nim_serverOSPath = ''
+
+		
+		#Get NIM Element Types
+		self.nim_elementTypes = []
+		self.nim_elementTypesDict = {}
+		self.nim_elementTypes = nimAPI.get_elementTypes()
+		if len(self.nim_elementTypes)>0:
+			for element in self.nim_elementTypes:
+				self.nim_elementTypesDict[element['name']] = element['ID']
+
+		self.videoElement = ''
+		self.videoElementID = 0
+		self.audioElement = ''
+		self.audioElementID = 0
+		self.openClipElement = ''
+		self.openClipElementID = 0
+		self.batchOpenClipElement = ''
+		self.batchOpenClipElementID = 0
+
+
+		#Get NIM Task Types
+		self.nim_taskTypes = []
+		self.nim_taskTypesDict = {}
+		self.nim_taskFolderDict = {}
+		self.nim_taskTypes = nimAPI.get_tasks(app='FLAME', userType='all')
+		if len(self.nim_taskTypes)>0:
+			for task in self.nim_taskTypes:
+				self.nim_taskTypesDict[task['name']] = task['ID']
+				self.nim_taskFolderDict[task['ID']] = task['folder']
+
+		self.batchTaskType = ''
+		self.batchTaskTypeID = 0
+		self.batchTaskTypeFolder = ''
+
+
+		#Get NIM Jobs
+		self.nim_jobID = None
+		self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+		if not self.nim_jobs :
+			print("No Jobs Found")
+			self.nim_jobs["None"]="0"
+		
+		self.nim_shows = []
+		self.nim_showDict = {}
+		self.nim_showID = None
+		
+		self.setWindowTitle("NIM: Export Sequence")
+		self.setStyleSheet("QLabel {font: 14pt}")
+		self.setSizeGripEnabled(True)
+
+		self._exportTemplate = None
+
+		tag_jobID = None
+		tag_showID = None
+
+		
+
+		layout = QVBoxLayout()
+		formLayout = QFormLayout()
+		groupBox = QGroupBox()
+		groupLayout = QFormLayout()
+		groupBox.setLayout(groupLayout)
+
+		pixmap = QPixmap(1, 24)
+		pixmap.fill(Qt.transparent)
+		self.clearPix = QIcon(pixmap)
+		
+
+		# Flame 2 NIM image
+		# 400x88
+		# PRESETS: List box for preset selection
+		horizontalLayout_header = QHBoxLayout()
+		horizontalLayout_header.setSpacing(-1)
+		horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_header.setObjectName("horizontalLayout_header")
+		connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
+		self.nimConnectorHeader = QLabel()
+		self.nimConnectorHeader.setPixmap(connectorImage)
+		horizontalLayout_header.addWidget(self.nimConnectorHeader)
+
+
+		# PRESETS: List box for preset selection
+		horizontalLayout_preset = QHBoxLayout()
+		horizontalLayout_preset.setSpacing(-1)
+		horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_preset.setObjectName("horizontalLayout_preset")
+		self.nimPresetLabel = QLabel()
+		self.nimPresetLabel.setFixedWidth(120)
+		self.nimPresetLabel.setText("Preset:")
+		horizontalLayout_preset.addWidget(self.nimPresetLabel)
+		self.nim_presetChooser = QComboBox()
+		self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
+		self.nim_presetChooser.setMinimumHeight(28)
+		self.nim_presetChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_preset.addWidget(self.nim_presetChooser)
+		horizontalLayout_preset.setStretch(1, 40)
+
+		presetList = self.nim_getPresets()
+
+		if len(presetList) > 0:
+			presetIndex = 0
+			presetIter = 0
+			for preset in presetList :
+				self.nim_presetChooser.addItem(self.clearPix, preset)
+				# Set Preference
+				if self.flamePrefs['sequencePreset'] == preset:
+					presetIndex = presetIter
+				presetIter += 1
+
+			if self.flamePrefs['sequencePreset'] != '':
+				self.nim_presetChooser.setCurrentIndex(presetIndex)
+
+		self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
+
+		# JOBS: List box for job selection
+		horizontalLayout_job = QHBoxLayout()
+		horizontalLayout_job.setSpacing(-1)
+		horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_job.setObjectName("horizontalLayout_job")
+		self.nimJobLabel = QLabel()
+		self.nimJobLabel.setFixedWidth(120)
+		self.nimJobLabel.setText("Job:")
+		horizontalLayout_job.addWidget(self.nimJobLabel)
+		self.nim_jobChooser = QComboBox()
+		self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
+		self.nim_jobChooser.setMinimumHeight(28)
+		self.nim_jobChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_job.addWidget(self.nim_jobChooser)
+		horizontalLayout_job.setStretch(1, 40)
+		
+
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['jobID']) == str(value):
+					print("Found matching Job Name, job=", key)
+					jobIndex = jobIter
+				jobIter += 1
+
+			if self.flamePrefs['jobID'] != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+
+
+		# SERVERS: List box for server selection
+		horizontalLayout_server = QHBoxLayout()
+		horizontalLayout_server.setSpacing(-1)
+		horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_server.setObjectName("horizontalLayout_server")
+		self.nimServerLabel = QLabel()
+		self.nimServerLabel.setFixedWidth(120)
+		self.nimServerLabel.setText("Server:")
+		horizontalLayout_server.addWidget(self.nimServerLabel)
+		self.nim_serverChooser = QComboBox()
+		self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
+		self.nim_serverChooser.setMinimumHeight(28)
+		self.nim_serverChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_server.addWidget(self.nim_serverChooser)
+		horizontalLayout_server.setStretch(1, 40)
+		self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
+		
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+	
+
+
+		# -- ELEMENT TYPES -- #
+
+		horizontalLayout_elementSpacer = QHBoxLayout()
+		horizontalLayout_elementSpacer.setSpacing(-1)
+		horizontalLayout_elementSpacer.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_elementSpacer.setObjectName("horizontalLayout_elementSpacer")
+		elementSpacer = QLabel()
+		elementSpacer.setText("")
+		horizontalLayout_elementSpacer.addWidget(elementSpacer)
+		horizontalLayout_elementSpacer.setStretch(1, 40)
+
+
+		# Elements Label
+		horizontalLayout_elementDesc = QHBoxLayout()
+		horizontalLayout_elementDesc.setSpacing(-1)
+		horizontalLayout_elementDesc.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_elementDesc.setObjectName("horizontalLayout_elementDesc")
+		self.nimElementSectionLabel = QLabel()
+		self.nimElementSectionLabel.setText("Select the NIM element type to assign exported media:")
+		horizontalLayout_elementDesc.addWidget(self.nimElementSectionLabel)
+		horizontalLayout_elementDesc.setStretch(1, 40)
+
+
+
+		# video - exported media
+		horizontalLayout_video = QHBoxLayout()
+		horizontalLayout_video.setSpacing(-1)
+		horizontalLayout_video.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_video.setObjectName("horizontalLayout_video")
+		self.nimVideoLabel = QLabel()
+		self.nimVideoLabel.setFixedWidth(120)
+		self.nimVideoLabel.setText("Video Out:")
+		horizontalLayout_video.addWidget(self.nimVideoLabel)
+		self.nim_videoChooser = QComboBox()
+		self.nim_videoChooser.setToolTip("Choose the NIM element type to associate with exported video media.")
+		self.nim_videoChooser.setMinimumHeight(28)
+		self.nim_videoChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_video.addWidget(self.nim_videoChooser)
+		horizontalLayout_video.setStretch(1, 40)
+
+		if len(self.nim_elementTypesDict)>0:
+			videoIndex = 0
+			videoIter = 0
+			for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
+				self.nim_videoChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['videoElementID']) == str(value):
+					print("Found video element preference=", key)
+					videoIndex = videoIter
+				videoIter += 1
+
+			if self.flamePrefs['videoElementID'] != '':
+				self.nim_videoChooser.setCurrentIndex(videoIndex)
+
+		self.nim_videoChooser.currentIndexChanged.connect(self.nim_videoElementChanged)
+
+
+		# audio - exported media
+		horizontalLayout_audio = QHBoxLayout()
+		horizontalLayout_audio.setSpacing(-1)
+		horizontalLayout_audio.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_audio.setObjectName("horizontalLayout_audio")
+		self.nimAudioLabel = QLabel()
+		self.nimAudioLabel.setFixedWidth(120)
+		self.nimAudioLabel.setText("Audio Out:")
+		horizontalLayout_audio.addWidget(self.nimAudioLabel)
+		self.nim_audioChooser = QComboBox()
+		self.nim_audioChooser.setToolTip("Choose the NIM element type to associate with exported audio media.")
+		self.nim_audioChooser.setMinimumHeight(28)
+		self.nim_audioChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_audio.addWidget(self.nim_audioChooser)
+		horizontalLayout_audio.setStretch(1, 40)
+
+		if len(self.nim_elementTypesDict)>0:
+			audioIndex = 0
+			audioIter = 0
+			for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
+				self.nim_audioChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['audioElementID']) == str(value):
+					print("Found audio element preference=", key)
+					audioIndex = audioIter
+				audioIter += 1
+
+			if self.flamePrefs['audioElementID'] != '':
+				self.nim_audioChooser.setCurrentIndex(audioIndex)
+		
+		self.nim_audioChooser.currentIndexChanged.connect(self.nim_audioElementChanged)
+
+		# openClip - Source Clip
+		horizontalLayout_openClip = QHBoxLayout()
+		horizontalLayout_openClip.setSpacing(-1)
+		horizontalLayout_openClip.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_openClip.setObjectName("horizontalLayout_openClip")
+		self.nimOpenClipLabel = QLabel()
+		self.nimOpenClipLabel.setFixedWidth(120)
+		self.nimOpenClipLabel.setText("BatchFX In:")
+		horizontalLayout_openClip.addWidget(self.nimOpenClipLabel)
+		self.nim_openClipChooser = QComboBox()
+		self.nim_openClipChooser.setToolTip("Choose the NIM element type to associate new elements with the BatchFX Open Clip.\nThe source open clip is the read node used when promoting a timeline clip to BatchFX.\nNew elements added to the Open Clip will appear as versions on the BatchFX read node.")
+		self.nim_openClipChooser.setMinimumHeight(28)
+		self.nim_openClipChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_openClip.addWidget(self.nim_openClipChooser)
+		horizontalLayout_openClip.setStretch(1, 40)
+		
+		if len(self.nim_elementTypesDict)>0:
+			sourceIndex = 0
+			sourceIter = 0
+			for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
+				self.nim_openClipChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['sourceElementID']) == str(value):
+					print("Found source element preference=", key)
+					sourceIndex = sourceIter
+				sourceIter += 1
+
+			if self.flamePrefs['sourceElementID'] != '':
+				self.nim_openClipChooser.setCurrentIndex(sourceIndex)
+		
+		self.nim_openClipChooser.currentIndexChanged.connect(self.nim_openClipElementChanged)
+
+		# video - exported media
+		horizontalLayout_batchOpenClip = QHBoxLayout()
+		horizontalLayout_batchOpenClip.setSpacing(-1)
+		horizontalLayout_batchOpenClip.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_batchOpenClip.setObjectName("horizontalLayout_batchOpenClip")
+		self.nimBatchOpenClipLabel = QLabel()
+		self.nimBatchOpenClipLabel.setFixedWidth(120)
+		self.nimBatchOpenClipLabel.setText("Timeline In:")
+		horizontalLayout_batchOpenClip.addWidget(self.nimBatchOpenClipLabel)
+		self.nim_batchOpenClipChooser = QComboBox()
+		self.nim_batchOpenClipChooser.setToolTip("Choose the NIM element type to associate new elements with the Timeline Open Clip.\nThe Timeline Open Clip is used directly on a published Timeline.\nNew elements added to the Open Clip will appear as clip versions on the Timeline.")
+		self.nim_batchOpenClipChooser.setMinimumHeight(28)
+		self.nim_batchOpenClipChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_batchOpenClip.addWidget(self.nim_batchOpenClipChooser)
+		horizontalLayout_batchOpenClip.setStretch(1, 40)
+		
+		if len(self.nim_elementTypesDict)>0:
+			batchIndex = 0
+			batchIter = 0
+			for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
+				self.nim_batchOpenClipChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['batchElementID']) == str(value):
+					print("Found batch element preference=", key)
+					batchIndex = batchIter
+				batchIter += 1
+
+			if self.flamePrefs['batchElementID'] != '':
+				self.nim_batchOpenClipChooser.setCurrentIndex(batchIndex)
+		
+		self.nim_batchOpenClipChooser.currentIndexChanged.connect(self.nim_batchOpenClipElementChanged)
+
+
+		# -- TASK TYPES -- #
+
+		horizontalLayout_taskSpacer = QHBoxLayout()
+		horizontalLayout_taskSpacer.setSpacing(-1)
+		horizontalLayout_taskSpacer.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_taskSpacer.setObjectName("horizontalLayout_taskSpacer")
+		taskSpacer = QLabel()
+		taskSpacer.setText("")
+		horizontalLayout_taskSpacer.addWidget(taskSpacer)
+		horizontalLayout_taskSpacer.setStretch(1, 40)
+
+
+		# Task Label
+		horizontalLayout_taskDesc = QHBoxLayout()
+		horizontalLayout_taskDesc.setSpacing(-1)
+		horizontalLayout_taskDesc.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_taskDesc.setObjectName("horizontalLayout_taskDesc")
+		self.nimElementSectionLabel = QLabel()
+		self.nimElementSectionLabel.setText("Select the NIM task type to assign exported batch files:")
+		horizontalLayout_taskDesc.addWidget(self.nimElementSectionLabel)
+		horizontalLayout_taskDesc.setStretch(1, 40)
+
+
+		# batch - versioned comps
+		horizontalLayout_batch = QHBoxLayout()
+		horizontalLayout_batch.setSpacing(-1)
+		horizontalLayout_batch.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_batch.setObjectName("horizontalLayout_batch")
+		self.nimBatchLabel = QLabel()
+		self.nimBatchLabel.setFixedWidth(120)
+		self.nimBatchLabel.setText("Batch Files:")
+		horizontalLayout_batch.addWidget(self.nimBatchLabel)
+		self.nim_batchChooser = QComboBox()
+		self.nim_batchChooser.setToolTip("Select the NIM task type to assign exported batch files.")
+		self.nim_batchChooser.setMinimumHeight(28)
+		self.nim_batchChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_batch.addWidget(self.nim_batchChooser)
+		horizontalLayout_batch.setStretch(1, 40)
+
+		if len(self.nim_taskTypesDict)>0:
+			batchFileIndex = 0
+			batchFileIter = 0
+			for key, value in sorted(list(self.nim_taskTypesDict.items()), reverse=False):
+				self.nim_batchChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['batchTaskTypeID']) == str(value):
+					print("Found batchFile element preference=", key)
+					batchFileIndex = batchFileIter
+				batchFileIter += 1
+
+			if self.flamePrefs['batchTaskTypeID'] != '':
+				self.nim_batchChooser.setCurrentIndex(batchFileIndex)
+
+		self.nim_batchChooser.currentIndexChanged.connect(self.nim_batchTaskChanged)
+
+
+		# Add the standard ok/cancel buttons, default to ok.
+		self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for each selected preset")
+		self._buttonbox.accepted.connect(self.acceptTest)
+		self._buttonbox.rejected.connect(self.reject)
+		horizontalLayout_OkCancel = QHBoxLayout()
+		horizontalLayout_OkCancel.setSpacing(-1)
+		horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
+		spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		horizontalLayout_OkCancel.addItem(spacerItem4)
+		horizontalLayout_OkCancel.addWidget(self._buttonbox)
+		horizontalLayout_OkCancel.setStretch(1, 40)
+
+
+		groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
+
+		groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
+		groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
+		groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
+		groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
+
+		groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_elementSpacer)
+		groupLayout.setLayout(6, QFormLayout.SpanningRole, horizontalLayout_elementDesc)
+		groupLayout.setLayout(7, QFormLayout.SpanningRole, horizontalLayout_video)
+		groupLayout.setLayout(8, QFormLayout.SpanningRole, horizontalLayout_audio)
+		groupLayout.setLayout(9, QFormLayout.SpanningRole, horizontalLayout_openClip)
+		groupLayout.setLayout(10, QFormLayout.SpanningRole, horizontalLayout_batchOpenClip)
+
+		groupLayout.setLayout(11, QFormLayout.SpanningRole, horizontalLayout_taskSpacer)
+		groupLayout.setLayout(12, QFormLayout.SpanningRole, horizontalLayout_taskDesc)
+		groupLayout.setLayout(13, QFormLayout.SpanningRole, horizontalLayout_batch)
+
+		groupLayout.setLayout(14, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		self.setLayout(groupLayout)
+		layout.addWidget(groupBox)
+
+		self.nim_jobChanged() #trigger job changed to load choosers
+
+
+	def nim_getPresets(self):
+		presetList = []
+		for preset in os.listdir(nimFlamePresetPath+'/sequence'):
+			print("PRESET: %s" % preset)
+			if preset.endswith(".xml"):
+				presetName = preset.rpartition('.')[0]
+				presetList.append(presetName)
+				
+		return presetList
+
+
+	def nim_presetChanged(self):
+		'''Action when task type is selected'''
+		self.nim_preset = self.nim_presetChooser.currentText()
+
+
+	def nim_jobChanged(self):
+		'''Action when job is selected'''
+		#print "JOB CHANGED"
+		job = self.nim_jobChooser.currentText()
+		self.nim_jobID = self.nim_jobs[job]
+		self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
+
+		self.nim_updateServer()
+		self.nim_updateShow()
+		
+
+	def nim_updateServer(self):
+		self.nim_servers = {}
+		self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
+		self.nim_serverID = ''
+		self.nim_serverOSPath = ''
+		self.nim_serverDict = {}
+		serverIndex = 0
+		serverIter = 0
+		try:
+			self.nim_serverChooser.clear()
+			if self.nim_serverChooser:
+				if len(self.nim_servers)>0:  
+					for server in self.nim_servers:
+						self.nim_serverDict[server['server']] = server['ID']
+					for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
+						self.nim_serverChooser.addItem(self.clearPix, key)
+
+						if str(self.flamePrefs['serverID']) == str(value):
+							print("Found server preference=", key)
+							serverIndex = serverIter
+						
+						serverIter += 1
+
+					if self.flamePrefs['serverID'] != '':
+						self.nim_serverChooser.setCurrentIndex(serverIndex)
+		except:
+			pass
+
+
+	def nim_serverChanged(self):
+		'''Action when job is selected'''
+		#print "SERVER CHANGED"
+		serverName = self.nim_serverChooser.currentText()
+		if serverName:
+			print("NIM: server=%s" % serverName)
+			serverID = self.nim_serverDict[serverName]
+			self.nim_serverID = serverID
+
+			serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
+			if serverInfo:
+				if len(serverInfo)>0:
+					self.nim_serverOSPath = serverInfo[0]['serverOSPath']
+					print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
+				else:
+					print("NIM: No Server Found")
+			else:
+				print("NIM: No Data Returned")
+
+
+	def nim_updateShow(self):
+		self.nim_shows = {}
+		self.nim_shows = nimAPI.get_shows(self.nim_jobID)
+
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+
+						if str(self.flamePrefs['showID']) == str(value):
+							print("Found show preference=", key)
+							showIndex = showIter
+						
+						showIter += 1
+
+					if self.flamePrefs['showID'] != '':
+						self.nim_showChooser.setCurrentIndex(showIndex)
+		except:
+			pass
+
+
+	def nim_showChanged(self):
+		'''Action when job is selected'''
+		#print "SHOW CHANGED"
+		showname = self.nim_showChooser.currentText()
+		if showname:
+			print("NIM: show=%s" % showname)
+
+			showID = self.nim_showDict[showname]
+
+			##set showID
+			self.nim_showID = showID
+
+			self.nim_showPaths = nimAPI.get_paths('show', showID)
+			if self.nim_showPaths:
+				if len(self.nim_showPaths)>0:
+					#print "NIM: showPaths=", self.nim_showPaths
+					self.nim_showFolder = self.nim_showPaths['root']
+				else:
+					print("NIM: No Show Paths Found")
+			else:
+				print("NIM: No Data Returned")
+	
+
+	def nim_videoElementChanged(self):
+		'''Action when video type is selected'''
+		self.videoElement = self.nim_videoChooser.currentText()
+		self.videoElementID = self.nim_elementTypesDict[self.videoElement]
+
+
+	def nim_audioElementChanged(self):
+		'''Action when video type is selected'''
+		self.audioElement = self.nim_audioChooser.currentText()
+		self.audioElementID = self.nim_elementTypesDict[self.audioElement]
+
+
+	def nim_openClipElementChanged(self):
+		'''Action when video type is selected'''
+		self.openClipElement = self.nim_openClipChooser.currentText()
+		self.openClipElementID = self.nim_elementTypesDict[self.openClipElement]
+
+
+	def nim_batchOpenClipElementChanged(self):
+		'''Action when video type is selected'''
+		self.batchOpenClipElement = self.nim_batchOpenClipChooser.currentText()
+		self.batchOpenClipElementID = self.nim_elementTypesDict[self.batchOpenClipElement]
+
+
+	def nim_batchTaskChanged(self):
+		'''Action when task type is selected'''
+		self.batchTaskType = self.nim_batchChooser.currentText()
+		self.batchTaskTypeID = self.nim_taskTypesDict[self.batchTaskType]
+		self.batchTaskTypeFolder = self.nim_taskFolderDict[self.batchTaskTypeID]
+
+
+	def acceptTest(self):
+		# Get Current Values For Static Objects
+		self.nim_preset = self.nim_presetChooser.currentText()
+		self.videoElement = self.nim_videoChooser.currentText()
+		self.videoElementID = self.nim_elementTypesDict[self.videoElement]
+		self.audioElement = self.nim_audioChooser.currentText()
+		self.audioElementID = self.nim_elementTypesDict[self.audioElement]
+		self.openClipElement = self.nim_openClipChooser.currentText()
+		self.openClipElementID = self.nim_elementTypesDict[self.openClipElement]
+		self.batchOpenClipElement = self.nim_batchOpenClipChooser.currentText()
+		self.batchOpenClipElementID = self.nim_elementTypesDict[self.batchOpenClipElement]
+		self.batchTaskType = self.nim_batchChooser.currentText()
+		self.batchTaskTypeID = self.nim_taskTypesDict[self.batchTaskType]
+		self.batchTaskTypeFolder = self.nim_taskFolderDict[self.batchTaskTypeID]
+
+		# Saving NIM Preferences
+		nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
+		nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
+		nimPrefs.update( 'Show', 'Flame', self.nim_showID )
+
+		# Save Flame-NIM preferences for element associations
+		self.flamePrefs["sequencePreset"] = self.nim_preset
+		self.flamePrefs["jobID"] = self.nim_jobID
+		self.flamePrefs["serverID"] = self.nim_serverID
+		self.flamePrefs["showID"] = self.nim_showID
+		self.flamePrefs["videoElementID"] = self.videoElementID
+		self.flamePrefs["audioElementID"] = self.audioElementID
+		self.flamePrefs["sourceElementID"] = self.openClipElementID
+		self.flamePrefs["batchElementID"] = self.batchOpenClipElementID
+		self.flamePrefs["batchTaskTypeID"] = self.batchTaskTypeID
+		writeFlamePrefs(self.flamePrefs)
+
+		self.accept()
 
 
 class NimExportEditDialog(QDialog):
-    def __init__(self, parent=None):
-        super(NimExportEditDialog, self).__init__(parent)
-
-        self.result = ""
-        QApplication.setOverrideCursor(Qt.ArrowCursor)
-        try:
-            #self.app=nimFile.get_app()
-            self.app = 'Flame'
-            self.prefs=nimPrefs.read()
-            print("NIM - Prefs: ")
-            print(self.prefs)
-
-            if 'NIM_User' in self.prefs :
-                self.user=self.prefs['NIM_User']
-            else :
-                self.user = ''
-
-            # Read Flame specific prefs
-            self.flamePrefs = readFlamePrefs()
-
-            print("NIM - Prefs successfully read")
-
-        except:
-            print("NIM - Failed to read NIM prefs")
-            print('NIM - ERROR: %s' % traceback.print_exc())
-            self.app='Flame'
-            self.user=''
-            pass
-
-        self.nim_OS = platform.system()
-
-        try:
-            self.nim_userID = nimAPI.get_userID(self.user)
-            if not self.nim_userID :
-                nimUI.GUI().update_user()
-                userInfo=nim.NIM().userInfo()
-                self.user = userInfo['name']
-                self.nim_userID = userInfo['ID']
-        except:
-            # failing on user
-            print("NIM - Failed to get userID")
-            self.nim_userID = 0
-
-        print("NIM - user=%s" % self.user)
-        print("NIM - userID=%s" % self.nim_userID)
-
-        self.nim_jobPaths = {}
-        self.nim_showPaths = {}
-        self.nim_shotPaths = {}
-        self.nim_showFolder = ''
-        self.nim_servers = {}
-        self.nim_serverID = None
-        self.nim_serverOSPath = ''
-
-        #Get NIM Jobs
-        self.nim_jobID = None
-        self.nim_jobs = nimUtl.getjobs(userid=int(self.nim_userID))
-        if not self.nim_jobs :
-            print("No Jobs Found")
-            self.nim_jobs["None"]="0"
-
-        self.nim_shows = []
-        self.nim_showDict = {}
-        self.nim_showID = None
-
-        self.setWindowTitle("NIM: Export Show Review")
-        self.setStyleSheet("QLabel {font: 14pt}")
-        self.setSizeGripEnabled(True)
-
-        self._exportTemplate = None
-
-        tag_jobID = None
-        tag_showID = None
-
-
-        layout = QVBoxLayout()
-        formLayout = QFormLayout()
-        groupBox = QGroupBox()
-        groupLayout = QFormLayout()
-        groupBox.setLayout(groupLayout)
-
-        pixmap = QPixmap(1, 24)
-        pixmap.fill(Qt.transparent)
-        self.clearPix = QIcon(pixmap)
-
-
-        # Flame 2 NIM image
-        # 400x88
-        # PRESETS: List box for preset selection
-        horizontalLayout_header = QHBoxLayout()
-        horizontalLayout_header.setSpacing(-1)
-        horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_header.setObjectName("horizontalLayout_header")
-        connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
-        self.nimConnectorHeader = QLabel()
-        self.nimConnectorHeader.setPixmap(connectorImage)
-        horizontalLayout_header.addWidget(self.nimConnectorHeader)
-
-
-        # PRESETS: List box for preset selection
-        horizontalLayout_preset = QHBoxLayout()
-        horizontalLayout_preset.setSpacing(-1)
-        horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_preset.setObjectName("horizontalLayout_preset")
-        self.nimPresetLabel = QLabel()
-        self.nimPresetLabel.setFixedWidth(120)
-        self.nimPresetLabel.setText("Preset:")
-        horizontalLayout_preset.addWidget(self.nimPresetLabel)
-        self.nim_presetChooser = QComboBox()
-        self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
-        self.nim_presetChooser.setMinimumHeight(28)
-        self.nim_presetChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_preset.addWidget(self.nim_presetChooser)
-        horizontalLayout_preset.setStretch(1, 40)
-
-        presetList = self.nim_getPresets()
-
-        if len(presetList) > 0:
-            presetIndex = 0
-            presetIter = 0
-            for preset in presetList :
-                self.nim_presetChooser.addItem(self.clearPix, preset)
-                # Set Preference
-                if self.flamePrefs['editPreset'] == preset:
-                    presetIndex = presetIter
-                presetIter += 1
-
-            if self.flamePrefs['editPreset'] != '':
-                self.nim_presetChooser.setCurrentIndex(presetIndex)
-
-        self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
-
-
-        # USE BACKGROUND
-        #horizontalLayout_BG = QHBoxLayout()
-        #horizontalLayout_BG.setSpacing(-1)
-        #horizontalLayout_BG.setSizeConstraint(QLayout.SetDefaultConstraint)
-        #horizontalLayout_BG.setObjectName("horizontalLayout_BG")
-        #self.nimBgLabel = QLabel()
-        #self.nimBgLabel.setFixedWidth(120)
-        #self.nimBgLabel.setText("Background Export:")
-        #horizontalLayout_BG.addWidget(self.nimBgLabel)
-        #self.nim_BgCheck = QCheckBox()
-        #self.nim_BgCheck.setToolTip("Exports clip as background process.")
-        #self.nim_BgCheck.setMinimumHeight(28)
-        #self.nim_BgCheck.setIconSize(QSize(1, 24))
-        #horizontalLayout_BG.addWidget(self.nim_BgCheck)
-        #horizontalLayout_BG.setStretch(1, 40)
-
-
-        # JOBS: List box for job selection
-        horizontalLayout_job = QHBoxLayout()
-        horizontalLayout_job.setSpacing(-1)
-        horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_job.setObjectName("horizontalLayout_job")
-        self.nimJobLabel = QLabel()
-        self.nimJobLabel.setFixedWidth(120)
-        self.nimJobLabel.setText("Job:")
-        horizontalLayout_job.addWidget(self.nimJobLabel)
-        self.nim_jobChooser = QComboBox()
-        self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
-        self.nim_jobChooser.setMinimumHeight(28)
-        self.nim_jobChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_job.addWidget(self.nim_jobChooser)
-        horizontalLayout_job.setStretch(1, 40)
-
-
-        # JOBS: Add dictionary in ordered list
-        jobIndex = 0
-        jobIter = 0
-        if len(self.nim_jobs)>0:
-            for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
-                self.nim_jobChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['jobID'] == value:
-                    print("Found Job Preferences")
-                    jobIndex = jobIter
-            jobIter += 1
-
-            if self.flamePrefs['jobID'] != '':
-                self.nim_jobChooser.setCurrentIndex(jobIndex)
-
-        self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
-
-
-        # SERVERS: List box for server selection
-        horizontalLayout_server = QHBoxLayout()
-        horizontalLayout_server.setSpacing(-1)
-        horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_server.setObjectName("horizontalLayout_server")
-        self.nimServerLabel = QLabel()
-        self.nimServerLabel.setFixedWidth(120)
-        self.nimServerLabel.setText("Server:")
-        horizontalLayout_server.addWidget(self.nimServerLabel)
-        self.nim_serverChooser = QComboBox()
-        self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
-        self.nim_serverChooser.setMinimumHeight(28)
-        self.nim_serverChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_server.addWidget(self.nim_serverChooser)
-        horizontalLayout_server.setStretch(1, 40)
-        self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
-
-
-        # SHOWS: List box for show selection
-        horizontalLayout_show = QHBoxLayout()
-        horizontalLayout_show.setSpacing(-1)
-        horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_show.setObjectName("horizontalLayout_show")
-        self.nimShowLabel = QLabel()
-        self.nimShowLabel.setFixedWidth(120)
-        self.nimShowLabel.setText("Show:")
-        horizontalLayout_show.addWidget(self.nimShowLabel)
-        self.nim_showChooser = QComboBox()
-        self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
-        self.nim_showChooser.setMinimumHeight(28)
-        self.nim_showChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_show.addWidget(self.nim_showChooser)
-        horizontalLayout_show.setStretch(1, 40)
-        self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
-
-
-        # Add the standard ok/cancel buttons, default to ok.
-        self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for the selected preset")
-        self._buttonbox.accepted.connect(self.acceptTest)
-        self._buttonbox.rejected.connect(self.reject)
-        horizontalLayout_OkCancel = QHBoxLayout()
-        horizontalLayout_OkCancel.setSpacing(-1)
-        horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
-        spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        horizontalLayout_OkCancel.addItem(spacerItem4)
-        horizontalLayout_OkCancel.addWidget(self._buttonbox)
-        horizontalLayout_OkCancel.setStretch(1, 40)
-
-
-        groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
-
-        groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
-        #groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_BG)
-
-        groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
-        groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
-        groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
-
-        groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
-
-        self.setLayout(groupLayout)
-        layout.addWidget(groupBox)
-
-        self.nim_jobChanged() #trigger job changed to load choosers
-
-
-    def nim_getPresets(self):
-        presetList = []
-        for preset in os.listdir(nimFlamePresetPath+'/edit'):
-            print("PRESET: %s" % preset)
-            if preset.endswith(".xml"):
-                presetName = preset.rpartition('.')[0]
-                presetList.append(presetName)
-
-        return presetList
-
-
-    def nim_presetChanged(self):
-        '''Action when task type is selected'''
-        self.nim_preset = self.nim_presetChooser.currentText()
-
-
-    def nim_jobChanged(self):
-        '''Action when job is selected'''
-        #print "JOB CHANGED"
-        job = self.nim_jobChooser.currentText()
-        self.nim_jobID = self.nim_jobs[job]
-        self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
-
-        self.nim_updateServer()
-        self.nim_updateShow()
-
-
-    def nim_updateServer(self):
-        self.nim_servers = {}
-        self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
-        self.nim_serverID = ''
-        self.nim_serverOSPath = ''
-        self.nim_serverDict = {}
-        serverIndex = 0
-        serverIter = 0
-        try:
-            self.nim_serverChooser.clear()
-            if self.nim_serverChooser:
-                if len(self.nim_servers)>0:  
-                    for server in self.nim_servers:
-                        self.nim_serverDict[server['server']] = server['ID']
-                    for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
-                        self.nim_serverChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['serverID'] == value:
-                            print("Found server preference=", key)
-                            serverIndex = serverIter
-
-                        serverIter += 1
-
-                    if self.flamePrefs['serverID'] != '':
-                        self.nim_serverChooser.setCurrentIndex(serverIndex)
-        except:
-            pass
-
-
-    def nim_serverChanged(self):
-        '''Action when job is selected'''
-        #print "SERVER CHANGED"
-        serverName = self.nim_serverChooser.currentText()
-        if serverName:
-            print("NIM: server=%s" % serverName)
-            serverID = self.nim_serverDict[serverName]
-            self.nim_serverID = serverID
-
-            serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
-            if serverInfo:
-                if len(serverInfo)>0:
-                    self.nim_serverOSPath = serverInfo[0]['serverOSPath']
-                    print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
-                else:
-                    print("NIM: No Server Found")
-            else:
-                print("NIM: No Data Returned")
-
-
-    def nim_updateShow(self):
-        self.nim_shows = {}
-        self.nim_shows = nimAPI.get_shows(self.nim_jobID)
-        showIndex = 0
-        showIter = 0
-        self.nim_showDict = {}
-        try:
-            self.nim_showChooser.clear()
-            if self.nim_showChooser:
-                if len(self.nim_shows)>0:  
-                    for show in self.nim_shows:
-                        self.nim_showDict[show['showname']] = show['ID']
-                    for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
-                        self.nim_showChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['showID'] == value:
-                            print("Found show preference=", key)
-                            showIndex = showIter
-
-                        showIter += 1
-
-                    if self.flamePrefs['showID'] != '':
-                        self.nim_showChooser.setCurrentIndex(showIndex)
-        except:
-            pass
-
-
-    def nim_showChanged(self):
-        '''Action when job is selected'''
-        #print "SHOW CHANGED"
-        showname = self.nim_showChooser.currentText()
-        if showname:
-            print("NIM: show=%s" % showname)
-
-            showID = self.nim_showDict[showname]
-
-            ##set showID
-            self.nim_showID = showID
-
-            self.nim_showPaths = nimAPI.get_paths('show', showID)
-            if self.nim_showPaths:
-                if len(self.nim_showPaths)>0:
-                    #print "NIM: showPaths=", self.nim_showPaths
-                    self.nim_showFolder = self.nim_showPaths['root']
-                else:
-                    print("NIM: No Show Paths Found")
-            else:
-                print("NIM: No Data Returned")
-
-
-    def acceptTest(self):
-        # Get Current Values For Static Objects
-        self.nim_preset = self.nim_presetChooser.currentText()
-
-        #if self.nim_BgCheck.isChecked() :
-        #	self.nim_bg_export = True
-        #else :
-        #	self.nim_bg_export = False
-
-        # Saving Preferences
-        nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
-        nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
-        nimPrefs.update( 'Show', 'Flame', self.nim_showID )
-
-        # Save Flame-NIM preferences for element associations
-        self.flamePrefs["editPreset"] = self.nim_preset
-        self.flamePrefs["jobID"] = self.nim_jobID
-        self.flamePrefs["serverID"] = self.nim_serverID
-        self.flamePrefs["showID"] = self.nim_showID
-        writeFlamePrefs(self.flamePrefs)
-
-        self.accept()
+	def __init__(self, parent=None):
+		super(NimExportEditDialog, self).__init__(parent)
+
+		self.result = ""
+		QApplication.setOverrideCursor(Qt.ArrowCursor)
+		try:
+			#self.app=nimFile.get_app()
+			self.app = 'Flame'
+			self.prefs=nimPrefs.read()
+
+			if 'NIM_User' in self.prefs :
+				self.user=self.prefs['NIM_User']
+			else :
+				self.user = ''
+
+			# Read Flame specific prefs
+			self.flamePrefs = readFlamePrefs()
+
+			print("NIM - Prefs successfully read")
+
+		except:
+			print("NIM - Failed to read NIM prefs")
+			print('NIM - ERROR: %s' % traceback.print_exc())
+			self.app='Flame'
+			self.user=''
+			pass
+
+		self.nim_OS = platform.system()
+		
+		try:
+			self.nim_userID = nimAPI.get_userID(self.user)
+			if not self.nim_userID :
+				nimUI.GUI().update_user()
+				userInfo=nim.NIM().userInfo()
+				self.user = userInfo['name']
+				self.nim_userID = userInfo['ID']
+		except:
+			# failing on user
+			print("NIM - Failed to get userID")
+			self.nim_userID = 0
+
+		print("NIM - user=%s" % self.user)
+		print("NIM - userID=%s" % self.nim_userID)
+
+		self.nim_jobPaths = {}
+		self.nim_showPaths = {}
+		self.nim_shotPaths = {}
+		self.nim_showFolder = ''
+		self.nim_servers = {}
+		self.nim_serverID = None
+		self.nim_serverOSPath = ''
+
+		#Get NIM Jobs
+		self.nim_jobID = None
+		self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+		if not self.nim_jobs :
+			print("No Jobs Found")
+			self.nim_jobs["None"]="0"
+		
+		self.nim_shows = []
+		self.nim_showDict = {}
+		self.nim_showID = None
+		
+		self.setWindowTitle("NIM: Export Show Review")
+		self.setStyleSheet("QLabel {font: 14pt}")
+		self.setSizeGripEnabled(True)
+
+		self._exportTemplate = None
+
+		tag_jobID = None
+		tag_showID = None
+
+
+		layout = QVBoxLayout()
+		formLayout = QFormLayout()
+		groupBox = QGroupBox()
+		groupLayout = QFormLayout()
+		groupBox.setLayout(groupLayout)
+
+		pixmap = QPixmap(1, 24)
+		pixmap.fill(Qt.transparent)
+		self.clearPix = QIcon(pixmap)
+		
+
+		# Flame 2 NIM image
+		# 400x88
+		# PRESETS: List box for preset selection
+		horizontalLayout_header = QHBoxLayout()
+		horizontalLayout_header.setSpacing(-1)
+		horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_header.setObjectName("horizontalLayout_header")
+		connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
+		self.nimConnectorHeader = QLabel()
+		self.nimConnectorHeader.setPixmap(connectorImage)
+		horizontalLayout_header.addWidget(self.nimConnectorHeader)
+
+
+		# PRESETS: List box for preset selection
+		horizontalLayout_preset = QHBoxLayout()
+		horizontalLayout_preset.setSpacing(-1)
+		horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_preset.setObjectName("horizontalLayout_preset")
+		self.nimPresetLabel = QLabel()
+		self.nimPresetLabel.setFixedWidth(120)
+		self.nimPresetLabel.setText("Preset:")
+		horizontalLayout_preset.addWidget(self.nimPresetLabel)
+		self.nim_presetChooser = QComboBox()
+		self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
+		self.nim_presetChooser.setMinimumHeight(28)
+		self.nim_presetChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_preset.addWidget(self.nim_presetChooser)
+		horizontalLayout_preset.setStretch(1, 40)
+
+		presetList = self.nim_getPresets()
+
+		if len(presetList) > 0:
+			presetIndex = 0
+			presetIter = 0
+			for preset in presetList :
+				self.nim_presetChooser.addItem(self.clearPix, preset)
+				# Set Preference
+				if self.flamePrefs['editPreset'] == preset:
+					presetIndex = presetIter
+				presetIter += 1
+
+			if self.flamePrefs['editPreset'] != '':
+				self.nim_presetChooser.setCurrentIndex(presetIndex)
+
+		self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
+
+
+		# USE BACKGROUND
+		#horizontalLayout_BG = QHBoxLayout()
+		#horizontalLayout_BG.setSpacing(-1)
+		#horizontalLayout_BG.setSizeConstraint(QLayout.SetDefaultConstraint)
+		#horizontalLayout_BG.setObjectName("horizontalLayout_BG")
+		#self.nimBgLabel = QLabel()
+		#self.nimBgLabel.setFixedWidth(120)
+		#self.nimBgLabel.setText("Background Export:")
+		#horizontalLayout_BG.addWidget(self.nimBgLabel)
+		#self.nim_BgCheck = QCheckBox()
+		#self.nim_BgCheck.setToolTip("Exports clip as background process.")
+		#self.nim_BgCheck.setMinimumHeight(28)
+		#self.nim_BgCheck.setIconSize(QSize(1, 24))
+		#horizontalLayout_BG.addWidget(self.nim_BgCheck)
+		#horizontalLayout_BG.setStretch(1, 40)
+
+
+		# JOBS: List box for job selection
+		horizontalLayout_job = QHBoxLayout()
+		horizontalLayout_job.setSpacing(-1)
+		horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_job.setObjectName("horizontalLayout_job")
+		self.nimJobLabel = QLabel()
+		self.nimJobLabel.setFixedWidth(120)
+		self.nimJobLabel.setText("Job:")
+		horizontalLayout_job.addWidget(self.nimJobLabel)
+		self.nim_jobChooser = QComboBox()
+		self.nim_jobChooser.setToolTip("Choose the job you wish to export shots to.")
+		self.nim_jobChooser.setMinimumHeight(28)
+		self.nim_jobChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_job.addWidget(self.nim_jobChooser)
+		horizontalLayout_job.setStretch(1, 40)
+		
+
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['jobID']) == str(value):
+					print("Found Job Preferences")
+					jobIndex = jobIter
+				jobIter += 1
+
+			if self.flamePrefs['jobID'] != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+
+
+		# SERVERS: List box for server selection
+		horizontalLayout_server = QHBoxLayout()
+		horizontalLayout_server.setSpacing(-1)
+		horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_server.setObjectName("horizontalLayout_server")
+		self.nimServerLabel = QLabel()
+		self.nimServerLabel.setFixedWidth(120)
+		self.nimServerLabel.setText("Server:")
+		horizontalLayout_server.addWidget(self.nimServerLabel)
+		self.nim_serverChooser = QComboBox()
+		self.nim_serverChooser.setToolTip("Choose the server you wish to export shots to.")
+		self.nim_serverChooser.setMinimumHeight(28)
+		self.nim_serverChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_server.addWidget(self.nim_serverChooser)
+		horizontalLayout_server.setStretch(1, 40)
+		self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
+		
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show you wish to export shots to.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+	
+
+		# Add the standard ok/cancel buttons, default to ok.
+		self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for the selected preset")
+		self._buttonbox.accepted.connect(self.acceptTest)
+		self._buttonbox.rejected.connect(self.reject)
+		horizontalLayout_OkCancel = QHBoxLayout()
+		horizontalLayout_OkCancel.setSpacing(-1)
+		horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
+		spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		horizontalLayout_OkCancel.addItem(spacerItem4)
+		horizontalLayout_OkCancel.addWidget(self._buttonbox)
+		horizontalLayout_OkCancel.setStretch(1, 40)
+
+
+		groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
+
+		groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
+		#groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_BG)
+
+		groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
+		groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
+		groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
+
+		groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		self.setLayout(groupLayout)
+		layout.addWidget(groupBox)
+
+		self.nim_jobChanged() #trigger job changed to load choosers
+
+
+	def nim_getPresets(self):
+		presetList = []
+		for preset in os.listdir(nimFlamePresetPath+'/edit'):
+			print("PRESET: %s" % preset)
+			if preset.endswith(".xml"):
+				presetName = preset.rpartition('.')[0]
+				presetList.append(presetName)
+				
+		return presetList
+
+
+	def nim_presetChanged(self):
+		'''Action when task type is selected'''
+		self.nim_preset = self.nim_presetChooser.currentText()
+
+
+	def nim_jobChanged(self):
+		'''Action when job is selected'''
+		#print "JOB CHANGED"
+		job = self.nim_jobChooser.currentText()
+		self.nim_jobID = self.nim_jobs[job]
+		self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
+
+		self.nim_updateServer()
+		self.nim_updateShow()
+		
+
+	def nim_updateServer(self):
+		self.nim_servers = {}
+		self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
+		self.nim_serverID = ''
+		self.nim_serverOSPath = ''
+		self.nim_serverDict = {}
+		serverIndex = 0
+		serverIter = 0
+		try:
+			self.nim_serverChooser.clear()
+			if self.nim_serverChooser:
+				if len(self.nim_servers)>0:  
+					for server in self.nim_servers:
+						self.nim_serverDict[server['server']] = server['ID']
+					for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
+						self.nim_serverChooser.addItem(self.clearPix, key)
+
+						if str(self.flamePrefs['serverID']) == str(value):
+							print("Found server preference=", key)
+							serverIndex = serverIter
+						
+						serverIter += 1
+
+					if self.flamePrefs['serverID'] != '':
+						self.nim_serverChooser.setCurrentIndex(serverIndex)
+		except:
+			pass
+
+
+	def nim_serverChanged(self):
+		'''Action when job is selected'''
+		#print "SERVER CHANGED"
+		serverName = self.nim_serverChooser.currentText()
+		if serverName:
+			print("NIM: server=%s" % serverName)
+			serverID = self.nim_serverDict[serverName]
+			self.nim_serverID = serverID
+
+			serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
+			if serverInfo:
+				if len(serverInfo)>0:
+					self.nim_serverOSPath = serverInfo[0]['serverOSPath']
+					print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
+				else:
+					print("NIM: No Server Found")
+			else:
+				print("NIM: No Data Returned")
+
+
+	def nim_updateShow(self):
+		self.nim_shows = {}
+		self.nim_shows = nimAPI.get_shows(self.nim_jobID)
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+
+						if str(self.flamePrefs['showID']) == str(value):
+							print("Found show preference=", key)
+							showIndex = showIter
+						
+						showIter += 1
+
+					if self.flamePrefs['showID'] != '':
+						self.nim_showChooser.setCurrentIndex(showIndex)
+		except:
+			pass
+
+
+	def nim_showChanged(self):
+		'''Action when job is selected'''
+		#print "SHOW CHANGED"
+		showname = self.nim_showChooser.currentText()
+		if showname:
+			print("NIM: show=%s" % showname)
+
+			showID = self.nim_showDict[showname]
+
+			##set showID
+			self.nim_showID = showID
+
+			self.nim_showPaths = nimAPI.get_paths('show', showID)
+			if self.nim_showPaths:
+				if len(self.nim_showPaths)>0:
+					#print "NIM: showPaths=", self.nim_showPaths
+					self.nim_showFolder = self.nim_showPaths['root']
+				else:
+					print("NIM: No Show Paths Found")
+			else:
+				print("NIM: No Data Returned")
+	
+
+	def acceptTest(self):
+		# Get Current Values For Static Objects
+		self.nim_preset = self.nim_presetChooser.currentText()
+		
+		#if self.nim_BgCheck.isChecked() :
+		#	self.nim_bg_export = True
+		#else :
+		#	self.nim_bg_export = False
+
+		# Saving Preferences
+		nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
+		nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
+		nimPrefs.update( 'Show', 'Flame', self.nim_showID )
+
+		# Save Flame-NIM preferences for element associations
+		self.flamePrefs["editPreset"] = self.nim_preset
+		self.flamePrefs["jobID"] = self.nim_jobID
+		self.flamePrefs["serverID"] = self.nim_serverID
+		self.flamePrefs["showID"] = self.nim_showID
+		writeFlamePrefs(self.flamePrefs)
+
+		self.accept()
 
 
 class NimExportDailyDialog(QDialog):
-    def __init__(self, parent=None):
-        super(NimExportDailyDialog, self).__init__(parent)
-
-        self.result = ""
-        QApplication.setOverrideCursor(Qt.ArrowCursor)
-        try:
-            #self.app=nimFile.get_app()
-            self.app = 'Flame'
-            self.prefs=nimPrefs.read()
-            print("NIM - Prefs: ")
-            print(self.prefs)
-
-            if 'NIM_User' in self.prefs :
-                self.user=self.prefs['NIM_User']
-            else :
-                self.user = ''
-
-            # Read Flame specific prefs
-            self.flamePrefs = readFlamePrefs()
-
-            print("NIM - Prefs successfully read")
-
-        except:
-            print("NIM - Failed to read NIM prefs")
-            print('NIM - ERROR: %s' % traceback.print_exc())
-            self.app='Flame'
-            self.user=''
-            pass
-
-        self.nim_OS = platform.system()
-
-        try:
-            self.nim_userID = nimAPI.get_userID(self.user)
-            if not self.nim_userID :
-                nimUI.GUI().update_user()
-                userInfo=nim.NIM().userInfo()
-                self.user = userInfo['name']
-                self.nim_userID = userInfo['ID']
-        except:
-            # failing on user
-            print("NIM - Failed to get userID")
-            self.nim_userID = 0
-
-        print("NIM - user=%s" % self.user)
-        print("NIM - userID=%s" % self.nim_userID)
-
-        self.nim_jobPaths = {}
-        self.nim_showPaths = {}
-        self.nim_shotPaths = {}
-        self.nim_showFolder = ''
-        self.nim_servers = {}
-        self.nim_serverID = None
-        self.nim_serverOSPath = ''
-
-        #Get NIM Jobs
-        self.nim_jobID = None
-        # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
-        self.nim_jobs = nimUtl.getjobs(userid=int(self.nim_userID))
-        if not self.nim_jobs :
-            print("No Jobs Found")
-            self.nim_jobs["None"]="0"
-
-        self.nim_shows = []
-        self.nim_showDict = {}
-        self.nim_showID = None
-
-        self.nim_shots = []
-        self.nim_shotDict = {}
-        self.nim_shotID = None
-
-        self.nim_tasks = []
-        self.nim_taskDict = {}
-        self.nim_taskID = None
-
-        self.setWindowTitle("NIM: Export Task Review")
-        self.setStyleSheet("QLabel {font: 14pt}")
-        self.setSizeGripEnabled(True)
-
-        self._exportTemplate = None
-
-        tag_jobID = None
-        tag_showID = None
-
-
-        layout = QVBoxLayout()
-        formLayout = QFormLayout()
-        groupBox = QGroupBox()
-        groupLayout = QFormLayout()
-        groupBox.setLayout(groupLayout)
-
-        pixmap = QPixmap(1, 24)
-        pixmap.fill(Qt.transparent)
-        self.clearPix = QIcon(pixmap)
-
-
-        # Flame 2 NIM image
-        # 400x88
-        # PRESETS: List box for preset selection
-        horizontalLayout_header = QHBoxLayout()
-        horizontalLayout_header.setSpacing(-1)
-        horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_header.setObjectName("horizontalLayout_header")
-        connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
-        self.nimConnectorHeader = QLabel()
-        self.nimConnectorHeader.setPixmap(connectorImage)
-        horizontalLayout_header.addWidget(self.nimConnectorHeader)
-
-
-        # PRESETS: List box for preset selection
-        horizontalLayout_preset = QHBoxLayout()
-        horizontalLayout_preset.setSpacing(-1)
-        horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_preset.setObjectName("horizontalLayout_preset")
-        self.nimPresetLabel = QLabel()
-        self.nimPresetLabel.setFixedWidth(120)
-        self.nimPresetLabel.setText("Preset:")
-        horizontalLayout_preset.addWidget(self.nimPresetLabel)
-        self.nim_presetChooser = QComboBox()
-        self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
-        self.nim_presetChooser.setMinimumHeight(28)
-        self.nim_presetChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_preset.addWidget(self.nim_presetChooser)
-        horizontalLayout_preset.setStretch(1, 40)
-
-        presetList = self.nim_getPresets()
-        if len(presetList) > 0:
-            presetIndex = 0
-            presetIter = 0
-            for preset in presetList :
-                self.nim_presetChooser.addItem(self.clearPix, preset)
-                # Set Preference
-                if self.flamePrefs['dailyPreset'] == preset:
-                    presetIndex = presetIter
-                presetIter += 1
-
-            if self.flamePrefs['dailyPreset'] != '':
-                self.nim_presetChooser.setCurrentIndex(presetIndex)
-
-        self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
-
-
-        # JOBS: List box for job selection
-        horizontalLayout_job = QHBoxLayout()
-        horizontalLayout_job.setSpacing(-1)
-        horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_job.setObjectName("horizontalLayout_job")
-        self.nimJobLabel = QLabel()
-        self.nimJobLabel.setFixedWidth(120)
-        self.nimJobLabel.setText("Job:")
-        horizontalLayout_job.addWidget(self.nimJobLabel)
-        self.nim_jobChooser = QComboBox()
-        self.nim_jobChooser.setToolTip("Choose the job to filter shows.")
-        self.nim_jobChooser.setMinimumHeight(28)
-        self.nim_jobChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_job.addWidget(self.nim_jobChooser)
-        horizontalLayout_job.setStretch(1, 40)
-
-
-        # JOBS: Add dictionary in ordered list
-        jobIndex = 0
-        jobIter = 0
-        if len(self.nim_jobs)>0:
-            for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
-                self.nim_jobChooser.addItem(self.clearPix, key)
-                if self.flamePrefs['jobID'] == value:
-                    print("Found Job Preferences")
-                    jobIndex = jobIter
-            jobIter += 1
-
-            if self.flamePrefs['jobID'] != '':
-                self.nim_jobChooser.setCurrentIndex(jobIndex)
-
-        self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
-
-
-        # SERVERS: List box for server selection
-        horizontalLayout_server = QHBoxLayout()
-        horizontalLayout_server.setSpacing(-1)
-        horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_server.setObjectName("horizontalLayout_server")
-        self.nimServerLabel = QLabel()
-        self.nimServerLabel.setFixedWidth(120)
-        self.nimServerLabel.setText("Server:")
-        horizontalLayout_server.addWidget(self.nimServerLabel)
-        self.nim_serverChooser = QComboBox()
-        self.nim_serverChooser.setToolTip("Choose the server you wish to export the daily to.")
-        self.nim_serverChooser.setMinimumHeight(28)
-        self.nim_serverChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_server.addWidget(self.nim_serverChooser)
-        horizontalLayout_server.setStretch(1, 40)
-        self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
-
-
-        # SHOWS: List box for show selection
-        horizontalLayout_show = QHBoxLayout()
-        horizontalLayout_show.setSpacing(-1)
-        horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_show.setObjectName("horizontalLayout_show")
-        self.nimShowLabel = QLabel()
-        self.nimShowLabel.setFixedWidth(120)
-        self.nimShowLabel.setText("Show:")
-        horizontalLayout_show.addWidget(self.nimShowLabel)
-        self.nim_showChooser = QComboBox()
-        self.nim_showChooser.setToolTip("Choose the show to filter shots.")
-        self.nim_showChooser.setMinimumHeight(28)
-        self.nim_showChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_show.addWidget(self.nim_showChooser)
-        horizontalLayout_show.setStretch(1, 40)
-        self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
-
-
-        # SHOTS: List box for shot selection
-        horizontalLayout_shot = QHBoxLayout()
-        horizontalLayout_shot.setSpacing(-1)
-        horizontalLayout_shot.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_shot.setObjectName("horizontalLayout_shot")
-        self.nimShotLabel = QLabel()
-        self.nimShotLabel.setFixedWidth(120)
-        self.nimShotLabel.setText("Shot:")
-        horizontalLayout_shot.addWidget(self.nimShotLabel)
-        self.nim_shotChooser = QComboBox()
-        self.nim_shotChooser.setToolTip("Choose the shot to filter tasks.")
-        self.nim_shotChooser.setMinimumHeight(28)
-        self.nim_shotChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_shot.addWidget(self.nim_shotChooser)
-        horizontalLayout_shot.setStretch(1, 40)
-        self.nim_shotChooser.currentIndexChanged.connect(self.nim_shotChanged)
-
-
-        # TASKS: List box for shot selection
-        horizontalLayout_task = QHBoxLayout()
-        horizontalLayout_task.setSpacing(-1)
-        horizontalLayout_task.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_task.setObjectName("horizontalLayout_task")
-        self.nimTaskLabel = QLabel()
-        self.nimTaskLabel.setFixedWidth(120)
-        self.nimTaskLabel.setText("Task:")
-        horizontalLayout_task.addWidget(self.nimTaskLabel)
-        self.nim_taskChooser = QComboBox()
-        self.nim_taskChooser.setToolTip("Choose the task you wish to upload the dialy to.")
-        self.nim_taskChooser.setMinimumHeight(28)
-        self.nim_taskChooser.setIconSize(QSize(1, 24))
-        horizontalLayout_task.addWidget(self.nim_taskChooser)
-        horizontalLayout_task.setStretch(1, 40)
-        self.nim_taskChooser.currentIndexChanged.connect(self.nim_taskChanged)
-
-
-        # Add the standard ok/cancel buttons, default to ok.
-        self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
-        self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for the selected preset")
-        self._buttonbox.accepted.connect(self.acceptTest)
-        self._buttonbox.rejected.connect(self.reject)
-        horizontalLayout_OkCancel = QHBoxLayout()
-        horizontalLayout_OkCancel.setSpacing(-1)
-        horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
-        horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
-        spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        horizontalLayout_OkCancel.addItem(spacerItem4)
-        horizontalLayout_OkCancel.addWidget(self._buttonbox)
-        horizontalLayout_OkCancel.setStretch(1, 40)
-
-
-        groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
-
-        groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
-        groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
-        groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
-        groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
-        groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_shot)
-        groupLayout.setLayout(6, QFormLayout.SpanningRole, horizontalLayout_task)
-
-        groupLayout.setLayout(7, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
-
-        self.setLayout(groupLayout)
-        layout.addWidget(groupBox)
-
-        self.nim_jobChanged() #trigger job changed to load choosers
-
-
-    def nim_getPresets(self):
-        presetList = []
-        for preset in os.listdir(nimFlamePresetPath+'/daily'):
-            print("PRESET: %s" % preset)
-            if preset.endswith(".xml"):
-                presetName = preset.rpartition('.')[0]
-                presetList.append(presetName)
-
-        return presetList
-
-
-    def nim_presetChanged(self):
-        '''Action when task type is selected'''
-        self.nim_preset = self.nim_presetChooser.currentText()
-
-
-    def nim_jobChanged(self):
-        '''Action when job is selected'''
-        #print "JOB CHANGED"
-        job = self.nim_jobChooser.currentText()
-        self.nim_jobID = self.nim_jobs[job]
-        self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
-
-        self.nim_updateServer()
-        self.nim_updateShow()
-
-
-    def nim_updateServer(self):
-        self.nim_servers = {}
-        self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
-        self.nim_serverID = ''
-        self.nim_serverOSPath = ''
-        self.nim_serverDict = {}
-        serverIndex = 0
-        serverIter = 0
-        try:
-            self.nim_serverChooser.clear()
-            if self.nim_serverChooser:
-                if len(self.nim_servers)>0:  
-                    for server in self.nim_servers:
-                        self.nim_serverDict[server['server']] = server['ID']
-                    for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
-                        self.nim_serverChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['serverID'] == value:
-                            print("Found server preference=", key)
-                            serverIndex = serverIter
-
-                        serverIter += 1
-
-                    if self.flamePrefs['serverID'] != '':
-                        self.nim_serverChooser.setCurrentIndex(serverIndex)
-        except:
-            pass
-
-
-    def nim_serverChanged(self):
-        '''Action when job is selected'''
-        #print "SERVER CHANGED"
-        serverName = self.nim_serverChooser.currentText()
-        if serverName:
-            print("NIM: server=%s" % serverName)
-            serverID = self.nim_serverDict[serverName]
-            self.nim_serverID = serverID
-
-            serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
-            if serverInfo:
-                if len(serverInfo)>0:
-                    self.nim_serverOSPath = serverInfo[0]['serverOSPath']
-                    print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
-                else:
-                    print("NIM: No Server Found")
-            else:
-                print("NIM: No Data Returned")
-
-
-    def nim_updateShow(self):
-        self.nim_shows = {}
-        self.nim_shows = nimAPI.get_shows(self.nim_jobID)
-        showIndex = 0
-        showIter = 0
-        self.nim_showDict = {}
-        try:
-            self.nim_showChooser.clear()
-            if self.nim_showChooser:
-                if len(self.nim_shows)>0:  
-                    for show in self.nim_shows:
-                        self.nim_showDict[show['showname']] = show['ID']
-                    for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
-                        self.nim_showChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['showID'] == value:
-                            print("Found show preference=", key)
-                            showIndex = showIter
-
-                        showIter += 1
-
-                    if self.flamePrefs['showID'] != '':
-                        self.nim_showChooser.setCurrentIndex(showIndex)
-        except:
-            pass
-
-
-    def nim_showChanged(self):
-        '''Action when job is selected'''
-        #print "SHOW CHANGED"
-        showname = self.nim_showChooser.currentText()
-        if showname:
-            print("NIM: show=%s" % showname)
-
-            showID = self.nim_showDict[showname]
-
-            ##set showID
-            self.nim_showID = showID
-
-            self.nim_showPaths = nimAPI.get_paths('show', showID)
-            if self.nim_showPaths:
-                if len(self.nim_showPaths)>0:
-                    #print "NIM: showPaths=", self.nim_showPaths
-                    self.nim_showFolder = self.nim_showPaths['root']
-                else:
-                    print("NIM: No Show Paths Found")
-            else:
-                print("NIM: No Data Returned")
-
-            self.nim_updateShot()
-
-
-    def nim_updateShot(self):
-        self.nim_shots = {}
-        self.nim_shots = nimAPI.get_shots(self.nim_showID)
-        #print self.nim_shots
-
-        shotIndex = 0
-        shotIter = 0
-        self.nim_shotDict = {}
-        try:
-            self.nim_shotChooser.clear()
-            if self.nim_shotChooser:
-                if len(self.nim_shots)>0:  
-                    for shot in self.nim_shots:
-                        self.nim_shotDict[shot['name']] = shot['ID']
-                    for key, value in sorted(list(self.nim_shotDict.items()), reverse=False):
-                        self.nim_shotChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['shotID'] == value:
-                            print("Found shot preference=", key)
-                            shotIndex = shotIter
-
-                        shotIter += 1
-
-                    if self.flamePrefs['shotID'] != '':
-                        self.nim_shotChooser.setCurrentIndex(shotIndex)
-        except:
-            pass
-
-
-    def nim_shotChanged(self):
-        '''Action when job is selected'''
-        #print "SHOW CHANGED"
-        shotname = self.nim_shotChooser.currentText()
-        if shotname:
-            print("NIM: show=%s" % shotname)
-
-            shotID = self.nim_shotDict[shotname]
-
-            ##set showID
-            self.nim_shotID = shotID
-
-            self.nim_updateTask()
-
-
-    def nim_updateTask(self):
-        self.nim_tasks = {}
-        self.nim_tasks = nimAPI.get_taskInfo(itemClass='SHOT', itemID=self.nim_shotID)
-        print(self.nim_tasks)
-
-        taskIndex = 0
-        taskIter = 0
-        self.nim_taskDict = {}
-        try:
-            self.nim_taskChooser.clear()
-            if self.nim_taskChooser:
-                if len(self.nim_tasks)>0:  
-                    for task in self.nim_tasks:
-                        taskTitle = task['taskName']
-                        if task['username'] :
-                            taskTitle += " - "+task['username']
-                        if task['taskDesc'] :
-                            taskTitle += " - "+task['taskDesc']
-                        self.nim_taskDict[taskTitle] = task['taskID']
-
-                        print("taskTitle: %s" % taskTitle)
-                    for key, value in sorted(list(self.nim_taskDict.items()), reverse=False):
-                        self.nim_taskChooser.addItem(self.clearPix, key)
-
-                        if self.flamePrefs['taskID'] == value:
-                            print("Found task preference=", key)
-                            taskIndex = taskIter
-
-                        taskIter += 1
-
-                    if self.flamePrefs['taskID'] != '':
-                        self.nim_taskChooser.setCurrentIndex(taskIndex)
-        except:
-            pass
-
-
-    def nim_taskChanged(self):
-        '''Action when job is selected'''
-        #print "TASK CHANGED"
-        taskTitle = self.nim_taskChooser.currentText()
-        if taskTitle:
-            print("NIM: task=%s" % taskTitle)
-            taskID = self.nim_taskDict[taskTitle]
-            ##set taskID
-            self.nim_taskID = taskID
-
-
-    def acceptTest(self):
-        # Get Current Values For Static Objects
-        self.nim_preset = self.nim_presetChooser.currentText()
-
-        # Saving Preferences
-        nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
-        nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
-        nimPrefs.update( 'Show', 'Flame', self.nim_showID )
-
-        # Save Flame-NIM preferences for element associations
-        self.flamePrefs["dailyPreset"] = self.nim_preset
-        self.flamePrefs["jobID"] = self.nim_jobID
-        self.flamePrefs["serverID"] = self.nim_serverID
-        self.flamePrefs["showID"] = self.nim_showID
-        self.flamePrefs["shotID"] = self.nim_shotID
-        self.flamePrefs["taskID"] = self.nim_taskID
-        writeFlamePrefs(self.flamePrefs)
-
-        self.accept()
+	def __init__(self, parent=None):
+		super(NimExportDailyDialog, self).__init__(parent)
+
+		self.result = ""
+		QApplication.setOverrideCursor(Qt.ArrowCursor)
+		try:
+			#self.app=nimFile.get_app()
+			self.app = 'Flame'
+			self.prefs=nimPrefs.read()
+
+			if 'NIM_User' in self.prefs :
+				self.user=self.prefs['NIM_User']
+			else :
+				self.user = ''
+
+			# Read Flame specific prefs
+			self.flamePrefs = readFlamePrefs()
+
+			print("NIM - Prefs successfully read")
+
+		except:
+			print("NIM - Failed to read NIM prefs")
+			print('NIM - ERROR: %s' % traceback.print_exc())
+			self.app='Flame'
+			self.user=''
+			pass
+
+		self.nim_OS = platform.system()
+		
+		try:
+			self.nim_userID = nimAPI.get_userID(self.user)
+			if not self.nim_userID :
+				nimUI.GUI().update_user()
+				userInfo=nim.NIM().userInfo()
+				self.user = userInfo['name']
+				self.nim_userID = userInfo['ID']
+		except:
+			# failing on user
+			print("NIM - Failed to get userID")
+			self.nim_userID = 0
+
+		print("NIM - user=%s" % self.user)
+		print("NIM - userID=%s" % self.nim_userID)
+
+		self.nim_jobPaths = {}
+		self.nim_showPaths = {}
+		self.nim_shotPaths = {}
+		self.nim_showFolder = ''
+		self.nim_servers = {}
+		self.nim_serverID = None
+		self.nim_serverOSPath = ''
+
+		#Get NIM Jobs
+		self.nim_jobID = None
+		self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+		if not self.nim_jobs :
+			print("No Jobs Found")
+			self.nim_jobs["None"]="0"
+		
+		self.nim_shows = []
+		self.nim_showDict = {}
+		self.nim_showID = None
+
+		self.nim_shots = []
+		self.nim_shotDict = {}
+		self.nim_shotID = None
+
+		self.nim_tasks = []
+		self.nim_taskDict = {}
+		self.nim_taskID = None
+		
+		self.setWindowTitle("NIM: Export Task Review")
+		self.setStyleSheet("QLabel {font: 14pt}")
+		self.setSizeGripEnabled(True)
+
+		self._exportTemplate = None
+
+		tag_jobID = None
+		tag_showID = None
+
+
+		layout = QVBoxLayout()
+		formLayout = QFormLayout()
+		groupBox = QGroupBox()
+		groupLayout = QFormLayout()
+		groupBox.setLayout(groupLayout)
+
+		pixmap = QPixmap(1, 24)
+		pixmap.fill(Qt.transparent)
+		self.clearPix = QIcon(pixmap)
+		
+
+		# Flame 2 NIM image
+		# 400x88
+		# PRESETS: List box for preset selection
+		horizontalLayout_header = QHBoxLayout()
+		horizontalLayout_header.setSpacing(-1)
+		horizontalLayout_header.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_header.setObjectName("horizontalLayout_header")
+		connectorImage = QPixmap(nimFlameImgPath+"/flm2nim.png")
+		self.nimConnectorHeader = QLabel()
+		self.nimConnectorHeader.setPixmap(connectorImage)
+		horizontalLayout_header.addWidget(self.nimConnectorHeader)
+
+
+		# PRESETS: List box for preset selection
+		horizontalLayout_preset = QHBoxLayout()
+		horizontalLayout_preset.setSpacing(-1)
+		horizontalLayout_preset.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_preset.setObjectName("horizontalLayout_preset")
+		self.nimPresetLabel = QLabel()
+		self.nimPresetLabel.setFixedWidth(120)
+		self.nimPresetLabel.setText("Preset:")
+		horizontalLayout_preset.addWidget(self.nimPresetLabel)
+		self.nim_presetChooser = QComboBox()
+		self.nim_presetChooser.setToolTip("Choose the NIM preset to use for this export.")
+		self.nim_presetChooser.setMinimumHeight(28)
+		self.nim_presetChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_preset.addWidget(self.nim_presetChooser)
+		horizontalLayout_preset.setStretch(1, 40)
+
+		presetList = self.nim_getPresets()
+		if len(presetList) > 0:
+			presetIndex = 0
+			presetIter = 0
+			for preset in presetList :
+				self.nim_presetChooser.addItem(self.clearPix, preset)
+				# Set Preference
+				if self.flamePrefs['dailyPreset'] == preset:
+					presetIndex = presetIter
+				presetIter += 1
+
+			if self.flamePrefs['dailyPreset'] != '':
+				self.nim_presetChooser.setCurrentIndex(presetIndex)
+
+		self.nim_presetChooser.currentIndexChanged.connect(self.nim_presetChanged)
+
+
+		# JOBS: List box for job selection
+		horizontalLayout_job = QHBoxLayout()
+		horizontalLayout_job.setSpacing(-1)
+		horizontalLayout_job.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_job.setObjectName("horizontalLayout_job")
+		self.nimJobLabel = QLabel()
+		self.nimJobLabel.setFixedWidth(120)
+		self.nimJobLabel.setText("Job:")
+		horizontalLayout_job.addWidget(self.nimJobLabel)
+		self.nim_jobChooser = QComboBox()
+		self.nim_jobChooser.setToolTip("Choose the job to filter shows.")
+		self.nim_jobChooser.setMinimumHeight(28)
+		self.nim_jobChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_job.addWidget(self.nim_jobChooser)
+		horizontalLayout_job.setStretch(1, 40)
+		
+
+		# JOBS: Add dictionary in ordered list
+		jobIndex = 0
+		jobIter = 0
+		if len(self.nim_jobs)>0:
+			for key, value in sorted(list(self.nim_jobs.items()), reverse=True):
+				self.nim_jobChooser.addItem(self.clearPix, key)
+				if str(self.flamePrefs['jobID']) == str(value):
+					print("Found Job Preferences")
+					jobIndex = jobIter
+				jobIter += 1
+
+			if self.flamePrefs['jobID'] != '':
+				self.nim_jobChooser.setCurrentIndex(jobIndex)
+
+		self.nim_jobChooser.currentIndexChanged.connect(self.nim_jobChanged)
+
+
+		# SERVERS: List box for server selection
+		horizontalLayout_server = QHBoxLayout()
+		horizontalLayout_server.setSpacing(-1)
+		horizontalLayout_server.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_server.setObjectName("horizontalLayout_server")
+		self.nimServerLabel = QLabel()
+		self.nimServerLabel.setFixedWidth(120)
+		self.nimServerLabel.setText("Server:")
+		horizontalLayout_server.addWidget(self.nimServerLabel)
+		self.nim_serverChooser = QComboBox()
+		self.nim_serverChooser.setToolTip("Choose the server you wish to export the daily to.")
+		self.nim_serverChooser.setMinimumHeight(28)
+		self.nim_serverChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_server.addWidget(self.nim_serverChooser)
+		horizontalLayout_server.setStretch(1, 40)
+		self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
+		
+
+		# SHOWS: List box for show selection
+		horizontalLayout_show = QHBoxLayout()
+		horizontalLayout_show.setSpacing(-1)
+		horizontalLayout_show.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_show.setObjectName("horizontalLayout_show")
+		self.nimShowLabel = QLabel()
+		self.nimShowLabel.setFixedWidth(120)
+		self.nimShowLabel.setText("Show:")
+		horizontalLayout_show.addWidget(self.nimShowLabel)
+		self.nim_showChooser = QComboBox()
+		self.nim_showChooser.setToolTip("Choose the show to filter shots.")
+		self.nim_showChooser.setMinimumHeight(28)
+		self.nim_showChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_show.addWidget(self.nim_showChooser)
+		horizontalLayout_show.setStretch(1, 40)
+		self.nim_showChooser.currentIndexChanged.connect(self.nim_showChanged)
+
+
+		# SHOTS: List box for shot selection
+		horizontalLayout_shot = QHBoxLayout()
+		horizontalLayout_shot.setSpacing(-1)
+		horizontalLayout_shot.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_shot.setObjectName("horizontalLayout_shot")
+		self.nimShotLabel = QLabel()
+		self.nimShotLabel.setFixedWidth(120)
+		self.nimShotLabel.setText("Shot:")
+		horizontalLayout_shot.addWidget(self.nimShotLabel)
+		self.nim_shotChooser = QComboBox()
+		self.nim_shotChooser.setToolTip("Choose the shot to filter tasks.")
+		self.nim_shotChooser.setMinimumHeight(28)
+		self.nim_shotChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_shot.addWidget(self.nim_shotChooser)
+		horizontalLayout_shot.setStretch(1, 40)
+		self.nim_shotChooser.currentIndexChanged.connect(self.nim_shotChanged)
+
+
+		# TASKS: List box for shot selection
+		horizontalLayout_task = QHBoxLayout()
+		horizontalLayout_task.setSpacing(-1)
+		horizontalLayout_task.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_task.setObjectName("horizontalLayout_task")
+		self.nimTaskLabel = QLabel()
+		self.nimTaskLabel.setFixedWidth(120)
+		self.nimTaskLabel.setText("Task:")
+		horizontalLayout_task.addWidget(self.nimTaskLabel)
+		self.nim_taskChooser = QComboBox()
+		self.nim_taskChooser.setToolTip("Choose the task you wish to upload the dialy to.")
+		self.nim_taskChooser.setMinimumHeight(28)
+		self.nim_taskChooser.setIconSize(QSize(1, 24))
+		horizontalLayout_task.addWidget(self.nim_taskChooser)
+		horizontalLayout_task.setStretch(1, 40)
+		self.nim_taskChooser.currentIndexChanged.connect(self.nim_taskChanged)
+	
+
+		# Add the standard ok/cancel buttons, default to ok.
+		self._buttonbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setText("Export")
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setDefault(True)
+		self._buttonbox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("Executes exports on selection for the selected preset")
+		self._buttonbox.accepted.connect(self.acceptTest)
+		self._buttonbox.rejected.connect(self.reject)
+		horizontalLayout_OkCancel = QHBoxLayout()
+		horizontalLayout_OkCancel.setSpacing(-1)
+		horizontalLayout_OkCancel.setSizeConstraint(QLayout.SetDefaultConstraint)
+		horizontalLayout_OkCancel.setObjectName("horizontalLayout_OkCancel")
+		spacerItem4 = QSpacerItem(175, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		horizontalLayout_OkCancel.addItem(spacerItem4)
+		horizontalLayout_OkCancel.addWidget(self._buttonbox)
+		horizontalLayout_OkCancel.setStretch(1, 40)
+
+
+		groupLayout.setLayout(0, QFormLayout.SpanningRole, horizontalLayout_header)
+
+		groupLayout.setLayout(1, QFormLayout.SpanningRole, horizontalLayout_preset)
+		groupLayout.setLayout(2, QFormLayout.SpanningRole, horizontalLayout_job)
+		groupLayout.setLayout(3, QFormLayout.SpanningRole, horizontalLayout_server)
+		groupLayout.setLayout(4, QFormLayout.SpanningRole, horizontalLayout_show)
+		groupLayout.setLayout(5, QFormLayout.SpanningRole, horizontalLayout_shot)
+		groupLayout.setLayout(6, QFormLayout.SpanningRole, horizontalLayout_task)
+
+		groupLayout.setLayout(7, QFormLayout.SpanningRole, horizontalLayout_OkCancel)
+
+		self.setLayout(groupLayout)
+		layout.addWidget(groupBox)
+
+		self.nim_jobChanged() #trigger job changed to load choosers
+
+
+	def nim_getPresets(self):
+		presetList = []
+		for preset in os.listdir(nimFlamePresetPath+'/daily'):
+			print("PRESET: %s" % preset)
+			if preset.endswith(".xml"):
+				presetName = preset.rpartition('.')[0]
+				presetList.append(presetName)
+				
+		return presetList
+
+
+	def nim_presetChanged(self):
+		'''Action when task type is selected'''
+		self.nim_preset = self.nim_presetChooser.currentText()
+
+
+	def nim_jobChanged(self):
+		'''Action when job is selected'''
+		#print "JOB CHANGED"
+		job = self.nim_jobChooser.currentText()
+		self.nim_jobID = self.nim_jobs[job]
+		self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
+
+		self.nim_updateServer()
+		self.nim_updateShow()
+		
+
+	def nim_updateServer(self):
+		self.nim_servers = {}
+		self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
+		self.nim_serverID = ''
+		self.nim_serverOSPath = ''
+		self.nim_serverDict = {}
+		serverIndex = 0
+		serverIter = 0
+		try:
+			self.nim_serverChooser.clear()
+			if self.nim_serverChooser:
+				if len(self.nim_servers)>0:  
+					for server in self.nim_servers:
+						self.nim_serverDict[server['server']] = server['ID']
+					for key, value in sorted(list(self.nim_serverDict.items()), reverse=False):
+						self.nim_serverChooser.addItem(self.clearPix, key)
+
+						if str(self.flamePrefs['serverID']) == str(value):
+							print("Found server preference=", key)
+							serverIndex = serverIter
+						
+						serverIter += 1
+
+					if self.flamePrefs['serverID'] != '':
+						self.nim_serverChooser.setCurrentIndex(serverIndex)
+		except:
+			pass
+
+
+	def nim_serverChanged(self):
+		'''Action when job is selected'''
+		#print "SERVER CHANGED"
+		serverName = self.nim_serverChooser.currentText()
+		if serverName:
+			print("NIM: server=%s" % serverName)
+			serverID = self.nim_serverDict[serverName]
+			self.nim_serverID = serverID
+
+			serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
+			if serverInfo:
+				if len(serverInfo)>0:
+					self.nim_serverOSPath = serverInfo[0]['serverOSPath']
+					print("NIM: serverOSPath=%s" % self.nim_serverOSPath)
+				else:
+					print("NIM: No Server Found")
+			else:
+				print("NIM: No Data Returned")
+
+
+	def nim_updateShow(self):
+		self.nim_shows = {}
+		self.nim_shows = nimAPI.get_shows(self.nim_jobID)
+		showIndex = 0
+		showIter = 0
+		self.nim_showDict = {}
+		try:
+			self.nim_showChooser.clear()
+			if self.nim_showChooser:
+				if len(self.nim_shows)>0:  
+					for show in self.nim_shows:
+						self.nim_showDict[show['showname']] = show['ID']
+					for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
+						self.nim_showChooser.addItem(self.clearPix, key)
+						
+						if str(self.flamePrefs['showID']) == str(value):
+							print("Found show preference=", key)
+							showIndex = showIter
+						
+						showIter += 1
+
+					if self.flamePrefs['showID'] != '':
+						self.nim_showChooser.setCurrentIndex(showIndex)
+		except:
+			pass
+
+
+	def nim_showChanged(self):
+		'''Action when job is selected'''
+		#print "SHOW CHANGED"
+		showname = self.nim_showChooser.currentText()
+		if showname:
+			print("NIM: show=%s" % showname)
+
+			showID = self.nim_showDict[showname]
+
+			##set showID
+			self.nim_showID = showID
+
+			self.nim_showPaths = nimAPI.get_paths('show', showID)
+			if self.nim_showPaths:
+				if len(self.nim_showPaths)>0:
+					#print "NIM: showPaths=", self.nim_showPaths
+					self.nim_showFolder = self.nim_showPaths['root']
+				else:
+					print("NIM: No Show Paths Found")
+			else:
+				print("NIM: No Data Returned")
+
+			self.nim_updateShot()
+
+
+	def nim_updateShot(self):
+		self.nim_shots = {}
+		self.nim_shots = nimAPI.get_shots(self.nim_showID)
+		#print self.nim_shots
+
+		shotIndex = 0
+		shotIter = 0
+		self.nim_shotDict = {}
+		try:
+			self.nim_shotChooser.clear()
+			if self.nim_shotChooser:
+				if len(self.nim_shots)>0:  
+					for shot in self.nim_shots:
+						self.nim_shotDict[shot['name']] = shot['ID']
+					for key, value in sorted(list(self.nim_shotDict.items()), reverse=False):
+						self.nim_shotChooser.addItem(self.clearPix, key)
+						
+						if str(self.flamePrefs['shotID']) == str(value):
+							print("Found shot preference=", key)
+							shotIndex = shotIter
+						
+						shotIter += 1
+
+					if self.flamePrefs['shotID'] != '':
+						self.nim_shotChooser.setCurrentIndex(shotIndex)
+		except:
+			pass
+
+
+	def nim_shotChanged(self):
+		'''Action when job is selected'''
+		#print "SHOW CHANGED"
+		shotname = self.nim_shotChooser.currentText()
+		if shotname:
+			print("NIM: show=%s" % shotname)
+
+			shotID = self.nim_shotDict[shotname]
+
+			##set showID
+			self.nim_shotID = shotID
+
+			self.nim_updateTask()
+
+
+	def nim_updateTask(self):
+		self.nim_tasks = {}
+		self.nim_tasks = nimAPI.get_taskInfo(itemClass='SHOT', itemID=self.nim_shotID)
+		print(self.nim_tasks)
+
+		taskIndex = 0
+		taskIter = 0
+		self.nim_taskDict = {}
+		try:
+			self.nim_taskChooser.clear()
+			if self.nim_taskChooser:
+				if len(self.nim_tasks)>0:  
+					for task in self.nim_tasks:
+						taskTitle = task['taskName']
+						if task['username'] :
+							taskTitle += " - "+task['username']
+						if task['taskDesc'] :
+							taskTitle += " - "+task['taskDesc']
+						self.nim_taskDict[taskTitle] = task['taskID']
+
+						print("taskTitle: %s" % taskTitle)
+					for key, value in sorted(list(self.nim_taskDict.items()), reverse=False):
+						self.nim_taskChooser.addItem(self.clearPix, key)
+						
+						if str(self.flamePrefs['taskID']) == str(value):
+							print("Found task preference=", key)
+							taskIndex = taskIter
+						
+						taskIter += 1
+
+					if self.flamePrefs['taskID'] != '':
+						self.nim_taskChooser.setCurrentIndex(taskIndex)
+		except:
+			pass
+
+
+	def nim_taskChanged(self):
+		'''Action when job is selected'''
+		#print "TASK CHANGED"
+		taskTitle = self.nim_taskChooser.currentText()
+		if taskTitle:
+			print("NIM: task=%s" % taskTitle)
+			taskID = self.nim_taskDict[taskTitle]
+			##set taskID
+			self.nim_taskID = taskID
+
+
+	def acceptTest(self):
+		# Get Current Values For Static Objects
+		self.nim_preset = self.nim_presetChooser.currentText()
+		
+		# Saving Preferences
+		nimPrefs.update( 'Job', 'Flame', self.nim_jobID )
+		nimPrefs.update( 'ServerID', 'Flame', self.nim_serverID )
+		nimPrefs.update( 'Show', 'Flame', self.nim_showID )
+
+		# Save Flame-NIM preferences for element associations
+		self.flamePrefs["dailyPreset"] = self.nim_preset
+		self.flamePrefs["jobID"] = self.nim_jobID
+		self.flamePrefs["serverID"] = self.nim_serverID
+		self.flamePrefs["showID"] = self.nim_showID
+		self.flamePrefs["shotID"] = self.nim_shotID
+		self.flamePrefs["taskID"] = self.nim_taskID
+		writeFlamePrefs(self.flamePrefs)
+
+		self.accept()
 
 
 def nimCreateShot(nim_showID=None, info=None) :
@@ -2984,23 +3362,27 @@ def nimCreateShot(nim_showID=None, info=None) :
 
     result = {}
 
-    if nim_showID != None:
-        nim_shotID = False
-        nim_shotName = info['shotName']
-        nim_sourceIn = info['sourceIn']
-        nim_sourceOut = info['sourceOut']
-        nim_handleIn = info['handleIn']
-        nim_handleOut = info['handleOut']
-        nim_duration = nim_sourceOut - nim_sourceIn
-        nim_assetType = info['assetType']
-        nim_destinationPath = info['destinationPath']
-        nim_resolvedPath = info['resolvedPath']
-        nim_fullPath = os.path.join(nim_destinationPath, nim_resolvedPath)
+	if nim_showID != None:
+		nim_shotID = False
+		nim_shotName = info['shotName']
+		nim_sourceIn = info['sourceIn']
+		nim_sourceOut = info['sourceOut']
+		nim_handleIn = info['handleIn']
+		nim_handleOut = info['handleOut']
+		nim_duration = nim_sourceOut - nim_sourceIn
+		nim_fps = info['fps']
+		nim_format = info['aspectRatio']
+		nim_format = float(nim_format)
+		nim_format = int(nim_format * 100) / 100.0
+		nim_assetType = info['assetType']
+		nim_destinationPath = info['destinationPath']
+		nim_resolvedPath = info['resolvedPath']
+		nim_fullPath = os.path.join(nim_destinationPath, nim_resolvedPath)
 
         #TODO: If shotName is '' then set to assetName
 
-        print("NIM - Exporting Shot Info")
-        shotInfo = nimAPI.add_shot( showID=nim_showID, name=nim_shotName, frames=nim_duration )
+		print("NIM - Exporting Shot Info")
+		shotInfo = nimAPI.add_shot( showID=nim_showID, name=nim_shotName, frames=nim_duration, heads=nim_handleIn, tails=nim_handleOut, fps=nim_fps, format=nim_format )
 
         if shotInfo['success'] == 'true':
             result['success'] = True
@@ -4392,14 +4774,14 @@ def writeFlamePrefs( flamePrefs=None ) :
             oldPrefs[key] = value
 
     #  Write new preferences :
-    try :
-        with open(flamePrefFile, 'w') as flameFile :
-            for key, value in oldPrefs.items() :
-                line = key+"="+value+"\n"
-                flameFile.write(line)
-    except :
-        print("Failed to write NIM Flame Preferences")
-        print('NIM - ERROR: %s' % traceback.print_exc())
-        return False
+	try :
+		with open(flamePrefFile, 'w') as flameFile :
+			for key, value in oldPrefs.items() :
+				line = str(key)+"="+str(value)+"\n"
+				flameFile.write(line)
+	except :
+		print("Failed to write NIM Flame Preferences")
+		print('NIM - ERROR: %s' % traceback.print_exc())
+		return False
 
     return True

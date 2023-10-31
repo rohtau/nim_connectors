@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_prefs.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -32,13 +32,13 @@ except :
     pass
 
 #  Variables :
-version='v5.1.2'
+version='v6.0.4'
 prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
 winTitle='NIM_'+version
 nim_URL='http://hostname/nimAPI.php'
 nim_useSLL='False'
-nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir))
+nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir, os.pardir))
 nim_user, nim_userID='', ''
 nim_img='/img/nim_logo.png'
 css_dir= nim_scripts+'/css'

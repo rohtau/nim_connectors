@@ -4,7 +4,7 @@
 # Filename: hook.py
 # Version:  v4.0.57.201016
 #
-# Copyright (c) 2014-2020 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -65,8 +65,8 @@ import nimFlameExport
 # sequenceName : Name of the rendered sequence -- String.
 # elapsedTimeInSeconds : number of seconds used to render -- Float
 def renderEnded(moduleName, sequenceName, elapsedTimeInSeconds):
-   print "renderEnded - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-   print "renderEnded - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+   print "renderEnded - START"
+   print "renderEnded - END"
    pass
 
 

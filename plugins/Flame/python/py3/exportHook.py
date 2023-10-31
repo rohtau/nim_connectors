@@ -2,10 +2,10 @@
 #******************************************************************************
 #
 # Filename:    exportHook.py
-# Version:     v5.0.11.210722
+# Version:     v6.0.4.230905
 # Compatible:  Python 3.x
 #
-# Copyright (c) 2014-2021 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -139,7 +139,7 @@ debug = False
 #   The object can be modified but not reassigned.
 #
 def pre_custom_export(info, userData, *args, **kwargs):
-    print("pre_custom_export - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("pre_custom_export - START")
     if debug :
         print(info)
         print(userData)
@@ -476,10 +476,8 @@ def pre_custom_export(info, userData, *args, **kwargs):
             print("NIM - Canceled Export to NIM")
             userData['nim_export_edit'] = False
             info['abort'] = True
-
-
-
-    print("pre_custom_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    
+    print("pre_custom_export - END")
     pass
 
 
@@ -507,11 +505,11 @@ def pre_custom_export(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def post_custom_export(info, userData, *args, **kwargs):
-    print("post_custom_export - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("post_custom_export - START")
     if debug :
         print(info)
         print(userData)
-    print("post_custom_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("post_custom_export - END")
     pass
 
 
@@ -546,11 +544,11 @@ def post_custom_export(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def pre_export(info, userData, *args, **kwargs):
-    print("pre_export - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("pre_export - START")
     if debug :
         pprint(info)
         pprint(userData)
-    print("pre_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("pre_export - END")
     pass
 
 
@@ -577,11 +575,11 @@ def pre_export(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def post_export(info, userData, *args, **kwargs):
-    print("post_export - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("post_export - START")
     if debug :
         print(info)
         print(userData)
-    print("post_export - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("post_export - END")
     pass
 
 
@@ -625,7 +623,7 @@ def post_export(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def pre_export_sequence(info, userData, *args, **kwargs):
-    print("pre_export_sequence - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("pre_export_sequence - START")
     
     if debug :
         pprint(info)
@@ -635,7 +633,7 @@ def pre_export_sequence(info, userData, *args, **kwargs):
     # If standard export then ask for NIM association
     nimShowDialog = False
     
-    print("pre_export_sequence - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("pre_export_sequence - END")
     pass
 
 
@@ -670,7 +668,7 @@ def pre_export_sequence(info, userData, *args, **kwargs):
 #   The object can be modified but not reassigned.
 #
 def post_export_sequence(info, userData, *args, **kwargs):
-    print("post_export_sequence - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("post_export_sequence - START")
     if debug :
         print(info)
         print(userData)
@@ -729,7 +727,7 @@ def post_export_sequence(info, userData, *args, **kwargs):
                 mov_path = userData['dailyData']['path']
                 result = nimFlameExport.uploadDaily(nim_taskID=nim_taskID, mov_path=mov_path)
     
-    print("post_export_sequence - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("post_export_sequence - END")
     pass
 
 
@@ -862,7 +860,10 @@ def pre_export_asset(info, userData, *args, **kwargs):
     # The task wil be set as in progress
     # Do we need reviews? I prefer to add them, but it can be expensive because
     # all the export is local.
-    print("pre_export_asset - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("pre_export_asset - START")
+    if debug :
+        print(info)
+        print(userData)
 
     if 'nim_export_sequence' in userData and  userData['nim_export_sequence']:
         if 'nim_export_type' in userData and userData['nim_export_type']== 'rohtauExportSequence' :
@@ -941,7 +942,7 @@ def pre_export_asset(info, userData, *args, **kwargs):
         print("resolvedPath: %s" % info['resolvedPath'])
         #print "shotName: %s" % info['shotName']
 
-    print("pre_export_asset - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    print("pre_export_asset - END")
     pass
 
 
@@ -1062,7 +1063,7 @@ def pre_export_asset(info, userData, *args, **kwargs):
 #
 def post_export_asset(info, userData, *args, **kwargs):
 
-    print("post_export_asset - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("post_export_asset - START")
     if debug :
         print(info)
         print(userData)
@@ -1132,7 +1133,7 @@ def post_export_asset(info, userData, *args, **kwargs):
         #print "shotName: %s" % info['shotName']
         #print "shotID: %s" % userData['currentShotID']
     
-    print("post_export_asset - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<") 
+    print("post_export_asset - END") 
     
     pass
 
@@ -1171,14 +1172,14 @@ def export_overwrite_file(path, *args, **kwargs):
 #    of the profiles to show in contextual menus.
 #
 def get_custom_export_profiles(profiles, *args, **kwargs):
-    print("get_custom_export_profiles - start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print("get_custom_export_profiles - START")
     profiles['rohtau - Publish Sequence']   = {'nim_export_type':'rohtauExportSequence'}   #Adds an entry to the 'userData' dictionary
     profiles['rohtau - Create Review']      = {'nim_export_type':'rohtauExportReview'}       #Adds an entry to the 'userData' dictionary
     # profiles['NIM Publish Sequence']      = {'nim_export_type':'NimExportSequence'}   #Adds an entry to the 'userData' dictionary
     # profiles['NIM Export Review to Show'] = {'nim_export_type':'NimExportEdit'}       #Adds an entry to the 'userData' dictionary
     # profiles['NIM Export Review to Task'] = {'nim_export_type':'NimExportDaily'}      #Adds an entry to the 'userData' dictionary
-    
-    print("get_custom_export_profiles - end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
+    print("get_custom_export_profiles - END")
     pass
 
 

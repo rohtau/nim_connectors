@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: UI.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -48,7 +48,7 @@ except ImportError :
                 print "NIM UI: Failed to UI Modules"
 
 #  Variables :
-version='v5.1.2'
+version='v6.0.4'
 WIN=''
 startTime=''
 winTitle='NIM_'+version
@@ -1566,6 +1566,11 @@ class GUI(QtGui.QMainWindow) :
 
             P.debug( '    _os = %s' % _os)
             for js in self.nim.Dict('server') :
+                js['winPath'] = "" if js['winPath'] is None else js['winPath']
+                js['osxPath'] = "" if js['osxPath'] is None else js['osxPath']
+                js['path'] = "" if js['path'] is None else js['path']
+                js['server'] = "" if js['server'] is None else js['server']
+
                 if _os in ['windows', 'win32'] :
                     self.nim.Input('server').addItem( js['winPath']+' - ("'+js['server']+'")' )
                     if js['ID'] ==self.pref_serverID :
