@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: UI.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -68,7 +68,7 @@ else:
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
-    from PySide2 import QtGui     as QtGui2
+    from PySide2 import QtGui as QtGui2
     from PySide2 import QtCore
 except ImportError :
     try : 
@@ -726,8 +726,6 @@ class GUI(QtGui.QMainWindow) :
 
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        # if self.app !='Houdini' :
-            # self.menuBar().addMenu( userMenu )
         self.menuBar().addMenu( userMenu )
 
         #  Make Connections :
@@ -759,8 +757,6 @@ class GUI(QtGui.QMainWindow) :
         
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        # if self.app !='Houdini' :
-            # self.menuBar().addMenu( modeMenu )
         self.menuBar().addMenu( modeMenu )
         
         #  Make Connections :
@@ -1378,10 +1374,6 @@ class GUI(QtGui.QMainWindow) :
             raise Exception("Failed to populate elements")
             return
 
-        # if elem == 'base':
-            # print("NIM Dict")
-            # pprint(self.nim.get_nim())
-
         #  Clear Fields for Empty Dictionaries :
         if not self.nim.Dict( elem ) or not len(self.nim.Dict( elem )) :
             if elem in self.nim.comboBoxes :
@@ -1539,9 +1531,9 @@ class GUI(QtGui.QMainWindow) :
                         idx =  jobs.index(rezjob) 
                         widget.setCurrentIndex( idx )
                         self.populate_server()
-                    widget.setEnabled( False )
-                    self.nim.set_name( elem='job', name=rezjob )
-                    self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx).encode('utf-8')] )
+                        widget.setEnabled( False )
+                        self.nim.set_name( elem='job', name=rezjob )
+                        self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
                     P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
                 # else:
                     # P.warning("Couldn't find a valid Rez context for any available job")
@@ -1659,7 +1651,7 @@ class GUI(QtGui.QMainWindow) :
                                 and latestver['customKeys']['File Type'].split()[0] != 'Scene':
                             item.setFlags( QtCore.Qt.NoItemFlags )
                         # Ownership color
-                        if latestver['userID'].encode('ascii') == userinfo['ID']:
+                        if latestver['userID'] == userinfo['ID']:
                             item.setBackground(self.backClrs['Green'])
                         else:
                             item.setBackground(self.backClrs['Red'])
@@ -1917,8 +1909,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
-                                    self.verVer.setText( option['version'].zfill(padding) )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                             elif self.nim.mode().lower() in ['open', 'file'] :
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1963,7 +1954,8 @@ class GUI(QtGui.QMainWindow) :
                                 item.setWhatsThis( tooltip )
 
                                 #  Set from preferences :
-                                if option['filename']+' - '+option['note']==self.pref_version:
+                                if option['filename']+' - '+option['note']==self.pref_version and \
+                                        self.nim.mode() != 'publish' :
                                     self.nim.Input( elem ).setCurrentItem( item )
                                     #  Set variables :
                                     self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
@@ -1972,14 +1964,18 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
-                                    self.verVer.setText( option['version'].zfill(padding) )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
-                            if option['userID'].encode('ascii') == userinfo['ID']:
+                            print("User IDs")
+                            print(option['userID'])
+                            print(userinfo['ID'])
+                            option['userID']
+                            userinfo['ID']
+                            if option['userID'] == userinfo['ID']:
                                 item.setBackground(self.backClrs['Green'])
                             else:
                                 item.setBackground(self.backClrs['Red'])
@@ -2020,7 +2016,7 @@ class GUI(QtGui.QMainWindow) :
 
                             #  Set from preferences :
                             if option['filename']+' - '+option['note']==self.pref_version and \
-                                self.nim.mode() is not 'publish' :
+                                self.nim.mode() != 'publish' :
                                 self.nim.Input( elem ).setCurrentItem( item )
                                 #  Set variables :
                                 self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
@@ -2029,8 +2025,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( option['filepath'] )
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
-                                # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
-                                self.verVer.setText( option['version'].zfill(padding) )
+                                self.verVer.setText( str(option['version']).zfill(padding) )
                                 self.verNote.setText( option['note'] )
         
         
@@ -2067,6 +2062,11 @@ class GUI(QtGui.QMainWindow) :
 
             P.debug( '    _os = %s' % _os)
             for js in self.nim.Dict('server') :
+                js['winPath'] = "" if js['winPath'] is None else js['winPath']
+                js['osxPath'] = "" if js['osxPath'] is None else js['osxPath']
+                js['path'] = "" if js['path'] is None else js['path']
+                js['server'] = "" if js['server'] is None else js['server']
+
                 if _os in ['windows', 'win32'] :
                     self.nim.Input('server').addItem( js['winPath']+' - ("'+js['server']+'")' )
                     if js['ID'] ==self.pref_serverID :
@@ -2312,7 +2312,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                         elif self.nim.mode().lower() in ['open', 'file'] :
                             if self.nim.Input( elem ).currentItem() :
@@ -2324,8 +2324,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
-                                    # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
-                                    self.verVer.setText( option['version'].zfill(padding) )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                     #  Work Filter :
                     elif self.nim.name('filter')=='Work' :
@@ -2356,8 +2355,7 @@ class GUI(QtGui.QMainWindow) :
                                         self.verPath.setText( option['filepath'] )
                                         self.verUser.setText( option['username'] )
                                         self.verDate.setText( option['date'] )
-                                        # self.verVer.setText( option['version'].encode('ascii').zfill(padding) )
-                                        self.verVer.setText( option['version'].zfill(padding) )
+                                        self.verVer.setText( str(option['version']).zfill(padding) )
                                         self.verNote.setText( option['note'] )
         
         
@@ -2527,7 +2525,7 @@ class GUI(QtGui.QMainWindow) :
                     myssl.verify_mode=ssl.CERT_NONE
                     _data=urllib.urlopen( img_loc,context=myssl ).read()
                 except :
-                    _data=urllib.urlopen( img_loc ).read()
+                    print('Failed to read image from url.')
             
             if _data is not None :
                 try :
@@ -2876,7 +2874,6 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Print( debug=True )
             P.debug(' ')
 
-
         # Return focus to Main Window for 3dsMax
         '''
         if self.app=='3dsMax' :
@@ -3112,8 +3109,12 @@ class GUI(QtGui.QMainWindow) :
                 name=nuke.root().name()
                 nuke.tprint("Scne name: %s"%name)
                 #  Prompt to manually save the file, if modified and no variables present :
-                if mod and name == 'Root':
-                    P.warning("Reset Untitled script and open selected one")
+                if mod and not nimCheck.ID('shot') and not nimCheck.ID('asset') :
+                    msg='Please Save your current file first'
+                    P.error( msg )
+                    Win.popup( title='NIM - Import Error', msg=msg )
+                    self.close()
+                    return False
                 #  Prompt to Save the current file :
                 elif mod :
                     # result=N.Win_SavePySide.get_btn()
@@ -3401,6 +3402,16 @@ class GUI(QtGui.QMainWindow) :
 
         # TODO: ensure that tag is for a basename for the same app type. For
         # instance dont try to save a Houdini scene on a Nuke basename tag
+        #  Ensure that if tag has been entered, that the Basename doesn't already exist :
+        if self.nim.name('tag') :
+            for item in self.nim.Dict('base') :
+                if item['basename']==basename :
+                    msg='Specified basename, generated by the tag field ("%s"), already exists.\n' % basename
+                    msg+='    Please either select an existing basename, or use a tag that isn\'t already in use.\n'
+                    msg+='    Nothing done.'
+                    P.error( msg )
+                    Win.popup( title='NIM - Tag Error', msg=msg )
+                    return False
         
         # Stop Maya Undo Queue
         if self.app=='Maya' :
@@ -3596,9 +3607,8 @@ class GUI(QtGui.QMainWindow) :
                     print('No Open protocal defined yet')
                 if self.nim.app().lower()=='3dsmax' :
                     P.info( 'Publishing Step #5 - Opening work file...\n    %s' % ver_filePath )
-                    import MaxPlus
-                    mpFM = MaxPlus.FileManager
-                    mpFM.Open( ver_filePath )
+                    from pymxs import runtime as maxRT
+                    maxRT.loadMaxFile( ver_filePath )
                 if self.nim.app().lower()=='houdini' :
                     P.info( 'Publishing Step #5 - Opening work file...\n    %s' % ver_filePath )
                     import hou
@@ -3687,24 +3697,15 @@ class GUI(QtGui.QMainWindow) :
         #  Reference the file :
         if self.checkBox.checkState() :
             #GROUPED
-            '''
-            mc.file( filePath, force=True, reference=True, namespace=fileName, groupReference=True, \
-                groupName=fileName+'_GRP' )
-            '''
-            #MaxPlus.SceneSetIgnoreFlag()
             pass
         else :
             #NOT GROUPED
-            #mc.file( filePath, force=True, reference=True, namespace=fileName )
-            #MaxPlus.SceneSetIgnoreFlag()
-
-            value = MaxPlus.FPValue()
-            result = MaxPlus.Core.EvalMAXScript("xrefs.addNewXRefFile \""+filePath.replace('\\','/')+"\"", value)
+            result = maxRT.execute("xrefs.addNewXRefFile \""+filePath.replace('\\','/')+"\"")
             if result:
                 P.info("File Referenced")
             else:
                 P.error("Filepath: %s" % filePath)
-                print(value.Get())
+                print(value)
             pass
 
         #  Close window upon completion :

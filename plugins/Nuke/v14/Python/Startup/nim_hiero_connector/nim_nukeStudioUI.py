@@ -919,7 +919,7 @@ class NimNS_openDialog(QDialog):
         #print ( "VERSION CHANGED" )
         if self.nim_versionChooser.currentItem():
             versionname = self.nim_versionChooser.currentItem().text()
-            if versionname:
+            if versionname and versionname in self.nim_versionDict:
                 print ( "NIM: version=%s" % versionname )
 
                 versionID = self.nim_versionDict[versionname]

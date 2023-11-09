@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -275,9 +275,11 @@ class NIM( object ) :
 
         #  Get and set jobs dictionary :
         jobsfolders = Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
-        jobsfolders = { key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
+        # jobsfolders = { key.decode():value.decode() for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
+        jobsfolders = { key:value for (key,value) in jobsfolders.items()} # The output from Api is in bytes no string
         jobs        = Api.get_jobs( userID=self.nim['user']['ID'], folders=False )
-        jobs        = { key.decode():value.decode() for (key,value) in jobs.items()}
+        # jobs        = { key.decode():value.decode() for (key,value) in jobs.items()}
+        jobs        = { key:value for (key,value) in jobs.items()}
 
         self.set_dict('job')
         
@@ -853,10 +855,12 @@ class NIM( object ) :
                 if self.nim[elem]['Dict'] == False :
                     P.error("Failed to Set NIM Dictionary")
                     return False
+                '''
                 else:
                     # Convert Job Ids to int
                     for job in self.nim[elem]['Dict']:
                         self.nim[elem]['Dict'][job] = int(self.nim[elem]['Dict'][job].decode('utf-8'))
+                '''
         elif elem=='asset' :
             if self.nim['job']['ID'] :
                 self.nim[elem]['Dict']=Api.get_assets( self.nim['job']['ID'] )
@@ -895,11 +899,11 @@ class NIM( object ) :
             for elm in self.nim[elem]['Dict']:
                 if elm['name'] == 'plates':
                     # Plates is not mandatory, assets don't have plates
-                    elm['path'] = paths['plates'].replace(paths['root'] + '/', '') if len(paths) is not 0 and 'plates' in paths else ""
+                    elm['path'] = paths['plates'].replace(paths['root'] + '/', '') if len(paths) != 0 and 'plates' in paths else ""
                 elif elm['name'] == 'renders':
-                    elm['path'] = paths['renders'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                    elm['path'] = paths['renders'].replace(paths['root'] + '/', '') if len(paths) != 0 else ""
                 elif elm['name'] == 'comps':
-                    elm['path'] = paths['comps'].replace(paths['root'] + '/', '') if len(paths) is not 0 else ""
+                    elm['path'] = paths['comps'].replace(paths['root'] + '/', '') if len(paths) != 0 else ""
                 else:
                     # elm['path'] = elm['name']
                     # Adding pub for any element that is not plates, renders or

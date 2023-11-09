@@ -678,7 +678,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         cmd += " fileid=%d "%int(fileinfo['fileID']) 
         # cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else entityinfo['assetName'])
         cmd += " entity=%s "%(entityinfo['shotName'] if fileinfo['fileClass'] == 'SHOT' else nimUtl.getassetFullName(int(fileinfo['parentID'])))
-        cmd += " version=v%s "%fileinfo['version'].zfill(3)
+        cmd += " version=v%s "%str(fileinfo['version']).zfill(3)
         cmd += " startFrame=%s "%start
         cmd += " taskStartFrame=%s "%start
         cmd += " endFrame=%s "%end
@@ -2062,7 +2062,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     if file:
         customKeys = file['customKeys']
     customKeys['File Type'] = nim.nim['fileExt']['fileType']
-    pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
+    # pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), nim.version().zfill(padding)) 
+    pubcomment = nim.nim['fileExt']['fileType'] + " %s v%s"%(nim.name('base'), str(nim.version()).zfill(padding)) 
     if comment.strip("''"):
         # pubcomment += ". " + comment.strip("'")
         pubcomment = comment.strip("'")
@@ -2115,9 +2116,11 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     res['filename']  = nim.name('file')
     res['filepath']  = nim.filePath()
     # res['version']   = nim.version()
-    res['version']   = int(nim.version())
-    res['fileID']    = int(res['fileID'].encode('ascii'))
-    res['elementID'] = int(res['elementID'].encode('ascii'))
+    res['version']   = nim.version()
+    # res['fileID']    = int(res['fileID'].encode('ascii'))
+    # res['elementID'] = int(res['elementID'].encode('ascii'))
+    res['fileID']    = res['fileID']
+    res['elementID'] = res['elementID']
 
     # Grab just published info
     info = nimAPI.get_verInfo( res['fileID'] )
@@ -2854,7 +2857,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
             # Try to use the element linked to our file
             found = False
             for elm in elementInfo:
-                if elm['ID'] == metadata['elementID']:
+                if int(elm['ID']) == int(metadata['elementID']):
                     elementInfo = elm
                     found = True
                     break
@@ -2878,7 +2881,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         taskid = int(elementInfo['taskID']) 
     else:
         taskid = 0
-    frange   = elementInfo['startFrame'] + "-" + elementInfo['endFrame']
+    frange   = "%d-%d"%(elementInfo['startFrame'],elementInfo['endFrame'])
     
     # print("Render Element:")
     # pprint(elementInfo)
@@ -3465,7 +3468,7 @@ def find_published_asset( job, parent, parentid, element, name, use_task_priorit
         return False
     if verbose:
         nimP.info("Found appropriate version (v%s) for asset %s of type %s publish in %s %s. Criteria: %s"
-                  %(appropiate_asset_ver['version'].zfill(padding), appropiate_asset_ver['basename'], elementname, parent.lower(), parentname, criteria))
+                  %(str(appropiate_asset_ver['version']).zfill(padding), appropiate_asset_ver['basename'], elementname, parent.lower(), parentname, criteria))
 
     return appropiate_asset_ver
 

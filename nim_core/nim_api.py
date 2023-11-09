@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_api.py
-# Version:  v5.1.2.220314
+# Version:  v6.0.4.230905
 #
-# Copyright (c) 2014-2022 NIM Labs LLC
+# Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -16,7 +16,7 @@
 # EXAMPLE:
 #   Adding a render to a task
 #   uploading an icon to the render
-#   uploading dialies to a render
+#   uploading review items to a render
 #   adding elements to a render
 #
 # import nim_core.nim_api as nimAPI
@@ -427,8 +427,6 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             
             return result
 
-        #except urllib2.URLError, e : # Python 2
-        #except urllib.error.URLError as e : # Python 3
         except Exception as e :
             P.error( '\nFailed to read URL for the following command...\n    %s' % params )
             P.error( '   %s' % _actionURL )
@@ -706,9 +704,59 @@ if sys.version_info >= (3,0):
             buffer.write(b'--%s--\r\n\r\n' % boundary.encode('ascii'))
             buffer = buffer.getvalue()
             return boundary, buffer
+
+        def multipart_encode(self, v_vars, files, boundary=None, buf=None):
+            'Helper function to encode dat using mimetypes'
+            if boundary is None:
+                boundary = choose_boundary()
+            if buf is None:
+                buf = io.BytesIO()
+            for(key, value) in v_vars:
+                buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
+                buf.write(
+                    b'Content-Disposition: form-data; name="' +
+                    key.encode("utf-8") +
+                    b'"'
+                )
+                buf.write(b'\r\n\r\n' + str(value).encode("utf-8") + b'\r\n')
+            for(key, fd) in files:
+                try:
+                    filename = fd.name.split('/')[-1]
+                except AttributeError:
+                    # Spoof a file name if the object doesn't have one.
+                    # This is designed to catch when the user submits
+                    # a StringIO object
+                    filename = 'temp.pdf'
+                contenttype = mimetypes.guess_type(filename)[0] or b'application/octet-stream'
+                try:
+                    contenttype = contenttype.encode("utf-8")
+                except (UnicodeEncodeError, AttributeError):
+                    pass
+                buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
+                buf.write(
+                    b'Content-Disposition: form-data; ' +
+                    b'name="' + key.encode("utf-8") + b'"; ' +
+                    b'filename="' + filename.encode("utf-8") + b'"\r\n'
+                )
+                buf.write(
+                    b'Content-Type: ' +
+                    contenttype +
+                    b'\r\n'
+                )
+                fd.seek(0)
+                buf.write(
+                    b'\r\n' + fd.read() + b'\r\n'
+                )
+            buf.write(b'--')
+            buf.write(boundary.encode("utf-8"))
+            buf.write(b'--\r\n\r\n')
+            buf = buf.getvalue()
+            return boundary, buf
+
+        https_request = http_request
         
-        def https_request(self, request):
-            return self.http_request(request)
+        # def https_request(self, request):
+            # return self.http_request(request)
 
 else:
     # upload () Python 2
@@ -932,6 +980,22 @@ def get_app() :
     except: pass
     return None
 
+def get_cultureCodes() :
+    '''
+    Returns a dictionary of active culture codes
+
+    Return:
+      Returns an associative array in the format
+      result->success        True/False
+      result->error          Includes any error or security messaging    
+      result->rows           An array of returned data
+      result->totalRows      The total count of returned rows in the array
+    
+    '''
+    params = {'q': 'getCultureCodes'}
+    result = connect( method='get', params=params )
+    return result
+
 
 #  Users  #
 
@@ -975,10 +1039,10 @@ def get_userID( user='' ) :
     try :
         userID=get( {'q': 'getUserID', 'u': str(user)} )
         if type(userID)==type(list()) and len(userID)==1 :
-            return int(userID[0]['ID'])
+            return userID[0]['ID']
         else :
             if len(userID)>0:
-                return int(userID)
+                return userID
             else:
                 return False
     except Exception as e :
@@ -1005,11 +1069,9 @@ def get_jobs( userID=None, folders=False ) :
     try:
         for job in _jobs :
             if not folders :
-                #jobDict[str(job['number'])+'_'+str(job['jobname'])]=str(job['ID'])
-                jobDict[ ' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ ' '.join((job['number'],job['jobname'])) ] = job['ID']
             else :
-                #jobDict[str(job['number'])+'_'+str(job['folder'])]=str(job['ID'])
-                jobDict[ ' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ ' '.join((job['number'],'_',job['folder'])) ] = job['ID']
         return jobDict
     except :
         P.error("Failed to get jobs")
@@ -1021,7 +1083,7 @@ def add_job( name=None, number=None, numberTemplate=None, description=None, clie
     prod_shoot_date=None, prod_location=None, prod_supervised=None, editorial=None, editor=None, grading=None, colorist=None, \
     music=None, mix=None, sound=None, creative_lead=None, projectStatus=None, folder=None, projectStructureID=None, projectStructure=None, \
     jobStatusID=None, jobStatus=None, biddingLocationID=None, biddingLocation=None, \
-    assignedLocationID=None, assignedLocation=None, startDate=None, endDate=None, currency=None, customKeys=None, keywords=None) :
+    assignedLocationID=None, assignedLocation=None, startDate=None, endDate=None, currency=None, cultureID=None, customKeys=None, keywords=None) :
     '''
     Creates a new job. 
 
@@ -1083,7 +1145,10 @@ def add_job( name=None, number=None, numberTemplate=None, description=None, clie
         
         start_date              date            YYYY-mm-dd
         end_date                date            YYYY-mm-dd
-        currency                string          3 digit currency code
+        currency                string          3 digit currency code (DEPRECATED)
+                                                cultureID should be used instead of currency
+                                                If currency is set insead of cultureID, NIM will use the first matching cultureID
+        cultureID               integer         
         customKeys              dictionary      {"Custom Key Name" : "Value"}
         keywords                list            ["keyword1", "keyword2"]
         
@@ -1129,6 +1194,7 @@ def add_job( name=None, number=None, numberTemplate=None, description=None, clie
     if startDate is not None : params['start_date'] = startDate
     if endDate is not None : params['end_date'] = endDate
     if currency is not None : params['currency'] = currency
+    if cultureID is not None : params['cultureID'] = cultureID
     if customKeys is not None : params['customKeys'] = json.dumps(customKeys)
     if keywords is not None : params['keywords'] = json.dumps(keywords)
 
@@ -1140,7 +1206,7 @@ def update_job( jobID=None, name=None, number=None, description=None, client=Non
     prod_shoot_date=None, prod_location=None, prod_supervised=None, editorial=None, editor=None, grading=None, colorist=None, \
     music=None, mix=None, sound=None, creative_lead=None, projectStatus=None, folder=None, projectStructureID=None, projectStructure=None, \
     jobStatusID=None, jobStatus=None, biddingLocationID=None, biddingLocation=None, \
-    assignedLocationID=None, assignedLocation=None, startDate=None, endDate=None, currency=None, customKeys=None, keywords=None) :
+    assignedLocationID=None, assignedLocation=None, startDate=None, endDate=None, currency=None, cultureID=None, customKeys=None, keywords=None) :
     '''
     Updates an existing job based on the jobID.
 
@@ -1205,7 +1271,10 @@ def update_job( jobID=None, name=None, number=None, description=None, client=Non
 
         start_date              date            YYYY-mm-dd
         end_date                date            YYYY-mm-dd
-        currency                string          3 digit currency code
+        currency                string          3 digit currency code (DEPRECATED)
+                                                cultureID should be used instead of currency
+                                                If currency is set insead of cultureID, NIM will use the first matching cultureID
+        cultureID               integer
         customKeys              dictionary      {"Custom Key Name" : "Value"}
         keywords                list            ["keyword1", "keyword2"]
     '''
@@ -1250,6 +1319,7 @@ def update_job( jobID=None, name=None, number=None, description=None, client=Non
     if startDate is not None : params['start_date'] = startDate
     if endDate is not None : params['end_date'] = endDate
     if currency is not None : params['currency'] = currency
+    if cultureID is not None : params['cultureID'] = cultureID
     if customKeys is not None : params['customKeys'] = json.dumps(customKeys)
     if keywords is not None : params['keywords'] = json.dumps(keywords)
 
@@ -1276,11 +1346,8 @@ def delete_job( jobID=None) :
 def upload_jobIcon( jobID=None, img=None, nimURL=None, apiKey=None ) :
     'Upload job icon'
     params = {}
-    action = "uploadJobIcon"
-    job_str = str(jobID)
-
-    params["q"] = action.encode('ascii')
-    params["jobID"] = job_str.encode('ascii')
+    params["q"] = "uploadJobIcon"
+    params["jobID"] = jobID
     
     if img is not None :
         img = os.path.normpath( img )
@@ -1485,12 +1552,9 @@ def delete_asset( assetID=None) :
 def upload_assetIcon( assetID=None, img=None, nimURL=None, apiKey=None ) :
     'Upload asset icon'
     params = {}
-    action = "uploadAssetIcon"
-    asset_str = str(assetID)
+    params["q"] = "uploadAssetIcon"
+    params["assetID"] = assetID
 
-    params["q"] = action.encode('ascii')
-    params["assetID"] = asset_str.encode('ascii')
-    
     if img is not None :
         img = os.path.normpath( img )
         if os.path.isfile(img) :
@@ -1780,11 +1844,8 @@ def delete_shot( shotID=None) :
 def upload_shotIcon( shotID=None, img=None, nimURL=None, apiKey=None ) :
     'Upload shot icon'
     params = {}
-    action = "uploadShotIcon"
-    shot_str = str(shotID)
-
-    params["q"] = action.encode('ascii')
-    params["shotID"] = shot_str.encode('ascii')
+    params["q"] = "uploadShotIcon"
+    params["shotID"] = shotID
     
     if img is not None :
         img = os.path.normpath( img )
@@ -3069,9 +3130,9 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     
     #  If not successful, fail :
     else :
-        P.error( 'FAILED to Version Up the file.' )
+        P.error( 'Failed to save the file.' )
         Win.popup( title=winTitle+' - Version Up Failure', \
-            msg='FAILED to Version Up the file.' )
+            msg='Failed to save the file.\n\nPlease check the application logs for more details.' )
         return False
 
 
@@ -3765,14 +3826,10 @@ def upload_dailies( taskID=None, renderID=None, renderKey=None, itemID=None, ite
 def upload_dailiesNote( dailiesID=None, name='', img=None, note='', frame=0, time=-1, userID=None, nimURL=None, apiKey=None ) :
     'Upload dailiesNote'
     params = {}
-    action = "uploadDailiesNote"
-    shot_str = str(dailiesID)
-    name = str(name)
+    params["q"] = "uploadDailiesNote"
+    params["dailiesID"] = dailiesID
+    params["name"] = name
 
-    params["q"] = action.encode('ascii')
-    params["dailiesID"] = shot_str.encode('ascii')
-    params["name"] = name.encode('ascii')
-    
     if img is not None :
         img = os.path.normpath( img )
         if os.path.isfile(img) :
@@ -3948,12 +4005,12 @@ def upload_reviewNote( ID=None, name='', img=None, note='', frame=0, time=-1, us
     #       apiKey              string      optional for Render API Key overrride
 
     params = {}
-    action = "uploadReviewNote"
 
-    params["q"] = action.encode('ascii')
-    params["ID"] = str(ID).encode('ascii')
-    params["name"] = str(name).encode('ascii')
-    
+    params["q"] = "uploadReviewNote"
+    params["ID"] = ID
+    params["name"] = name
+
+
     if img is not None :
         img = os.path.normpath( img )
         if os.path.isfile(img) :
@@ -3969,10 +4026,11 @@ def upload_reviewNote( ID=None, name='', img=None, note='', frame=0, time=-1, us
         result['error'] = "Image file not defined"
         return result
 
-    params["note"] = str(note).encode('ascii')
-    params["frame"] = str(frame).encode('ascii')
-    params["time"] = str(time).encode('ascii')
-    params["userID"] = str(userID).encode('ascii')
+
+    params["note"] = note
+    params["frame"] = frame
+    params["time"] = time
+    params["userID"] = userID
 
     if img is not None :
         result = upload(params=params, nimURL=nimURL, apiKey=apiKey)

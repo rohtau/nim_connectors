@@ -316,7 +316,7 @@ def getjobs(userid=None):
         userjobs = nimAPI.get_jobs(userid)
         if not userjobs:
             return False
-        jobsnames = {key.decode('utf-8'):int(value) for key,value in userjobs.items()}
+        jobsnames = {key:int(value) for key,value in userjobs.items()}
     else:
         users = nimAPI.get_userList()
         jobsnames = {}
@@ -329,7 +329,7 @@ def getjobs(userid=None):
                     # jobsnames[key.decode('utf-8')] = int(userjobs[key])
             for key,value in userjobs.items():
                 if key not in jobsnames:
-                    jobsnames[key.decode('utf-8')] = int(value)
+                    jobsnames[key] = int(value)
     return jobsnames
 
 
