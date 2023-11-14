@@ -321,6 +321,8 @@ def post( sqlCmd=None, debug=True, nimURL=None ) :
 def connect( method='get', params=None, nimURL=None, apiKey=None ) :
     'Querys MySQL server and returns decoded json array'
     result=None
+
+    # traceback.print_stack()
     
     isGUI = False
     try :
@@ -396,6 +398,7 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             try : result=json.loads( fr )
             except Exception as e :
                 P.error( traceback.print_exc() )
+                # P.error( traceback.print_stack() )
             _file.close()
 
             # Test for failed API Validation

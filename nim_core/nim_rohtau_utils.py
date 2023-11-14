@@ -1431,12 +1431,12 @@ def findElements(jobid=0, name="", shotid=0, assetid=0, taskid=0, elementid=0, u
     # Using new custom API
     if profile:
         tstart = time.perf_counter()
-    tasksstr = tasks[0]['taskID']
+    tasksstr = str(tasks[0]['taskID'])
     tasksidsdict = {}
     tasksidsdict[tasks[0]['taskID']] = 0
     if len(tasks) > 1:
         for idx in range(1, len(tasks)):
-            tasksstr += ",%s" % tasks[idx]['taskID']
+            tasksstr += ",%d" % tasks[idx]['taskID']
             tasksidsdict[tasks[idx]['taskID']] = idx
     # print(tasksstr)
     if elementid:
