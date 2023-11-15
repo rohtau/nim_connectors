@@ -15,13 +15,51 @@
 
 #  General Imports :
 import os, sys, re, traceback
-import urllib.parse
+builtin_mod_available = True
+try:
+    from builtins import input
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to raw_input instead of input if builtin is not available
+    builtin_mod_available = False
+# from future.standard_library import install_aliases
+# install_aliases()
+# from urllib.parse import urlparse
+from pprint import pprint, pformat
+
+# Hack to use urllib in Python 2 and 3
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2, urlparse
 
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_print as P
-from . import nim_win as Win
+if sys.version_info >= (3,0):
+    try:
+        from . import nim_api as Api
+        from . import nim_file as F
+        from . import nim_print as P
+        from . import nim_win as Win
+    except ImportError as e:
+        import nim_api as Api
+        import nim_file as F
+        import nim_print as P
+        import nim_win as Win
+else:
+    import nim_api as Api
+    import nim_file as F
+    import nim_print as P
+    import nim_win as Win
+
+'''
+isGUI = True
+try :
+    #Validate Against Terminal
+    if sys.stdin.isatty():
+        isGUI = False
+except :
+    pass
+'''
 
 isGUI = False
 try :
@@ -32,13 +70,13 @@ except :
     pass
 
 #  Variables :
-version='v6.0.4'
 prefs_dirName='.nim'
 prefs_fileName='prefs.nim'
-winTitle='NIM_'+version
-nim_URL='http://hostname/nimAPI.php'
+from .import version 
+from .import winTitle 
+nim_URL='http://nim.rohtau.com/nimAPI.php'
 nim_useSLL='False'
-nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir, os.pardir))
+nim_scripts = os.path.abspath(os.path.join(os.path.dirname( __file__ ), os.pardir))
 nim_user, nim_userID='', ''
 nim_img='/img/nim_logo.png'
 css_dir= nim_scripts+'/css'
@@ -184,7 +222,10 @@ def _inputURL() :
     if isGUI :
         url=Win.popup( title=winTitle+' - Get URL', msg=msg, type='input', defaultInput=nim_URL )
     else :
-        url=input(msg)
+        if builtin_mod_available:
+            url=input(msg)
+        else:
+            url=raw_input(msg)
     #P.info( 'NIM URL Set to: %s' % url ) 
     if url : 
         # Check for '/nimAPI.php?' at end of URL
@@ -212,7 +253,10 @@ def _verifyURL( url='' ) :
     if not url : return False
 
     # Validate URL Pattern
-    parsedURL = urllib.parse.urlparse(url)
+    if sys.version_info >= (3,0):
+        parsedURL = urllib.parse.urlparse(url)
+    else:
+        parsedURL = urlparse.urlparse(url)
     min_attributes = ('scheme', 'netloc')
     if not all([getattr(parsedURL, attr) for attr in min_attributes]):
         #error = "'{url}' string has no scheme or netloc.".format(url=parsedURL.geturl())
@@ -387,7 +431,10 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                         msg='Preferences already exist.\nWould you like to re-create your preferences?', \
                         type='okCancel' )
                 else :
-                    recreate=input("Preferences already exist. Would you like to re-create your preferences? (Y/N) ")
+                    if builtin_mod_available:
+                        recreate=input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
+                    else:
+                        recreate=raw_input("Preferences already exist. Would you like to re-create your preferences? (Y\\N) ")
                     if recreate == 'Y' or recreate == 'y':
                         recreate='OK'
 
@@ -421,7 +468,10 @@ def mk_default( recreatePrefs=False, notify_success=True ) :
                 if isGUI :
                     keepGoing=Win.popup( title=winTitle+' - Get URL', msg=msg, type='okCancel' )
                 else :
-                    keepGoing=input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
+                    if builtin_mod_available:
+                        keepGoing=input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
+                    else:
+                        keepGoing=raw_input('The NIM API URL entered is invalid. Try Again? (Y/N):' )
                     if keepGoing == 'Y' or keepGoing == 'y' :
                         keepGoing = 'OK'
 
@@ -616,4 +666,3 @@ def Dbug_toggle() :
 
 
 #  End
-

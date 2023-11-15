@@ -14,20 +14,42 @@
 
 
 #  General Imports :
-import os, platform, re, shutil, stat, traceback, time, importlib
+import os, platform, re, shutil, stat, traceback, sys, time
+from pprint import pprint
+from pprint import pformat
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_print as P
-from . import nim_win as Win
-from . import nim as Nim
-
+if sys.version_info >= (3,0):
+    try:
+        from . import nim_api as Api
+        from . import nim_print as P
+        from . import nim_win as Win
+        from . import nim as Nim
+        from . import nim_rohtau as Rt
+        from . import nim_rohtau_utils as Utl
+    except ImportError as e:
+        import nim_api as Api
+        import nim_print as P
+        import nim_win as Win
+        import nim as Nim
+        import nim_rohtau as Rt
+        import nim_rohtau_utils as Utl
+else:
+    import nim_api as Api
+    import nim_print as P
+    import nim_win as Win
+    import nim as Nim
+    import nim_rohtau as Rt
+    import nim_rohtau_utils as Utl
+    
+from imp import reload
 
 #  Variables :
-version='v6.0.4'
-winTitle='NIM_'+version
+from .import version 
+from .import winTitle
 _os=platform.system().lower()
 #  Compiled REGEX Searches :
-ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
+# ext_srch=re.compile( '\.[a-zA-Z0-9]+$' )
+ext_srch=re.compile( '(?:\.bgeo)?\.[a-zA-Z0-9]+$' ) # Use non capturing group to optionally match extensions like .bgeo.sc
 end_srch=re.compile( '_[vV]?[0-9]+(_PUB)?\.[a-zA-Z0-9]+$' )
 num_srch=re.compile( '[0-9]+' )
 
@@ -54,6 +76,8 @@ def get_app() :
     except :pass
     try :
         import nuke
+        if not hasattr(nuke, 'tprint'):
+            raise ImportError
         return 'Nuke'
     except : pass
     try :
@@ -65,7 +89,7 @@ def get_app() :
         return 'Hiero'
     except : pass
     try :
-        import pymxs
+        import MaxPlus
         return '3dsMax'
     except : pass
     try :
@@ -135,7 +159,7 @@ def get_ver( filePath='' ) :
     'Retrieves the version number of a file'
     global end_srch, num_srch
     ext=get_ext( filePath )
-    
+
     #  Derive version number :
     end_result=end_srch.search( filePath )
     if end_result :
@@ -272,42 +296,25 @@ def os_filePath( path='', nim=None, serverID=None ) :
         filePath_success = 'success'
 
         if _os.lower() in ['windows', 'win32'] :
-            server = serverDict[0]['winPath']
-            server = "" if server is None else server
-            path = server+fp_noServer
-            filePath = path.replace('/', '\\')
-            if filePath == '' :
-                filePath_success = 'blank'
-        
+            server=serverDict[0]['winPath']
+            path=server+fp_noServer
+            filePath=path.replace('/', '\\')
+            return filePath
         elif _os.lower() in ['darwin', 'mac'] :
-            server = serverDict[0]['osxPath']
-            server = "" if server is None else server
-            path = server+fp_noServer
-            filePath = path.replace('\\', '/')
-            if filePath == '' :
-                filePath_success = 'blank'
-        
+            server=serverDict[0]['osxPath']
+            path=server+fp_noServer
+            filePath=path.replace('\\', '/')
+            return filePath
         elif _os.lower() in ['linux', 'linux2'] :
-            server = serverDict[0]['path']
-            server = "" if server is None else server
-            path = server+fp_noServer
-            filePath = path.replace('\\', '/')
-            if filePath == '' :
-                filePath_success = 'blank'
-        
+            server=serverDict[0]['path']
+            path=server+fp_noServer
+            filePath=path.replace('\\', '/')
+            return filePath
         else :
-            filePath_success = 'invalid'
-        
-        if filePath_success == 'invalid' :
             P.info( 'Operating system, %s, not in valid list of operating systems' %_os )
             return False
-        elif filePath_success == 'blank' :
-            P.info( 'Server path is empty. Please check the server settings in NIM.')
-            return False
-        else :
-            return filePath
-
-        #P.info( 'Filepath set to - %s' % filePath )
+        
+        P.info( 'Filepath set to - %s' % filePath )
     
     else :
         P.error('Unable to convert filepath by platform!')
@@ -315,7 +322,73 @@ def os_filePath( path='', nim=None, serverID=None ) :
     
     return filePath
 
-#DEPRICATED
+#
+# rohtau added
+#
+def toPosix( path, force=False ):
+    '''
+    Convert path into Posix format.
+    Remove drive letter and change \ to /
+
+    Only does the conversion if platform is Windows, unless force is set
+    in which case it is done in any platform.
+
+    Arguments:
+        path {str} -- source path
+        force {bool} -- force conversion even for no Windows systems
+
+    Returns:
+        str -- path in Posix
+    '''
+    if platform.system() == 'Windows' or force:
+        return re.sub('^\w:', '', path.replace('\\', '/') )
+    else:
+        return path
+
+
+def toNIMFramePadding(path):
+    '''
+    Convert frame padding to NIM format using ####
+        myfile.$F4.jpg -> myfile.####.jpg
+        myfile.%d04.jpg -> myfile.####.jpg
+        myfile.1020.jpg -> myfile.####.jpg
+
+    Supported Frame Formats
+    -----------------------
+    - Regular 4 Padding: 1100
+    - Houdini: $F4, $F in general $F\d?
+    - Nuke: %d04
+
+    Parameters
+    ----------
+    path : str
+        Path to convert
+
+    Returns
+    ---------
+    str
+        Converted path
+    '''
+    nimpath = path
+    nimpath = nimpath.replace('%04d', '####') # Fix Nuke's padding format
+    nimpath = nimpath.replace('$F5', '#####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F4', '####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F3', '####') # Fix Houdini's padding format
+    nimpath = nimpath.replace('$F', '#') # Fix Houdini's padding format
+    nimpath = re.sub('\.\d{5}\.\d{2}\.', '.#####.##.', nimpath) # Set frame number to nim padding (5) with subframes
+    nimpath = re.sub('\.\d{5}\.', '.#####.', nimpath) # Set frame number to nim padding (5) no subframes
+    nimpath = re.sub('\.\d{4}\.\d{2}\.', '.####.##.', nimpath) # Set frame number to nim padding (4) with subframes
+    nimpath = re.sub('\.\d{4}\.', '.####.', nimpath) # Set frame number to nim padding (4) no subframes
+    nimpath = re.sub('\.\d+\.', '.####.', nimpath) # Set frame number to nim padding
+    # nimpath = os.path.normpath(nimpath)
+
+    return nimpath
+#
+#
+#
+
+
+#DEPRECATED
 def task_toAbbrev( task='' ) :
     'Returns the short version of a given task' 
     return_task=task
@@ -331,8 +404,315 @@ def task_toAbbrev( task='' ) :
     '''
     return return_task
 
-def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
-    'Versions up a file - Does NOT add it to the NIM API'
+def elementType_toAbbrev( elem ):
+    'Returns the short version for some element types'
+    if not elem:
+        return ""
+    if elem == 'plates':
+        return 'plate'
+    if elem == 'renders':
+        return 'cg'
+    elif elem == 'comps' or elem == 'comp':
+        return '2d'
+        # return '2d'
+    else:
+        return elem
+    pass
+
+
+def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLink=True ) :
+    '''
+    Save the new version file on the file system.
+    It can also create the project dirs for various apps
+
+    Arguments:
+        filepath {str} -- Path to new file
+        nim {nim object} -- NIM object with all the publishing information
+
+    Keyword Arguments:
+        projpath {str} -- path to project. If empty no project will be created.
+        selected {bool} -- Whether or not to save only selected (default: {False})
+        pub {bool} -- Whether or not to publish file (default: {False})
+        symLink {bool} -- Use symlinks when publishing (default: {True})
+
+    Returns:
+        [str] -- path to new file
+    '''
+
+    #  Directories :
+    #===---------------
+    
+    #  Make basename directory :
+    if projpath and not os.path.isdir( projpath ) :
+        P.info( 'Creating basename directory within...\n    %s' % projpath )
+        og_umask=os.umask(0)
+        os.makedirs( projpath )
+        os.umask(og_umask)
+        if os.path.isdir( projpath ) :
+            P.info( '  Successfully created the basename directory!' )
+        else :
+            P.warning( '  Unable to create basename directory' )
+    
+    #  Make render directory :
+    renDir = nim.renderPath()
+    if renDir and not os.path.isdir( renDir ) :
+        P.info( 'Creating render directory...\n      %s' % renDir )
+        
+        og_umask=os.umask(0)
+        os.makedirs( renDir )
+        os.umask(og_umask)
+        
+        if os.path.isdir( renDir ) :
+            P.info( '    Successfully created the render directory!' )
+        else :
+            P.warning( '    Unable to create project directories.' )
+    elif renDir :
+        P.debug( 'Render directory already exists.\n' )
+    
+    #  Make Maya Project directory :
+    if os.path.isdir( projpath ) and nim.app()=='Maya' :
+        try:
+            import nim_maya as M
+        except ImportError as e:
+            from . import nim_maya as M
+        if M.makeProject( projectLocation=projpath, renderPath=renDir ) :
+            P.info( 'Created Maya project directorires within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create Maya project directories.' )
+    elif nim.app()=='Maya' :
+        P.warning( 'Didn\'t create Maya project directories.' )
+
+    #  Make 3dsMax Project directory :
+    if os.path.isdir( projpath ) and nim.app()=='3dsMax' :
+        import nim_3dsmax as Max
+        if Max.mk_proj( path=projpath, renPath=renDir ) :
+            P.info( 'Created 3dsMax project directorires within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create 3dsMax project directories.' )
+    elif nim.app()=='3dsMax' :
+        P.warning( 'Didn\'t create 3dsMax project directories.' )
+
+    #  Make Houdini Project directory :
+    if os.path.isdir( projpath ) and nim.app()=='Houdini' :
+        try:
+            import nim_houdini as Houdini
+        except ImportError as e:
+            from . import nim_houdini as Houdini
+
+        if Houdini.mk_proj( path=projpath, renPath=renDir ) :
+            P.info( 'Created Houdini project directories within...\n    %s' % projpath )
+        else :
+            P.warning( '    Unable to create Houdini project directories.' )
+    elif nim.app()=='Houdini' :
+        P.warning( 'Didn\'t create Houdini project directories.' )
+    
+    
+    #  Save :
+    #===------
+    P.info('APP = %s' % nim.app())
+    filename = os.path.basename( filepath )
+    ext=get_ext( filename )
+
+    #  Maya :
+    if nim.app()=='Maya' :
+        import maya.cmds as mc
+        
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            try:
+                import nim_maya as M
+            except ImportError as e:
+                from . import nim_maya as M
+            M.set_vars( nim=nim )
+            
+            P.info( 'Saving file as %s \n' % filepath )
+            mc.file(rename=filepath)
+            if ext=='.mb' :
+                mc.file( save=True, type='mayaBinary' )
+            elif ext=='.ma' :
+                mc.file( save=True, type='mayaAscii' )
+        else :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            if ext=='.mb' :
+                mc.file( filepath, exportSelected=True, type='mayaBinary' )
+            elif ext=='.ma' :
+                mc.file( filepath, exportSelected=True, type='mayaAscii' )
+    
+    #  Nuke :
+    elif nim.app()=='Nuke' :
+        
+        import nuke
+        
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            try:
+                import nim_nuke as N
+            except ImportError as e:
+                from . import nim_nuke as N
+            N.set_vars( nim=nim )
+            P.info( 'Saving file as %s \n' % filepath )
+            nuke.scriptSaveAs( filepath )
+        elif selected :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            try :
+                nuke.nodeCopy( filepath )
+            except RuntimeError:
+                P.info( 'Failed to selected items... Possibly no items selected.' )
+                return False
+
+    
+    #  Cinema 4D :
+    elif nim.app()=='C4D' :
+        import c4d
+        
+        #  Set Vars :
+        nim_plugin_ID=1032427
+        
+        #  Save File :
+        if not selected :
+            P.info( 'Saving file as %s \n' % filepath )
+            import nim_c4d as C
+            C.set_vars( nim=nim, ID=nim_plugin_ID )
+            doc=c4d.documents.GetActiveDocument()
+            doc.SetDocumentName( filename )
+            doc.SetDocumentPath( fileDir )
+            c4d.documents.SaveDocument( doc, str(filepath),
+                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
+                c4d.FORMAT_C4DEXPORT )
+            P.info( 'Saving File Complete')
+        #  Save Selected :
+        else :
+            P.info( 'Saving selected items as %s \n' % filepath )
+            doc=c4d.documents.GetActiveDocument()
+            sel=doc.GetActiveObjects( False )
+            baseDoc=c4d.documents.IsolateObjects(doc, sel)
+            c4d.documents.SaveDocument( baseDoc, str(filepath),
+                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
+                c4d.FORMAT_C4DEXPORT)
+    
+    #  Hiero :
+    elif nim.app()=='Hiero' :
+        import hiero.core
+        projects=hiero.core.projects()
+        proj=projects[0]
+        curFilePath=proj.path()
+        proj.saveAs( filepath )
+        #proj=hiero.core.project( projName )
+        #proj=hiero.core.Project
+        #proj=self._get_current_project()
+    
+    #  3dsMax :
+    if nim.app()=='3dsMax' :
+        import MaxPlus
+        maxFM = MaxPlus.FileManager
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            import nim_3dsmax as Max
+            Max.set_vars( nim=nim )
+            #Save File
+            P.info( 'Saving file as %s \n' % filepath )
+            maxFM.Save(filepath)
+        else :
+            #Save Selected Items
+            P.info( 'Saving selected items as %s \n' % filepath )
+            maxFM.SaveSelected(filepath)
+
+    #  Houdini :
+    if nim.app()=='Houdini' :
+        import hou
+        #  Save File :
+        if not selected :
+            #  Set Vars :
+            try:
+                import nim_houdini as Houdini
+            except ImportError as e:
+                from . import nim_houdini as Houdini
+
+            Houdini.set_vars( nim=nim )
+            #Save File
+            if _os.lower() in ['windows', 'win32'] :
+                hipFilePath = filepath.replace('\\','/')
+            P.info( 'Saving file as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
+            #Set $HIP var to location of current file
+            if _os.lower() in ['windows', 'win32'] :
+                hipProj = projpath.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
+            #Set $HIPNAME var to current file
+            hipName = os.path.splitext(filename)[0]
+            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
+        else :
+            #Save Selected Items
+            #TODO: set to saveSelect items... currently saving entire scene
+            if _os.lower() in ['windows', 'win32'] :
+                hipFilePath = filepath.replace('\\','/')
+            P.info( 'Saving selected items as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
+            #Set $HIP var to location of current file
+            if _os.lower() in ['windows', 'win32'] :
+                hipProj = projpath.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
+            #Set $HIPNAME var to current file
+            hipName = os.path.splitext(filename)[0]
+            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
+
+    #  Make a copy of the file, if publishing :
+    if pub and not symLink :
+        pub_fileName=basename+ext
+        pub_fileDir=Api.to_nimDir( nim=nim )
+        pub_filePath=os.path.join( pub_fileDir, pub_fileName )
+        #  Delete any pre-existing published file :
+        if os.path.isfile( pub_filePath ) :
+            os.chmod( pub_filePath, stat.S_IWRITE )
+            os.remove( pub_filePath )
+        #  Copy fiile and make it read-only :
+        shutil.copyfile( filepath, pub_filePath )
+        os.chmod( pub_filePath, stat.S_IREAD )
+
+    # Change file permissions for others.
+    # This implement our policy for protecting user's scene files from being
+    # overwritten by others and force a Version Up.
+    if Utl.set_file_as_ro_others( filepath ):
+        P.info("Scene file overwrite protection setup.")
+
+
+        
+    #  Print save success :
+    P.info( '\nFile successfully saved to...\n    %s\n' % filepath )
+    return filepath
+
+
+# selected can be removed or deprecated
+def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
+    '''
+    Versions up a file - Does NOT add it to the NIM API. 
+    Work out new file path and projDir, but not save any file and not create anything in the file system.
+    That is for verUpsaveFile()
+
+    Parameters
+    ---------
+        nim :  nim Dict
+            NIM dictionarywit publishing info (default: {None})
+        padding :   int 
+            Version number padding (default: {2})
+        selected :  bool 
+            Whether or not save only selected (default: {False})
+        pub :     bool  
+            Is this a publishing (default: {False})
+        symLink :  bool   
+            Whether or not do symlink when publishing (default: {True})
+
+    Returns
+    -------
+        dict 
+            {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
+
+    '''
+
+    # print("DEBUG: In File Ver Up")
     
     #  Variables :
     cur_filePath, cur_fileDir, cur_fileName='', '', ''
@@ -352,7 +732,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #P.info("SERVER ID: %s" % str(nim.server(get='ID')))
     # Get Server OS Path from server ID
     serverOsPathInfo = Api.get_serverOSPath( nim.server(get='ID'), platform.system() )
-    P.info("Server OS Path: %s" % serverOsPathInfo)
+    # P.info("Server OS Path: %s" % serverOsPathInfo)
     serverOSPath = serverOsPathInfo[0]['serverOSPath']
     nim.set_server( path=serverOSPath )
 
@@ -364,6 +744,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         cur_fileName=nim.fileName()
     
     #  Basename :
+    # print("New basename: %s"%Api.to_basename( nim=nim ))
     nim.set_name( elem='base', name=Api.to_basename( nim=nim ) )
     basename=nim.name('base')
     
@@ -377,9 +758,17 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         fileDir=api_fileDir
    
     #  Project Directory :
-    if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
-    else : projDir=fileDir
-    
+    #XXX: What?? This scenes folder is hardcoded???
+    # if fileDir[-6:]=='scenes' : projDir=fileDir[:-6]
+    # else : projDir=fileDir
+    # This add support to create project folders correctly according with supported scene folder names.
+    # If the base name is recognised as a scene name then the project folder will be it's parent, otherwise
+    # create projects at the same level as the scenes.
+    scenefolder = os.path.basename(fileDir)
+    if scenefolder in ('scenes', 'hip'):
+        projDir = os.path.dirname( fileDir )
+    else:
+        projDir = fileDir
     
     #  Convert file directory :
     #P.info("fileDir: %s" % fileDir)
@@ -387,8 +776,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( 'File Directory = %s' %  fileDir )
     projDir=os_filePath( path=projDir, nim=nim )
     P.info( 'Project Directory = %s' %  projDir )
-    
-    
+
     #  Version Number :
     baseInfo=''
     if nim.tab()=='SHOT' :
@@ -400,15 +788,37 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         verNum=int(ver_baseInfo)+1
     else :
         verNum=1
+
+    if pub:
+        print("Basename for publish: %s"%nim.name('base'))
+        print("Base info for latest version:")
+        print(baseInfo)
+        print("Version to publish: %d"%verNum)
+
+    # Double check if there is a file with a greater version than the published
+    # one
     try :
         for f in [f for f in os.listdir(fileDir) if os.path.isfile(os.path.join(fileDir, f))] :
-            verSrch=re.search( basename+'_v[0-9]+', f )
+            verSrch=re.search( basename+'__v[0-9]+', f )
             if verSrch :
                 numSrch=re.search( '[0-9]+$', verSrch.group() )
                 if numSrch :
                     if int(numSrch.group()) >verNum :
                         verNum=int(numSrch.group())
     except : pass
+
+    print("Version to publish: %d"%verNum)
+
+    if version and version > verNum:
+        verNum = version # Increment to explicit version
+    elif version:
+        msg = "Error updating scene version. An explicit version up was set, %d.\n"%version
+        msg += "But the latest available version if greater or equal: %d"%verNum
+        msg += "Please set a version greater than the latest available"
+        P.error( msg )
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
+
     nim.set_version( version=str(verNum) )
     
     #  Set Extension :
@@ -421,45 +831,92 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     
     #  Error Checking :
     if not fileDir or not basename :
-        msg='ERROR: File not saved\n\n'+\
-            'This can be due to missing server or project structure information in NIM.\n\n'+\
-            'Please save the file manually and add to NIM using the NIM Files panel.\n\n'+\
-            'Check the application logs for more details.'
+        msg='Sorry, you must either: Save the file from the NIM File GUI, or\n'+\
+            '    save the file in the appropriate folders, with the correct name.\n\n'+\
+            'File NOT saved.'
         P.error( msg )
         Win.popup( title='NIM - Version Up Error', msg=msg )
         return False
-    
+
     #  Construct new File Name :
+    '''
     if not pub :
         new_fileName='%s_v%s%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     elif pub :
         verNum -=1
         new_fileName='%s_v%s_PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
+    '''
+    # Use our convention with __ to separate fields in the file name:
+    if not pub :
+        new_fileName='%s__v%s%s' % ( basename, str(verNum).zfill(int(padding)), ext )
+    elif pub :
+        verNum -=1
+        nim.set_version( version=str(verNum) )
+        # Add _PUB suffix to version string
+        new_fileName='%s__v%s_PUB%s' % ( basename, str(verNum).zfill(int(padding)), ext )
     
     
     #  Construct new File Path :
     temp_filePath=os.path.normpath( os.path.join( fileDir, new_fileName ) )
     new_filePath=os_filePath( path=temp_filePath, nim=nim )
     
-    
+    # Tag. Update tag
+    nameparts = Utl.splitName(new_fileName)
+    nim.set_name('tag', nameparts['tag'])
+
+
+
     #  Construct Render Directory :
     if nim.tab()=='SHOT' and nim.ID('shot') :
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
     elif nim.tab()=='ASSET' and nim.ID('asset') :
         pathInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
+
+    # Add job ans shot/asset path
+    if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+        shotPath=os.path.normpath( os.path.join( nim.server(), pathInfo['root'] ) )
+        nim.set_shotPath( shotPath=shotPath )
+    else:
+        msg="Can't find root path for %s %s  in NIM. Is project structure correctly defined?"%(nim.tab().lower(), nim.name(nim.tab().lower()))
+        P.error(msg)
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
+
+    # Add cg render path
     if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
         renDir=os.path.normpath( os.path.join( nim.server(), pathInfo['renders'] ) )
+        # Add render path to nim object
+        nim.set_renderPath( renderPath=renDir)
     else :
         #  Use old method, if path information can't be derived :
         renDir=Api.to_renPath( nim )
+        nim.set_renderPath( renderPath=renDir)
     renDir=os_filePath( path=renDir, nim=nim )
     
     #  Comp Path :
     if pathInfo and type(pathInfo)==type(dict()) and 'comps' in pathInfo :
         compPath=os.path.normpath( os.path.join( nim.server(), pathInfo['comps'] ) )
         nim.set_compPath( compPath=compPath )
-    compPath=os_filePath( path=compPath, nim=nim )
-    
+        compPath=os_filePath( path=compPath, nim=nim )
+    else:
+        msg="Can't find path for comps. Is project structure correctly defined?: %s"%pathInfo['root']
+        P.error(msg)
+        Win.popup( title='NIM - Version Up Error', msg=msg )
+        return False
+
+    #  Add Plates Path (Optional, Assets don't have plates):
+    if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
+        platesPath=os.path.normpath( os.path.join( nim.server(), pathInfo['plates'] ) )
+        nim.set_platesPath( platesPath=platesPath )
+        platesPath=os_filePath( path=platesPath, nim=nim )
+
+
+    # jobpath = os.path.normpath(os.path.join(serverOsPathInfo, nim.Dict(elem='job')['name']))
+    nimdict = nim.get_nim()
+    if 'job' in nimdict:
+        jobpath = os.path.normpath(os.path.join(os.path.normpath(serverOSPath), nimdict['job']['name'].split()[0]))
+        nim.set_jobPath( jobPath=jobpath )
+
     P.info( '\nVariables:' )
     P.info( '  Initial File Path = %s' % cur_filePath )
     P.info( '  Basename = %s' % basename )
@@ -467,8 +924,13 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     P.info( '  New File Path = %s' % new_filePath )
     P.info( '  Render Directory = %s' % renDir )
     P.info( '  Comp Directory = %s\n' % compPath )
+    if 'plates' in pathInfo:
+        P.info( '  Plates Directory = %s\n' % platesPath )
+
+
+    # TODO: check that file path and projDir are writable
     
-    
+    '''
     #  Directories :
     #===---------------
     
@@ -519,6 +981,7 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         P.warning( 'Didn\'t create 3dsMax project directories.' )
 
     #  Make Houdini Project directory :
+    # TODO: this wil be removed
     if os.path.isdir( projDir ) and nim.app()=='Houdini' :
         from . import nim_houdini as Houdini
         if Houdini.mk_proj( path=projDir, renPath=renDir ) :
@@ -643,56 +1106,30 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
             Houdini.set_vars( nim=nim )
             #Save File
             if _os.lower() in ['windows', 'win32'] :
-                new_filePath = new_filePath.replace('\\','/')
-            
-            P.info( 'Saving file as %s \n' % new_filePath )
-            try :
-                hou.hipFile.save(file_name=str(new_filePath))
-                P.info('Houdini successfully save the file.')
-            except hou.OperationFailed as e:
-                P.info('Houdini failed to save the file.' )
-                P.info( hou.OperationFailed.description(e) )
-
+                hipFilePath = new_filePath.replace('\\','/')
+            P.info( 'Saving file as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
             #Set $HIP var to location of current file
             if _os.lower() in ['windows', 'win32'] :
-                projDir = projDir.replace('\\','/')
-            
-            hou.hscript("set -g HIP = '" + str(projDir) + "'")
-
+                hipProj = projDir.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
             #Set $HIPNAME var to current file
             hipName = os.path.splitext(new_fileName)[0]
             hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
-
         else :
             #Save Selected Items
+            #TODO: set to saveSelect items... currently saving entire scene
             if _os.lower() in ['windows', 'win32'] :
-                new_filePath = new_filePath.replace('\\','/')
-            P.info( 'Saving selected items as %s \n' % new_filePath )
-           
-            try :
-                tmp_filePath = new_filePath+"."+time.strftime('%Y%m%d_%H%M%S')+".tmp"
-                parentNode = "hou.node('/obj/')"
-                selected = hou.selectedNodes()
-                selectedParent = selected[0].parent()
-                selectedParent.saveItemsToFile(selected, file_name=str(tmp_filePath))
-                P.info('Houdini saved items to file.' )
-            except hou.OperationFailed as e:
-                P.info('Houdini failed to save selected items to file.' )
-                P.info( hou.OperationFailed.description(e) )
-
-            saveCode = '"' + "import os, time; newParent = "+parentNode+"; newParent.loadChildrenFromFile('"+tmp_filePath+"'); hou.hipFile.save('"+new_filePath+"')" + '"'
-            pyCmd = os.environ["HFS"] + '/bin/hython -c ' + saveCode
-
-            try :
-                os.system(pyCmd)
-            except :
-                P.info('Failed to run hython for external Houini save.')
-
-            try:
-                os.remove(tmp_filePath)
-            except OSError:
-                pass
-
+                hipFilePath = new_filePath.replace('\\','/')
+            P.info( 'Saving selected items as %s \n' % hipFilePath )
+            hou.hipFile.save(file_name=str(hipFilePath))
+            #Set $HIP var to location of current file
+            if _os.lower() in ['windows', 'win32'] :
+                hipProj = projDir.replace('\\','/')
+            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
+            #Set $HIPNAME var to current file
+            hipName = os.path.splitext(new_fileName)[0]
+            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
 
     #  Make a copy of the file, if publishing :
     if pub and not symLink :
@@ -710,9 +1147,11 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     #  Print save success :
     P.info( '\nFile successfully saved to...\n    %s\n' % new_filePath )
     
+    '''
+
     #  [AS]  returning nim object with current dictionary settings
     #return new_filePath
-    return {'filepath':new_filePath,'nim':nim}
+    return {'filepath':new_filePath, 'projpath':projDir, 'nim':nim}
     #  [AS]  END
 
 
@@ -726,40 +1165,39 @@ def scripts_reload() :
         from . import nim_print as P
         from . import nim_win as Win
         from . import nim_tools
-        importlib.reload(Nim)
-        importlib.reload(Api)
-        importlib.reload(F)
-        importlib.reload(Prefs)
-        importlib.reload(P)
-        importlib.reload(Win)
-        importlib.reload(nim_tools)
+        reload(Nim)
+        reload(Api)
+        reload(F)
+        reload(Prefs)
+        reload(P)
+        reload(Win)
+        reload(nim_tools)
         #  App specific modules :
         app=get_app()
         try :
             from . import UI as UI
-            importlib.reload(UI)
+            reload(UI)
         except : pass
         if app=='Maya' :
             from . import nim_maya as M
-            importlib.reload(M)
+            reload(M)
         elif app=='Nuke' :
             from . import nim_nuke as N
-            importlib.reload(N)
+            reload(N)
         elif app=='C4D' :
             from . import nim_c4d as C
-            importlib.reload(C)
+            reload(C)
         elif app=='3dsMax' :
             from . import nim_3dsmax as Max
-            importlib.reload(Max)
+            reload(Max)
         elif app=='Houdini' :
             from . import nim_houdini as Houdini
-            importlib.reload(Houdini)
+            reload(Houdini)
         P.info( '    NIM scripts. have been reloaded.' )
     except Exception as e :
         print('Sorry, problem reloading scripts...')
-        print(('    %s' % traceback.print_exc()))
+        print('    %s' % traceback.print_exc())
     return
 
 
 #  END
-

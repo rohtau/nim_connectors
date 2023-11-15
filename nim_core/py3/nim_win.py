@@ -13,11 +13,37 @@
 # *****************************************************************************
 
 import os, sys
+builtin_mod_available = True
+try:
+    from builtins import input
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to raw_input instead of input if builtin is not available
+    builtin_mod_available = False
+
 #  NIM Imports :
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
+if sys.version_info >= (3,0):
+    try:
+        from . import nim_api as Api
+        from . import nim_file as F
+        from . import nim_prefs as Prefs
+        from . import nim_print as P
+    except ImportError as e:
+        import nim_api as Api
+        import nim_file as F
+        import nim_prefs as Prefs
+        import nim_print as P
+
+else:
+    import nim_api as Api
+    import nim_file as F
+    import nim_prefs as Prefs
+    import nim_print as P
+     
+
+
+from .import version 
+from .import winTitle 
 
 qt_import=True
 
@@ -204,7 +230,7 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
                 userInput='Cancel'
         elif type=='input' :
             dialog=QtGui.QInputDialog.getText( QtGui.QInputDialog(), title, msg, \
-                QtGui.QLineEdit.Normal )
+                QtGui.QLineEdit.Normal, defaultInput )
             if dialog[1] :
                 userInput=dialog[0]
             else :
@@ -252,19 +278,24 @@ def userInfo( url='', apiUser='', newUser=False ) :
     if isGUI :
         user=popup( title='Enter NIM Login', msg='Please enter your NIM username:', type='input', defaultInput=apiUser )
     else :
-        user=input('Please enter your NIM username: ')
+        if builtin_mod_available:
+            user=input('Please enter your NIM username: ')
+        else:
+            user=raw_input('Please enter your NIM username: ')
+            
+
 
     if user is None :
         return False
     else :
-        print(("newUser: %s" % user))
+        print("newUser: %s" % user)
         #  Get user ID :
         if url :
             userID=Api.get( sqlCmd={ 'q': 'getUserID', 'u': user}, debug=False, nimURL=url )
-            print(("userID: %s" % userID))
+            print("userID: %s" % userID)
         else :
             userID=Api.get( sqlCmd={ 'q': 'getUserID', 'u': user}, debug=False )
-            print(("userID: %s" % userID))
+            print("userID: %s" % userID)
 
         if type(userID)==type(list()) and len(userID)==1 :
             try :
@@ -276,7 +307,7 @@ def userInfo( url='', apiUser='', newUser=False ) :
                     if isGUI :
                         popup( title='NIM User Set', msg='The NIM user has been set to %s.' % user)
                     else :
-                        print(('The NIM user has been set to %s.' % user))
+                        print('The NIM user has been set to %s.' % user)
                 return (user, userID)
             except :
                 return False
@@ -285,7 +316,11 @@ def userInfo( url='', apiUser='', newUser=False ) :
             if isGUI :
                 response = popup( title='User Not Found', msg='The username entered is not a valid NIM user.\n\n Would you like to enter a new username?', type='okCancel')
             else :
-                response=input('The username entered is not a valid NIM user. Would you like to enter a new username? (Y/N)')
+                if builtin_mod_available:
+                    response=input('The username entered is not a valid NIM user. Would you like to enter a new username? (Y/N)')
+                else:
+                    response=raw_input('The username entered is not a valid NIM user. Would you like to enter a new username? (Y/N)')
+                    
                 if response == 'Y' or response == 'y' :
                     response = 'OK'
 
@@ -326,7 +361,11 @@ def setApiKey( url='' ) :
         print('Failed to validate user.\n \
                 NIM Security is set to require the use of API Keys.\n \
                 Please obtain a valid NIM API KEY from your NIM Administrator.')
-        api_key=input('Enter the NIM API Key for your user: ')
+        if builtin_mod_available:
+            api_key=input('Enter the NIM API Key for your user: ')
+        else:
+            api_key=raw_input('Enter the NIM API Key for your user: ')
+            
 
     if api_key is None :
         return False
@@ -343,7 +382,10 @@ def setApiKey( url='' ) :
                         response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                     else :
                         print('The NIM API Key entered is invalid.')
-                        response=input('Re-enter API Key? (Y/N): ')
+                        if builtin_mod_available:
+                            response=input('Re-enter API Key? (Y/N): ')
+                        else:
+                            response=raw_input('Re-enter API Key? (Y/N): ')
                         if response == 'Y' or response == 'y' :
                             response = 'OK'
 
@@ -353,7 +395,7 @@ def setApiKey( url='' ) :
                         return False
                 else :
                     #  Update NIM Key File :
-                    print(("Key Valid: %s" % testAPI[0]['keyValid']))
+                    print("Key Valid: %s" % testAPI[0]['keyValid'])
                     if testAPI[0]['keyValid'] == 'true' :
                         try :
                             keyFile = os.path.normpath( os.path.join( Prefs.get_home(), 'nim.key' ) )
@@ -389,7 +431,10 @@ def setApiKey( url='' ) :
                             response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                         else :
                             print('The NIM API Key entered is invalid.')
-                            response=input('Re-enter API Key? (Y/N): ')
+                            if builtin_mod_available:
+                                response=input('Re-enter API Key? (Y/N): ')
+                            else:
+                                response=raw_input('Re-enter API Key? (Y/N): ')
                             if response == 'Y' or response == 'y' :
                                 response = 'OK'
 
@@ -403,7 +448,10 @@ def setApiKey( url='' ) :
                     response = popup( title='NIM API Invalid', msg='The NIM API Key entered is invalid.\n\nRe-enter API Key?', type='okCancel')
                 else :
                     print('The NIM API Key entered is invalid.')
-                    response=input('Re-enter API Key? (Y/N): ')
+                    if builtin_mod_available:
+                        response=input('Re-enter API Key? (Y/N): ')
+                    else:
+                        response=raw_input('Re-enter API Key? (Y/N): ')
                     if response == 'Y' or response == 'y' :
                         response = 'OK'
 
@@ -417,4 +465,3 @@ def setApiKey( url='' ) :
 
 
 #  END
-

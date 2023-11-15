@@ -2,9 +2,9 @@
 #******************************************************************************
 #
 # Filename: nim_houdini.py
-# Version:  v6.0.4.230905
+# Version:  v5.1.2.220314
 #
-# Copyright (c) 2014-2023 NIM Labs LLC
+# Copyright (c) 2014-2022 NIM Labs LLC
 # All rights reserved.
 #
 # Use of this software is subject to the terms of the NIM Labs license
@@ -15,11 +15,25 @@
 
 #  General Imports :
 import os, sys, traceback
-from . import nim as Nim
-from . import nim_file as F
-from . import nim_print as P
+from pprint import pprint, pformat
+# NIM imports
+try:
+    import nim              as Nim
+    import nim_file         as F
+    import nim_print        as P
+    import nim_api          as Api
+    import nim_rohtau       as Rt
+    import nim_rohtau_utils as Utl
+except ImportError as e:
+    from . import nim              as Nim
+    from . import nim_file         as F
+    from . import nim_print        as P
+    from . import nim_api          as Api
+    from . import nim_rohtau       as Rt
+    from . import nim_rohtau_utils as Utl
 #  Houdini Imports :
 import hou
+import toolutils
 #  Import Python GUI packages :
 try : from PySide import QtCore, QtGui
 except :
@@ -33,8 +47,9 @@ except :
             pass
 
 #  Variables :
-version='v6.0.4'
-winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
+
 
 def get_mainWin() :
     'Returns the name of the main Houdini window'
@@ -43,10 +58,20 @@ def get_mainWin() :
     #return maxWin
     return True
 
-def set_vars( nim=None ) :
+# def set_vars( nim=None ) :
+def set_vars( nim ) :
     'Add variables to Houdini Globals'
     
     P.info( '\nHoudini - Setting Globals variables...' )
+
+    if nim is None:
+        raise hou.OperationFailed( "ERROR: empty NIM dictionary. Can't save publising information into hip file")
+
+    # help(nim)
+    # print("================================")
+    # P.debug( 'In Houdini set_vars' )
+    # from pprint import pprint
+    # pprint(nim.get_nim())
 
     #  User :
     userInfo=nim.userInfo()
@@ -54,6 +79,8 @@ def set_vars( nim=None ) :
     makeGlobalAttrs = False
     h_root = hou.node("/")
     
+    h_root.setUserData("nim_version", str(version)) 
+
     h_root.setUserData("nim_user", str(userInfo['name'])) 
     h_root.setUserData("nim_userID", str(userInfo['ID'])) 
     h_root.setUserData("nim_class", str(nim.tab())) 
@@ -68,6 +95,7 @@ def set_vars( nim=None ) :
     h_root.setUserData("nim_asset", str(nim.name('asset'))) 
     h_root.setUserData("nim_assetID", str(nim.ID('asset'))) 
     h_root.setUserData("nim_fileID", str(nim.ID('ver')))
+    h_root.setUserData("nim_fileVer", str(nim.version()))
 
     if nim.tab()=='SHOT' :
         h_root.setUserData("nim_name", str(nim.name('shot')))
@@ -75,15 +103,253 @@ def set_vars( nim=None ) :
         h_root.setUserData("nim_name", str(nim.name('asset')))
 
     h_root.setUserData("nim_basename", str(nim.name('base'))) 
+    h_root.setUserData("nim_task", str(nim.name( elem='task')))
     h_root.setUserData("nim_type", str(nim.name( elem='task'))) 
     h_root.setUserData("nim_typeID", str(nim.ID( elem='task' ))) 
     h_root.setUserData("nim_typeFolder", str(nim.taskFolder())) 
     h_root.setUserData("nim_tag", str(nim.name('tag'))) 
     h_root.setUserData("nim_fileType", str(nim.fileType())) 
-    P.info("Root attributes added")
+    h_root.setUserData("nim_jobPath", str(nim.jobPath())) 
+    h_root.setUserData("nim_shotPath", str(nim.shotPath())) 
+    h_root.setUserData("nim_renderPath", str(nim.renderPath())) 
+    h_root.setUserData("nim_compPath", str(nim.compPath())) 
+    h_root.setUserData("nim_platesPath", str(nim.platesPath())) 
+    h_root.setUserData("nim_pubElements", str(nim.get_elementTypes())) 
+
+    # Set file version owner
+    for ver in nim.Dict('ver'):
+        if ver['version'] == nim.version() and nim.name('base') == nim.Dict('ver')[0]['basename']:
+            h_root.setUserData("nim_user", str(ver['username']))
+            h_root.setUserData("nim_userID", str(ver['userID']))
+
+    # Try to check a valid task for the task type and user in the shot/asset
+    # pubtask  = Utl.getuserTask(int(nim.userInfo()['ID']), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    '''
+    pubtask  = Utl.getuserTask(int(h_root.userData("nim_userID")), int(nim.ID('task')), nim.tab().lower(), int(nim.ID('shot')) if nim.tab() == 'SHOT' else int(nim.ID('asset')))
+    if not pubtask:
+        h_root.setUserData("nim_task", '')
+        h_root.setUserData("nim_taskID", '0') 
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nim.name('task'), userInfo['name'], nim.name('shot')), severity= hou.severityType.Warning)
+    else:
+        h_root.setUserData("nim_task", str(pubtask['taskName']))
+        h_root.setUserData("nim_taskID", str(pubtask['taskID'])) 
+    '''
+
+    
+    P.info("Publishing information added to HIP")
+
+    # Set env vars used by nodes:
+    hou.putenv( 'SHOW', h_root.userData('nim_jobName'))
+    hou.putenv( 'SHOT', h_root.userData('nim_name'))
+    hou.putenv( 'SHOWPATH', h_root.userData('nim_jobPath'))
+    hou.putenv( 'SHOTPATH', h_root.userData('nim_shotPath'))
+    hou.putenv( 'SHOTRENDERSPATH', h_root.userData('nim_renderPath'))
+    hou.putenv( 'SHOTCOMPSPATH', h_root.userData('nim_compPath'))
+    hou.putenv( 'SHOTPLATESPATH', h_root.userData('nim_platesPath'))
+    hou.putenv( 'TASK', h_root.userData('nim_task'))
+
+    P.info("Session env vars updated with Publishing data")
 
     return
+
+def set_fileid_var( fileid ):
+    '''
+    Set FileID data.
+    Needed to update scene after it has been published
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    # if 'nim_fileID' not in h_root.userDataDict():
+        # P.error("Can't set FileID, FileID data doesn't exists, has this scene publish information?")
+        # return False
+    h_root.setUserData("nim_fileID", str(fileid))
+    info = Api.get_verInfo( fileid )
+    fileInfo = info[0]
+    h_root.setUserData("nim_fileVer", str(fileInfo['version']))
+
+    return True
+
+def set_taskid_var( taskid ):
+    '''
+    Set publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Parameters
+    ----------
+    taskid : int
+        Id for the publishing task
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    # if 'nim_taskID' not in h_root.userDataDict():
+        # P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        # return False
+    h_root.setUserData("nim_taskID", str(taskid)) 
+    return True
+
+
+def dump_vars( ):
+    from pprint import pformat
+
+    dump = "HIP file Publishing data from NIM:\n"
+    dump += pformat( hou.node('/').userDataDict(), indent=2, depth=4 )
+    dump += "\n\n Session environment variables:\n"
+    sessionvars = ('SHOW', 'SHOT', 'SHOWPATH', 'SHOTPATH', 'SHOTRENDERSPATH', 'SHOTCOMPSPATH', 'SHOTPLATESPATH', 'TASK')
+    # sessionvarssrc = ('nim_jobName', 'nim_name', 'nim_jobPath', 'nim_shotPath', 'nim_renderPath', 'nim_compPath', 'nim_platesPath', 'nim_task')
+    for var in sessionvars:
+        dump += "%s %s %s\n"%(var, "=>".rjust(25), hou.getenv(var))
     
+    title = "NIM Publish info for: %s"%hou.expandString('$HIPFILE')
+    if hou.isUIAvailable():
+        ret = hou.ui.displayMessage( dump, title=title, buttons=('OK','Check Publish Info'), close_choice=0 )
+        if ret == 1:
+            # Call check data
+            check_vars()
+    else:
+        print( title )
+        print( dump )
+        print( '####################' )
+            
+    
+    return True
+    
+def check_vars():
+    'Check current nim dict in hip file agains the publish data returned by NIM'
+
+    #  Get API values from file name :
+    nimpubdata=Nim.NIM().ingest_filePath( hou.hipFile.name() )
+    if nimpubdata is None:
+        hou.ui.displayMessage('Error gathering publish info from File Name', title='Publishing error', severity=hou.severityType.Error)
+    # print("Nim Pub Data")
+    # from pprint import pprint
+    # pprint( nimpubdata.get_nim(), indent=4)
+
+    # Get hip NIM data
+    nimhipdata = hou.node('/').userDataDict()
+    #  User :
+    userInfo=nimpubdata.userInfo()
+
+    errors = ""
+    iserror = False
+    entityIsCorrect = True
+
+    # Version:
+    if 'nim_version' not in nimhipdata or nimhipdata['nim_version'] != version:
+        errors += "NIM data saved with a different version of the NIM API. Using NIM %s, data saved using NIM %s"%(version, nimhipdata['nim_version'] if 'nim_version' in nimhipdata else 'N/A')
+        iserror = True
+
+    # Job
+    if nimpubdata.name('job') != nimhipdata['nim_jobName'] or nimpubdata.ID('job') != nimhipdata['nim_jobID']:
+        errors += "Job information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('job'), nimpubdata.ID('job'), nimhipdata['nim_jobName'], nimhipdata['nim_jobID'])
+        iserror = True
+    # Job path
+    nimpubjobpath = os.path.normpath(os.path.join(os.path.normpath(nimpubdata.server('path')), nimpubdata.name('job').split()[0]))
+    nimpubjobpath = Rt.toPosix( nimpubjobpath, force=True )
+    # nimpubjobpath = nimpubdata.name('server') + '/' + nimpubdata.name('job').split()[0]
+    if nimpubjobpath != nimhipdata['nim_jobPath']:
+        errors += "Job Path information doesn't match. NIM data %s -> HIP data %s\n"%(nimpubjobpath, nimhipdata['nim_jobPath'])
+        iserror = True
+    # Show
+    if nimpubdata.name('show') != nimhipdata['nim_showName'] or nimpubdata.ID('show') != nimhipdata['nim_showID']:
+        errors += "Show/Seq information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('show'), nimpubdata.ID('show'), nimhipdata['nim_showName'], nimhipdata['nim_showID'])
+        iserror = True
+    # Shot/Asset
+    if (len(nimpubdata.name('asset')) > 0) !=  (len(nimhipdata['nim_asset']) > 0):
+        errors += "Publish data mismatch for entity type, one is set as asset and the other not\n"
+        iserror = True
+        entityIsCorrect = False
+    if (len(nimpubdata.name('shot')) > 0) !=  (len(nimhipdata['nim_shot']) > 0):
+        errors += "Publish data mismatch for entity type, one is set as shot and the other not\n"
+        iserror = True
+        entityIsCorrect = False
+    if entityIsCorrect:
+        if nimhipdata['nim_asset']:
+            # Asset
+            if nimpubdata.name('asset') != nimhipdata['nim_asset'] or nimpubdata.ID('asset') != nimhipdata['nim_assetID']:
+                errors += "Asset information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('asset'), nimpubdata.ID('asset'), nimhipdata['nim_asset'], nimhipdata['nim_assetID'])
+                iserror = True
+        elif nimhipdata['nim_shot']:
+            # Shot
+            if nimpubdata.name('shot') != nimhipdata['nim_shot'] or nimpubdata.ID('shot') != nimhipdata['nim_shotID']:
+                errors += "Shot information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('shot'), nimpubdata.ID('shot'), nimhipdata['nim_shot'], nimhipdata['nim_shotID'])
+                iserror = True
+        else:
+            errors += "HIP Publish data doesn't have information about asset or shot\n"
+            iserror = True
+    # TODO: shotPath, platesPath, compsPath, rendersPath
+    # Task
+    if nimpubdata.name('task') != nimhipdata['nim_type'] or nimpubdata.ID('task') != nimhipdata['nim_typeID']:
+        errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(nimpubdata.name('task'), nimpubdata.ID('task'), nimhipdata['nim_type'], nimhipdata['nim_typeID'])
+        iserror = True
+    # Try to find a valid task for the task type and user in the shot/asset
+    pubtask = Utl.getuserTask(int(nimpubdata.ID('user')), int(nimpubdata.ID('task')), nimpubdata.get_nim()['class'].lower(), int(nimpubdata.ID('shot')) if nimpubdata.get_nim()['class'] == 'SHOT' else int(nimpubdata.ID('asset')))
+    # pprint(pubtask)
+    if pubtask:
+        if 'nim_taskID' not in nimhipdata:
+            errors += "HIP data doesn't have task information, but there is a task for this user and this type (%s)\n"%nimpubdata.name('task')
+            iserror = True
+        elif (pubtask['taskID'] != nimhipdata['nim_taskID']) or (pubtask['taskName'] != nimhipdata['nim_task']):
+            errors += "Task information doesn't match. NIM data (%s,%s) -> HIP data (%s,%s)\n"%(pubtask['taskName'], pubtask['taskID'], nimhipdata['nim_task'], nimhipdata['nim_taskID'])
+            iserror = True
+        
+    if not pubtask and hou.isUIAvailable():
+        hou.ui.setStatusMessage( "Couldn't find a %s task for %s for %s"%(nimpubdata.name('task'), userInfo['name'], nimpubdata.name('shot')), severity= hou.severityType.Warning)
+    # Version
+    if nimpubdata.ID('ver') != nimhipdata['nim_fileID']:
+        errors += "File version ID information doesn't match. NIM data %s -> HIP data %s\n"%( nimpubdata.ID('ver'),  nimhipdata['nim_fileID'])
+        iserror = True
+    
+
+
+    if iserror:
+        if hou.isUIAvailable():
+            ret = hou.ui.displayMessage( "Some HIP file publish data failed tests against NIM online publish data:", title='Check HIP Publish Info',\
+                buttons= ('OK', 'Reset Publish Data'), default_choice=0, close_choice=0, details=errors, details_label='Failed Publish Data',\
+                    severity= hou.severityType.Error)
+            if ret == 1:
+                reset_vars( confirm=False )
+        else:
+            print("Some HIP file publish data failed tests against NIM online publish data:")
+            print (errors)
+
+    else:
+        if hou.isUIAvailable():
+            hou.ui.displayMessage( "HIP publish data correct", title='Check HIP Publishing data' )
+        else:
+            print("HIP publish data correct")
+
+    return True
+
+def reset_vars( confirm=True ):
+
+    if confirm:
+        msg = "Do you want to reset scene's publishing data?"
+        helpmsg = "Publish information will be worked out using file name and path"
+        title = "Reset Scene Publishing Data"
+        if not hou.ui.displayConfirmation( msg, severity=hou.severityType.Warning, help=helpmsg, title=title):
+            return
+    #  Get API values from file name :
+    nimpubdata=Nim.NIM().ingest_filePath( hou.hipFile.name() )
+    if nimpubdata is None:
+        hou.ui.displayMessage('Error gathering publish info from File Name', title='Publishing error', severity=hou.severityType.Error)
+        return False
+
+    # Try to create a valid task
+    # DEPRECATED: since tasks are not mandatory for publishing info, dont do
+    # anything here
+    # pubtask = Rt.pubTask(nimpubdata)
+
+    set_vars( nimpubdata )
+
+    if hou.isUIAvailable():
+        hou.ui.setStatusMessage( "HIP file publish data updated ", severity= hou.severityType.ImportantMessage)
+
+    return True
 
 def get_vars( nim=None ) :
     'Gets NIM settings from the root node in Houdini.'
@@ -99,12 +365,6 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading userName')
 
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_user' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_user' )
-        P.debug( 'User = %s' % value )
-        nim.set_user( userName=value )
-    '''
 
 
     #  User ID :
@@ -114,12 +374,6 @@ def get_vars( nim=None ) :
         P.info('Reading userID')
     else:
         P.error('Failed reading userID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_userID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_userID' )
-        P.debug( 'User ID = %s' % value )
-        nim.set_userID( userID=value )
-    '''
 
     #  Tab/Class :
     nim_class = h_root.userData("nim_class")
@@ -129,14 +383,6 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading nim_class')
 
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_class' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_class' )
-        P.debug( 'Tab = %s' % value )
-        nim.set_tab( value )
-    '''
-
-
 
     #  Server :
     nim_server = h_root.userData("nim_server")
@@ -145,14 +391,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_server')
     else:
         P.error('Failed reading nim_server')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_server' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_server' )
-        P.debug( 'Server = %s' % value )
-        nim.set_server( path=value )
-    '''
-
-
     #  Server ID :
     nim_serverID = h_root.userData("nim_serverID")
     if nim_serverID is not None:
@@ -160,13 +398,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_serverID')
     else:
         P.error('Failed reading nim_serverID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_serverID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_serverID' )
-        P.debug( 'Server ID = %s' % value )
-        nim.set_ID( elem='server', ID=value )
-    '''
-
 
 
     #  Job :
@@ -176,12 +407,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_jobName')
     else:
         P.error('Failed reading nim_jobName')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_jobName' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_jobName' )
-        P.debug( 'Job = %s' % value )
-        nim.set_name( elem='job', name=value )
-    '''
 
 
     #  Job ID :
@@ -191,13 +416,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_jobID')
     else:
         P.error('Failed reading nim_jobID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_jobID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_jobID' )
-        P.debug( 'Job ID = %s' % value )
-        nim.set_ID( elem='job', ID=value )
-    '''
-
 
 
     #  Show :
@@ -207,12 +425,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_showName')
     else:
         P.error('Failed reading nim_showName')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_showName' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_showName' )
-        P.debug( 'Show = %s' % value )
-        nim.set_name( elem='show', name=value )
-    '''
 
 
 
@@ -223,13 +435,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_showID')
     else:
         P.error('Failed reading nim_showID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_showID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_showID' )
-        P.debug( 'Show ID = %s' % value )
-        nim.set_ID( elem='show', ID=value )
-    '''
-
 
     
     #  Shot :
@@ -239,13 +444,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_shot')
     else:
         P.error('Failed reading nim_shot')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_shot' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_shot' )
-        P.debug( 'Shot = %s' % value )
-        nim.set_name( elem='shot', name=value )
-    '''
-
 
     
     #  Shot ID :
@@ -255,12 +453,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_shotID')
     else:
         P.error('Failed reading nim_shotID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_shotID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_shotID' )
-        P.debug( 'Shot ID = %s' % value )
-        nim.set_ID( elem='shot', ID=value )
-    '''
 
 
     
@@ -271,12 +463,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_asset')
     else:
         P.error('Failed reading nim_asset')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_asset' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_asset' )
-        P.debug( 'Asset = %s' % value )
-        nim.set_name( elem='asset', name=value )
-    '''
 
     
     #  Asset ID :
@@ -286,23 +472,15 @@ def get_vars( nim=None ) :
         P.info('Reading nim_assetID')
     else:
         P.error('Failed reading nim_assetID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_assetID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_assetID' )
-        P.debug( 'Asset ID = %s' % value )
-        nim.set_ID( elem='asset', ID=value )
-    '''
 
     
     #  File ID :
-    '''
-    if mc.attributeQuery( 'defaultRenderGlobals.nim_fileID' ) :
-        value=mc.attributeQuery( 'nim_fileID', node='defaultRenderGlobals' )
-        P.debug( 'Class = %s' % value )
-        nim.set_tab( tab=value )
-    '''
-    #TODO: Check if Maya code is error or intentional
-
+    nim_fileID = h_root.userData("nim_fileID")
+    if nim_fileID is not None:
+        nim.set_ID( elem='file', ID=nim_fileID )
+        P.info('Reading nim_fileID')
+    else:
+        P.error('Failed reading nim_fileID')
 
     
     #  Shot/Asset Name :
@@ -316,19 +494,6 @@ def get_vars( nim=None ) :
             #nim.set_tab( nim_name.Get() )
     else:
         P.error('Failed reading nim_name')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_name' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_name' )
-        #  Determine what the tab is set to :
-        if nim.tab()=='SHOT' :
-            P.debug( 'Shot Name = %s' % value )
-            #  No corresponding NIM attribute :
-            #nim.set_tab( value )
-        elif nim.tab()=='ASSET' :
-            P.debug( 'Asset Name = %s' % value )
-            #  No corresponding NIM attribute :
-            #nim.set_tab( value )
-    '''
 
 
 
@@ -339,13 +504,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_basename')
     else:
         P.error('Failed reading nim_basename')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_basename' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_basename' )
-        P.debug( 'Basename = %s' % value )
-        nim.set_name( elem='base', name=value )
-    
-    '''
 
 
 
@@ -356,13 +514,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_type')
     else:
         P.error('Failed reading nim_type')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_type' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_type' )
-        P.debug( 'Task = %s' % value )
-        nim.set_name( elem='task', name=value )
-    
-    '''
 
 
 
@@ -373,13 +524,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_typeID')
     else:
         P.error('Failed reading nim_typeID')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_typeID' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_typeID' )
-        P.debug( 'Task ID = %s' % value )
-        nim.set_ID( elem='task', ID=value )
-    
-    '''
 
 
     
@@ -390,13 +534,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_typeFolder')
     else:
         P.error('Failed reading nim_typeFolder')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_typeFolder' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_typeFolder' )
-        P.debug( 'Task Folder = %s' % value )
-        nim.set_taskFolder( folder=value )
-    
-    '''
 
     
     #  Tag :
@@ -406,13 +543,6 @@ def get_vars( nim=None ) :
         P.info('Reading nim_tag')
     else:
         P.error('Failed reading nim_tag')
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_tag' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_tag' )
-        P.debug( 'Tag = %s' % value )
-        nim.set_name( elem='tag', name=value )
-    
-    '''
 
     
     #  File Type :
@@ -423,19 +553,29 @@ def get_vars( nim=None ) :
     else:
         P.error('Failed reading nim_fileType')
 
-    '''
-    if mc.objExists( 'defaultRenderGlobals.nim_fileType' ) :
-        value=mc.getAttr( 'defaultRenderGlobals.nim_fileType' )
-        P.debug( 'File Type = %s' % value )
-        nim.set_name( elem='file', name=value )
-    '''
-
     #  Print dictionary :
     #P.info('\nNIM Dictionary from get vars...')
     #nim.Print()
     
     return
-    
+
+def get_taskid_var():
+    '''
+    Get publishing task id
+    Used as the default task to publish data to in case it need an associated task (renders)
+
+    Returns
+    -------
+    int
+        Task Id as int, 0 or False if error.
+    '''
+    #  Get Project Settings Node :
+    h_root = hou.node("/")
+    if 'nim_taskID' not in h_root.userDataDict():
+        P.error("Can't get Task ID, key doesn't exists, has this scene publish information?")
+        return False
+    return int(h_root.userData("nim_taskID"))
+
 
 def mk_workspace( proj_folder='', renPath='' ) :
     'Creates the NIM Project Workspace'
@@ -490,6 +630,9 @@ def mk_proj( path='', renPath='' ) :
     projectName = os.path.basename(os.path.normpath(path))
     P.info('Project Folder: %s' % projectName)
 
+    '''
+    # DEPRECATED: we dont craete projects relatives to $HIP anymore.
+    # Use project publishing structure instead
     #  Create Houdini project directories :
     if os.path.isdir( path ) :
         for projDir in projDirs:
@@ -501,6 +644,7 @@ def mk_proj( path='', renPath='' ) :
                     P.error( 'Failed creating the directory: %s' % _dir )
                     P.error( '    %s' % traceback.print_exc() )
                     return False
+    '''
     
     '''
     #  Check for workspace file :
@@ -542,8 +686,321 @@ def mk_proj( path='', renPath='' ) :
     
     return True
     
+def stash_frame_range():
+    '''
+    Store current frame and display range in envars for future restore using restore_range
+
+    Parameters
+    ----------
 
 
+    Returns
+    ---------
+    bool
+        True if everything went ok.
+
+    '''
+    framerange = hou.playbar.frameRange()
+    displayrange = hou.playbar.playbackRange()
+    hou.putenv('SHOTSTART_STASH',    str(int( framerange[0] )))
+    hou.putenv('SHOTEND_STASH',      str(int(framerange[1])))
+    hou.putenv('SHOTSTARTCUT_STASH', str(int(displayrange[0])))
+    hou.putenv('SHOTENDCUT_STASH',   str(int(displayrange[1])))
+
+    return True
+
+
+def set_globals():
+    '''
+    Get globals parameters for the show and shot and apply them to our scene
+    Globals are gather from environment variables and/or NIM.
+
+    Globals
+    --------
+    - Render resolution
+    - FPS
+    - Shot range
+
+    Shot Range
+    ----------
+    Shot range is solved usinmg the frames length and the handles.
+    Out first frame is always 1001, then we add the length and finally the handles.
+    For instance a shot wit 10 frames and 8 framss  handles will havea full length of:
+    1001-1026
+    The cut length is 1009-1018
+
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+    jobglobals = Utl.getShowGlobals( jobid )
+
+    msg = ""
+
+    # Set output format.
+    # If format doesn't match, create format for show.
+    if 'output_res' in jobglobals:
+        hou.putenv('SHOWOUTPUT', jobglobals['output_res'])
+        (resx, resy) = jobglobals['output_res'].split('x')
+        # Set flipbook res
+        viewer = toolutils.sceneViewer()
+        if viewer:
+            flipbook_settings = viewer.flipbookSettings().stash()
+            flipbook_settings.useResolution(True)
+            flipbook_settings.resolution((int(resx), int(resy)))
+            flipbook_settings.outputZoom(75)
+            viewer.flipbookSettings().copy(flipbook_settings)
+
+    
+    # Set FPS
+    if 'fps' in jobglobals:
+        hou.putenv('FPS', str(jobglobals['fps']))
+        hou.setFps(jobglobals['fps'])
+        msg += "- FPS set to %d\n"%jobglobals['fps']
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    shotglobals = Utl.getShotGlobals( shotid, entity_type=rootdict['nim_class'])
+
+    # print("Shot Globals")
+    # print(pformat(shotglobals))
+    if 'frames' in shotglobals:
+        # Set frame range and display range. Move to first display frame. Disable cooking
+        hou.setUpdateMode(hou.updateMode.Manual)
+        frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
+        # Save current range
+        stash_frame_range()
+        handles = shotglobals['handles']
+        first = 1001 # We always start at 1001 by convention
+        last = first + frames + (2*handles) - 1
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(first+handles, (last-handles))
+        hou.setFrame(first+handles)
+        hou.putenv('SHOTSTART', str(first))
+        hou.putenv('SHOTEND', str(last))
+        hou.putenv('SHOTSTARTCUT', str(first+handles))
+        hou.putenv('SHOTENDCUT', str(last-handles))
+        hou.putenv('SHOTFRAMES', str(frames))
+        hou.putenv('SHOTHANDLES', str(handles))
+        if not hou.getenv('SHOTPREROLL'):
+            hou.putenv('SHOTPREROLL', str(0))
+        hou.putenv('SHOTSIMSTART', str(first-int(hou.getenv('SHOTPREROLL'))))
+
+
+        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, 
+                                                                                   last-handles)
+    else:
+        msg += "- WARNING: No Frame Range information for this shot"
+
+
+    if msg:
+        msg = "The next changes have been apply in the script:\n\n" + msg
+        hou.ui.displayMessage(msg, title='Set Globals ...')
+    else:
+        hou.ui.displayMessage(msg, title='Set Globals ...', severity=hou.severityType.Warning)
+
+
+    return True
+
+def set_shot_range():
+    '''
+    Set scene time range to shot frames
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if not frames and 'nim_frames' in rootdict:
+        frames = int(rootdict['nim_frames'])
+    if not handles and 'nim_handles' in rootdict:
+        handles = int(rootdict['nim_handles'])
+    if frames :
+        hou.setUpdateMode(hou.updateMode.Manual)
+        frames = frames
+        stash_frame_range()
+        first = 1001 # We always start at 1001 by convention
+        last = first + frames + (2*handles) - 1
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(first+handles, (last-handles))
+        hou.setFrame(first+handles)
+        msg = "Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, last-handles)
+        hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set Shot Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
+
+
+def set_preroll():
+    '''
+    Set scene simulation preroll
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if frames:
+        preroll = hou.getenv('SHOTPREROLL')
+        if not preroll:
+            preroll=0
+        res = hou.ui.readInput("Pre-Roll Frames", buttons=('OK', 'Cancel'), severity=hou.severityType.Message, default_choice=0, 
+                        close_choice=1, help="Preroll frames will be subtracted to the shot frame range", 
+                        title='Set Scene Pre-Roll for Simulation ...', initial_contents=str(preroll))
+        if not res[0] and res[1].isdigit():
+            hou.setUpdateMode(hou.updateMode.Manual)
+            frames = frames
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = first + frames + (2*handles) - 1
+            preroll = int(res[1])
+            first = first - preroll
+            hou.playbar.setFrameRange(first, last)
+            hou.playbar.setPlaybackRange(first, last)
+            hou.setFrame(first)
+            hou.putenv('SHOTPREROLL', str(preroll))
+            hou.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set SIM Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
+
+def set_sim_range():
+    '''
+    Set scene time range to simulation  range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    h_root = hou.node("/")
+    rootdict = h_root.userDataDict()
+    if 'nim_jobID' not in rootdict:
+        P.error("HIP file doesn't have publishing info. Has this scene been published?")
+        return False
+    jobid = int(h_root.userData("nim_jobID"))
+
+    # Shot
+    # Set frame range. Check if frame range is actually y bigger in any of sides,
+    # start or end
+    shotid  = int(rootdict['nim_shotID']) if rootdict['nim_class'] == 'SHOT' else int(rootdict['nim_assetID'])
+    frames  = int(hou.getenv('SHOTFRAMES', "0"))
+    handles = int(hou.getenv('SHOTHANDLES', "0"))
+    if frames and shotglobals['frames']:
+        preroll = int(hou.getenv('SHOTPREROLL', "0"))
+        if preroll:
+            hou.setUpdateMode(hou.updateMode.Manual)
+            stash_frame_range()
+            first = 1001 # We always start at 1001 by convention
+            last = first + frames + (2*handles) - 1
+            first = first - preroll
+            hou.playbar.setFrameRange(first, last)
+            hou.playbar.setPlaybackRange(first, last)
+            hou.setFrame(first)
+            hou.putenv('SHOTSIMSTART', str(first))
+            msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
+            hou.ui.setStatusMessage(msg)
+        else:
+            msg = "This scene doesnt have a Pre-Roll defined. Please use Set Sim Preroll first."
+            hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+            return False
+    else:
+        msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals tp update shot information."
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        hou.ui.displayMessage(msg, title='Set SIM Range ...', severity=hou.severityType.Error)
+        return False
+
+    return True
+
+
+def restore_range():
+    '''
+    Restore previous stashed range
+
+    Parameters
+    ----------
+
+    Returns
+    ---------
+    bool
+        True if all went ok
+    '''
+    # Set frame range using stached values in envvars.
+    first    = int(hou.getenv('SHOTSTART_STASH', "0"))
+    last     = int(hou.getenv('SHOTEND_STASH', "0"))
+    firstcut = int(hou.getenv('SHOTSTARTCUT_STASH', "0"))
+    lastcut  = int(hou.getenv('SHOTENDCUT_STASH', "0"))
+    if first or last or firstcut or lastcut:
+        hou.setUpdateMode(hou.updateMode.Manual)
+        stash_frame_range()
+        hou.playbar.setFrameRange(first, last)
+        hou.playbar.setPlaybackRange(firstcut, lastcut)
+        hou.setFrame(firstcut)
+        msg = "Frame range restored to %d-%d "%(first, last)
+        hou.ui.setStatusMessage(msg)
+    else:
+        msg = "Couldn't find previous frame range state"
+        hou.ui.setStatusMessage(msg, severity= hou.severityType.Error)
+        return False
+
+    return True
 
 #  End
-

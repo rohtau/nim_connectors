@@ -34,7 +34,31 @@
 
 #  General Imports :
 import json, os, re, sys, traceback
-import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+import tempfile
+import getpass
+from pprint import pformat
+from pprint import pprint
+
+# Hack to use urllib in Python 2 and 3
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2
+
+builtin_mod_available = True
+try:
+    from builtins import input
+except:
+    # If builtin module is not available this means we are using a python2 without the future package install.
+    # This flag will be use to call to raw_input instead of input if builtin is not available
+    builtin_mod_available = False
+    
+        
+
+if sys.version_info >= (3,0): # fix isinstance(something, file) -> isinstance(something, IOBase)
+    import _io
+    # from _io import _IOBase
+
 
 try :
     import ssl
@@ -42,24 +66,52 @@ except :
     print("NIM API: Failed to load SSL")
     pass
 
-import mimetypes
+if sys.version_info >= (3,0):
+    import mimetypes
+else:
+    import mimetools, mimetypes
+    
 import email.generator as email_gen
-from email.generator import _make_boundary as choose_boundary
+if sys.version_info >= (3,0):
+    from email.generator import _make_boundary as choose_boundary
 import io
 import stat
 
-#  NIM Imports :
-from . import nim as Nim
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
-from . import nim_tools
-from . import nim_win as Win
+# NIM Imports :
+# Nim is only used in versionUp, s owe move this there to avoid a circular dependency
+# #from . import nim as Nim
+# from . import nim_api as Api
+if sys.version_info >= (3,0):
+    try:
+        from . import nim          as Nim
+        from . import nim_file     as F
+        from . import nim_prefs    as Prefs
+        from . import nim_print    as P
+        from . import nim_tools
+        from . import nim_win      as Win
+        from . import nim_rohtau   as Rt
+    except ImportError as e:
+        import nim          as Nim
+        import nim_file     as F
+        import nim_prefs    as Prefs
+        import nim_print    as P
+        import nim_tools
+        import nim_win      as Win
+        import nim_rohtau   as Rt
+else:
+    import nim          as Nim
+    import nim_file     as F
+    import nim_prefs    as Prefs
+    import nim_print    as P
+    import nim_tools
+    import nim_win      as Win
+    import nim_rohtau   as Rt
+     
 
 #  Variables :
-version='v6.0.4'
-winTitle='NIM_'+version
+from .import version 
+from .import winTitle 
+from .import nimAPIConnectInfoFile 
 
 
 isGUI = False
@@ -74,40 +126,98 @@ except :
 
 def testAPI(nimURL=None, nim_apiUser='', nim_apiKey='') :
     sqlCmd={'q': 'testAPI'}
-    cmd=urllib.parse.urlencode(sqlCmd)
-    _actionURL="".join(( nimURL, cmd ))
-    request = urllib.request.Request(_actionURL)
-    try :
-        request.add_header("X-NIM-API-USER", nim_apiUser)
-        request.add_header("X-NIM-API-KEY", nim_apiKey)
-        request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+    if sys.version_info >= (3,0):
+        cmd=urllib.parse.urlencode(sqlCmd)
+        _actionURL="".join(( nimURL, cmd ))
+        request = urllib.request.Request(_actionURL)
+    else:
+        cmd=urllib.urlencode(sqlCmd)
+        _actionURL="".join(( nimURL, cmd ))
+        request = urllib2.Request(_actionURL)
+    if sys.version_info >= (3,0):
         try :
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            _file = urllib.request.urlopen(request,context=ssl_ctx)
-        except :
-            _file = urllib.request.urlopen(request)
-        fr=_file.read()
-        try : result=json.loads( fr )
-        except Exception as e :
-            P.error( traceback.print_exc() )
-        _file.close()
-        return result
-    except urllib.error.URLError as e :
-        P.error( '\nFailed to read NIM API' )
-        P.error( '   %s' % _actionURL )
-        url_error = e.reason
-        P.error('URL ERROR: %s' % url_error)
-        err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
-        Win.popup(msg=err_msg)
-        P.debug( '    %s' % traceback.print_exc() )
-        return False
+            # request.add_header("X-NIM-API-USER", nim_apiUser)
+            # request.add_header("X-NIM-API-KEY", nim_apiKey)
+            request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                # _file = urllib.request.urlopen(request,context=ssl_ctx)
+                print("Request: %s"%str(request))
+                _file = urllib.request.urlopen(request)
+            except :
+                _file = urllib.request.urlopen(request)
+            fr=_file.read()
+            try : result=json.loads( fr )
+            except Exception as e :
+                P.error( traceback.print_exc() )
+            _file.close()
+            return result
+        except urllib.error.URLError as e :
+            P.error( '\nFailed to read NIM API' )
+            P.error( '   %s' % _actionURL )
+            url_error = e.reason
+            P.error('URL ERROR: %s' % url_error)
+            err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
+            Win.popup(msg=err_msg)
+            P.debug( '    %s' % traceback.print_exc() )
+            return False
+    else:
+        try :
+            request.add_header("X-NIM-API-USER", nim_apiUser)
+            request.add_header("X-NIM-API-KEY", nim_apiKey)
+            request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                # _file = urllib.request.urlopen(request,context=ssl_ctx)
+                print("Request: %s"%str(request))
+                _file = urllib2.urlopen(request,context=ssl_ctx)
+            except :
+                _file = urllib2.urlopen(request)
+            fr=_file.read()
+            try : result=json.loads( fr )
+            except Exception as e :
+                P.error( traceback.print_exc() )
+            _file.close()
+            return result
+        except urllib2.URLError as e :
+            P.error( '\nFailed to read NIM API' )
+            P.error( '   %s' % _actionURL )
+            url_error = e.reason
+            P.error('URL ERROR: %s' % url_error)
+            err_msg = 'NIM Connection Error:\n\n %s' %  url_error;
+            Win.popup(msg=err_msg)
+            P.debug( '    %s' % traceback.print_exc() )
+            return False
 
 
 # Get NIM Connection Information
 def get_connect_info() :
     'Returns the connection information from preferences'
+
+
+    # Load connect info from temp folder. User from non login sessions. Like
+    # from Deadline
+    nimAPIConnectInfo = None
+    if nimAPIConnectInfoFile :
+        # print("NIM API Connect Info file: %s"%nimAPIConnectInfoFile)
+        if os.path.exists(nimAPIConnectInfoFile):
+            with open( nimAPIConnectInfoFile, 'r') as f:
+                cat = f.readline()
+                # print(cat)
+                try:
+                    nimAPIConnectInfo = eval(cat)
+                except (ValueError, SyntaxError):
+                    nimAPIConnectInfo = None
+                    pass
+                # print("Connection info dict:")
+                # pprint(nimAPIConnectInfo)
+    if nimAPIConnectInfo:
+        return nimAPIConnectInfo
+
 
     isGUI = False
     try :
@@ -127,7 +237,11 @@ def get_connect_info() :
         if isGUI :
             reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
         else :
-            reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+            if builtin_mod_available:
+                reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+            else:
+                reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+                
             if reply == 'Y' or reply == 'y' :
                 reply = 'OK'
                 
@@ -207,6 +321,8 @@ def post( sqlCmd=None, debug=True, nimURL=None ) :
 def connect( method='get', params=None, nimURL=None, apiKey=None ) :
     'Querys MySQL server and returns decoded json array'
     result=None
+
+    # traceback.print_stack()
     
     isGUI = False
     try :
@@ -232,10 +348,16 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
     if params :
         if method == 'get':
-            cmd=urllib.parse.urlencode(params)
+            if sys.version_info >= (3,0):
+                cmd=urllib.parse.urlencode(params)
+            else:
+                cmd=urllib.urlencode(params)
             _actionURL="".join(( nimURL, cmd ))
         elif method == 'post':
-            cmd=urllib.parse.urlencode(params)
+            if sys.version_info >= (3,0):
+                cmd=urllib.parse.urlencode(params)
+            else:
+                cmd=urllib.urlencode(params)
             _actionURL = re.sub('[?]', '', nimURL)
         else :
             if isGUI :
@@ -247,10 +369,15 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 
         try :
             if method == 'get':
-                request = urllib.request.Request(_actionURL)
+                if sys.version_info >= (3,0):
+                    request = urllib.request.Request(_actionURL)
+                else:
+                    request = urllib2.Request(_actionURL)
             elif method == 'post':
-                request = urllib.request.Request(_actionURL, cmd)
-            
+                if sys.version_info >= (3,0):
+                    request = urllib.request.Request(_actionURL, cmd)
+                else:
+                    request = urllib2.Request(_actionURL, cmd)
             request.add_header("X-NIM-API-USER", nim_apiUser)
             request.add_header("X-NIM-API-KEY", nim_apiKey)
             request.add_header("Content-type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -258,14 +385,20 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
                 ssl_ctx = ssl.create_default_context()
                 ssl_ctx.check_hostname=False
                 ssl_ctx.verify_mode=ssl.CERT_NONE
-                _file = urllib.request.urlopen(request,context=ssl_ctx)
+                if sys.version_info >= (3,0):
+                    _file = urllib.request.urlopen(request,context=ssl_ctx)
+                else:
+                    _file = urllib2.urlopen(request,context=ssl_ctx)
             except :
-                _file = urllib.request.urlopen(request)
-
+                if sys.version_info >= (3,0):
+                    _file = urllib.request.urlopen(request)
+                else:
+                    _file = urllib2.urlopen(request)
             fr=_file.read()
             try : result=json.loads( fr )
             except Exception as e :
                 P.error( traceback.print_exc() )
+                # P.error( traceback.print_stack() )
             _file.close()
 
             # Test for failed API Validation
@@ -297,7 +430,7 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             
             return result
 
-        except urllib.error.URLError as e :
+        except Exception as e :
             P.error( '\nFailed to read URL for the following command...\n    %s' % params )
             P.error( '   %s' % _actionURL )
             url_error = e.reason
@@ -311,7 +444,11 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
             if isGUI :
                 reply=Win.popup( title='NIM Error', msg=err_msg, type='okCancel' )
             else :
-                reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+                if builtin_mod_available:
+                    reply=input( 'Would you like to recreate your preferences? (Y/N): ')
+                else:
+                    reply=raw_input( 'Would you like to recreate your preferences? (Y/N): ')
+                    
                 if reply == 'Y' or reply == 'y' :
                     reply = 'OK'
 
@@ -348,215 +485,459 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 #       nimURL optional (not passing the nimURL will trigger a prefs read)
 #       apiKey optional (required if passing nimURL and Require API Keys is enabled)
 #
-def upload( params=None, nimURL=None, apiKey=None ) :
 
-    isGUI = False
-    try :
-        #Validate Against DCC Environment
-        if F.get_app() is not None :
-            isGUI = True
-    except :
-        pass
-    
-    connect_info = None
-    if not nimURL :
-        connect_info = get_connect_info()
-    if connect_info :
-        nimURL = connect_info['nim_apiURL']
-        nim_apiUser = connect_info['nim_apiUser']
-        nim_apiKey = connect_info['nim_apiKey']
-    else :
-        nim_apiUser = ''
-        nim_apiKey = ''
-    
-    if apiKey :
-        nim_apiKey = apiKey
 
-    _actionURL = nimURL
+if sys.version_info >= (3,0):
+    # upload() Python 3
+    def upload( params=None, nimURL=None, apiKey=None ) :
 
-    P.info("API URL: %s" % _actionURL)
-    
-    # Test for SSL Redirection
-    isRedirected = False
-    try:
-        testCmd = {'q': 'testAPI'}
-        cmd=urllib.parse.urlencode(testCmd)
-        testURL="".join(( nimURL, cmd ))
-        req = urllib.request.Request(testURL)
-
+        isGUI = False
         try :
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            res = urllib.request.urlopen(req, context=ssl_ctx)
+            #Validate Against DCC Environment
+            if F.get_app() is not None :
+                isGUI = True
         except :
-            res = urllib.request.urlopen(req)
-            #pass
+            pass
         
-        finalurl = res.geturl()
-        #P.info("Request URL: %s" % finalurl)
-        if nimURL.startswith('http:') and finalurl.startswith('https'):
-            isRedirected = True
-            _actionURL = _actionURL.replace("http:","https:")
-            P.info("Redirect: %s" % _actionURL)
-    except:
-        P.error("Failed to test for redirect.")
+        connect_info = None
+        if not nimURL :
+            connect_info = get_connect_info()
+        if connect_info :
+            nimURL = connect_info['nim_apiURL']
+            nim_apiUser = connect_info['nim_apiUser']
+            nim_apiKey = connect_info['nim_apiKey']
+        else :
+            nim_apiUser = ''
+            nim_apiKey = ''
+        
+        if apiKey :
+            nim_apiKey = apiKey
 
-    # Create opener with extended form post support
-    try:
-        try :
-            P.info( "Opening Connection on HTTPS" )
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname=False
-            ssl_ctx.verify_mode=ssl.CERT_NONE
-            opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_ctx), FormPostHandler)
-        except :
-            P.info( "Opening Connection on HTTP" )
-            opener = urllib.request.build_opener(FormPostHandler)
-
-        opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
-    except:
-        P.error( "Failed building url opener")
-        P.error( traceback.format_exc() )
-        return False
+        _actionURL = re.sub('[?]', '', nimURL)
 
 
-    try:
-        resource = opener.open(_actionURL, params)
-        result =  resource.read().decode(resource.headers.get_content_charset())
-        result = json.loads(result)
-
-        P.info( "Result: %s" % result )
-
-        # Test for failed API Validation
-        if type(result)==type(list()) and len(result)==1 :
-            try :
-                error_msg = result[0]['error']
-                P.error( error_msg )
-                if(error_msg == 'API Key Not Found.') :
-                    #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
-                    #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
-                    api_result = Win.setApiKey()
-
-                if(error_msg == 'Failed to validate user.') :
-                    #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
-                    #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
-                    api_result = Win.setApiKey()
-
-                if(error_msg == 'API Key Expired.') :
-                    if isGUI :
-                        Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
-                                                            Please contact your NIM Administrator to update your NIM API KEY expiration.' )
-                    else :
-                        print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
-                                Please contact your NIM Administrator to update your NIM API KEY expiration.')
-                    #return False <-- returning false loads reset prefs msgbox
-            except :
-                pass
-
-    except urllib.error.HTTPError as e:
-        if e.code == 500:
-            P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
-            return False
-        else:
-            P.error("Unanticipated error occurred uploading image: %s" % (e))
-            return False
-
-    return result
-
-class FormPostHandler(urllib.request.BaseHandler):
-    # needs to run first
-    handler_order = urllib.request.HTTPHandler.handler_order - 10
-
-    def http_request(self, request):
+        # P.info("API URL: %s" % _actionURL)
+        
+        # Test for SSL Redirection
+        isRedirected = False
         try:
-            data = request.get_data()
-        except AttributeError:
-            data = request.data
-        if data is not None and type(data) != str:
-            v_files = []
-            v_vars = []
-            try:
-                for(key, value) in list(data.items()):
-                    if hasattr(value, 'read'):
-                        v_files.append((key, value))
-                    else:
-                        v_vars.append((key, value))
-            except TypeError:
-                raise TypeError
-            if len(v_files) == 0:
-                data = urllib.parse.urlencode(v_vars, True)
+            testCmd = {'q': 'testAPI'}
+            cmd=urllib.parse.urlencode(testCmd)
+            testURL="".join(( nimURL, cmd ))
+            req = urllib.request.Request(testURL)
+
+
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                res = urllib.request.urlopen(req, context=ssl_ctx)
+            except :
+                res = urllib.request.urlopen(req)
+                #pass
+            
+            finalurl = res.geturl()
+            #P.info("Request URL: %s" % finalurl)
+            if nimURL.startswith('http:') and finalurl.startswith('https'):
+                isRedirected = True
+                _actionURL = _actionURL.replace("http:","https:")
+                # P.info("Redirect: %s" % _actionURL)
+        except Exception as e:
+            P.error("Failed to test for redirect: %s"%e)
+
+        # Create opener with extended form post support
+        try:
+            try :
+                P.info( "Opening Connection on HTTPS" )
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+
+            except :
+                P.info( "Opening Connection on HTTP" )
+                opener = urllib.request.build_opener(FormPostHandler)
+
+            opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
+        except:
+            P.error( "Failed building url opener")
+            P.error( traceback.format_exc() )
+            return False
+
+
+        try:
+            # Now in Python 3 we need to encode the data parameter in Request. opener.open(url, data)
+            # the problem is that the parameters dictionary is serialized using urlencode everything is converted into strings.
+            # NIM in Python 2 was passing file objects from open() and then later extracting the names from there to pass the path.
+            # In Python 3 files are now _io_BufferefRead, but we can pass an object (binary) anymore due to the serialization, so
+            # when an _io.BufferedRead is detected we extract the name and for the key in the dictionary to be 'file'
+            # Later when we need to decode the data in the opener handler we assume any key named 'file' has a file path.
+            # ENCODE REQUEST DATA
+            filterparams = {}
+            for prm in params:
+                if isinstance(params[prm], _io.BufferedReader):
+                    filterparams['file'] = params[prm].name # Force file key and set file path as value
+                    params[prm].close() # Close file descriptor
+                else:
+                    filterparams[prm] = params[prm]
+            data = urllib.parse.urlencode(filterparams).encode("ascii")
+            result = opener.open(_actionURL, data).read()
+
+            # P.info( "Result: %s" % result )
+
+            # Test for failed API Validation
+            if type(result)==type(list()) and len(result)==1 :
+                try :
+                    error_msg = result[0]['error']
+                    P.error( error_msg )
+                    if(error_msg == 'API Key Not Found.') :
+                        #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'Failed to validate user.') :
+                        #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'API Key Expired.') :
+                        if isGUI :
+                            Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
+                                                                Please contact your NIM Administrator to update your NIM API KEY expiration.' )
+                        else :
+                            print('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                    Please contact your NIM Administrator to update your NIM API KEY expiration.')
+                        #return False <-- returning false loads reset prefs msgbox
+                except :
+                    pass
+
+        #except urllib2.HTTPError, e: # Python 2
+        #except urllib.error.HTTPError as e: # Python 3
+        except Exception as e:
+            print(e)
+            if e is urllib.error.HTTPError :
+                if e.code() == 500:
+                    P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+                    return False
+                else:
+                    P.error("Unanticipated error occurred uploading image: %s" % (e))
+                    return False
             else:
-                boundary, data = self.multipart_encode(v_vars, v_files)
-                contenttype = 'multipart/form-data; boundary=%s' % boundary
-                #if (
-                #    request.has_header('Content-Type') and
-                #    request.get_header('Content-Type').find(
-                #        'multipart/form-data') != 0
-                #):
-                #    six.print_(
-                #        "Replacing %s with %s" % (
-                #            request.get_header('content-type'),
-                #            'multipart/form-data'
-                #        )
-                #    )
-                request.add_unredirected_header('Content-Type', contenttype)
-            try:
-                request.add_data(data)
-            except AttributeError:
+                raise e
+
+        '''
+        # Removing after showing false error.. 
+        # Now passing result json to calling function
+        else:
+            if params["file"] is not None:
+                if not str(result).startswith("1"):
+                    P.error("Could not upload file successfully, but not sure why.\nUrl: %s\nError: %s" % (_actionURL, str(result)))
+                    return False
+        '''
+        return result
+
+
+
+    class FormPostHandler(urllib.request.BaseHandler):
+        """
+        Handler for multipart form data
+        """
+        handler_order = urllib.request.HTTPHandler.handler_order - 10 # needs to run first
+        
+        def http_request(self, request):
+            data =  dict(urllib.parse.parse_qsl(request.data.decode()))
+            if data is not None and not isinstance(data, str):
+                files = []
+                params = []
+                for key, value in list(data.items()):
+                    '''
+                    if isinstance(value, _io.BufferedReader):
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
+                    '''
+                    # In Python 3 we have to encode all data. When restoring it I always get a string from the serialized dictionary.
+                    # For files what we rally need is the name, so this i what we pass as a string rather than the _io.BufferedRead object.
+                    # All data tha tis suppose to have a file path must have the key 'file'.
+                    # This is enforced above when we encode a IO descriptor
+                    # DECODE REQUEST DATA
+                    if key == 'file':
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
+                if not files:
+                    # Encode, to bytes, for Python 3
+                    data = urllib.parse.urlencode(params, True).encode('ascii') # sequencing on
+                else:
+                    boundary, data = self.encode(params, files)
+                    content_type = 'multipart/form-data; boundary=%s' % boundary
+                    request.add_unredirected_header('Content-Type', content_type)
+                    
+                # data is already in bytes from encode()
                 request.data = data
+            return request
+        
+        def encode(self, params, files, boundary=None, buffer=None):
+            'Helper function to encode dat using mimetypes'
+            if boundary is None:
+                #boundary = mimetools.choose_boundary()
+                boundary = email_gen._make_boundary()
+            if buffer is None:
+                # In Python 3 is all about bytes no string, so here we need to use byte strings and encode all string vars
+                buffer = io.BytesIO()
+            for (key, value) in params:
+                buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                buffer.write(b'Content-Disposition: form-data; name="%s"' % key.encode('ascii'))
+                buffer.write(b'\r\n\r\n%s\r\n' % value.encode('ascii'))
+            for (key, filepath) in files:
+                # In Python3 we don't pass file descriptors anymore.
+                # Due to serialization issues when encoding parameters dictionaries we
+                # pass only strings. So our files are now file paths
+                filename = os.path.basename(filepath)
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                fd = open(filepath,'rb')
+                file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                buffer.write(b'--%s\r\n' % boundary.encode('ascii'))
+                buffer.write(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key.encode('ascii'), filename.encode('ascii')))
+                buffer.write(b'Content-Type: %s\r\n' % content_type.encode('ascii'))
+                buffer.write(b'Content-Length: %d\r\n' % file_size)
+                fd.seek(0)
+                buffer.write(b'\r\n%s\r\n' % fd.read())
+                fd.close()
+            buffer.write(b'--%s--\r\n\r\n' % boundary.encode('ascii'))
+            buffer = buffer.getvalue()
+            return boundary, buffer
 
-        return request
+        def multipart_encode(self, v_vars, files, boundary=None, buf=None):
+            'Helper function to encode dat using mimetypes'
+            if boundary is None:
+                boundary = choose_boundary()
+            if buf is None:
+                buf = io.BytesIO()
+            for(key, value) in v_vars:
+                buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
+                buf.write(
+                    b'Content-Disposition: form-data; name="' +
+                    key.encode("utf-8") +
+                    b'"'
+                )
+                buf.write(b'\r\n\r\n' + str(value).encode("utf-8") + b'\r\n')
+            for(key, fd) in files:
+                try:
+                    filename = fd.name.split('/')[-1]
+                except AttributeError:
+                    # Spoof a file name if the object doesn't have one.
+                    # This is designed to catch when the user submits
+                    # a StringIO object
+                    filename = 'temp.pdf'
+                contenttype = mimetypes.guess_type(filename)[0] or b'application/octet-stream'
+                try:
+                    contenttype = contenttype.encode("utf-8")
+                except (UnicodeEncodeError, AttributeError):
+                    pass
+                buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
+                buf.write(
+                    b'Content-Disposition: form-data; ' +
+                    b'name="' + key.encode("utf-8") + b'"; ' +
+                    b'filename="' + filename.encode("utf-8") + b'"\r\n'
+                )
+                buf.write(
+                    b'Content-Type: ' +
+                    contenttype +
+                    b'\r\n'
+                )
+                fd.seek(0)
+                buf.write(
+                    b'\r\n' + fd.read() + b'\r\n'
+                )
+            buf.write(b'--')
+            buf.write(boundary.encode("utf-8"))
+            buf.write(b'--\r\n\r\n')
+            buf = buf.getvalue()
+            return boundary, buf
 
-    def multipart_encode(self, v_vars, files, boundary=None, buf=None):
+        https_request = http_request
+        
+        # def https_request(self, request):
+            # return self.http_request(request)
 
-        if boundary is None:
-            boundary = choose_boundary()
-        if buf is None:
-            buf = io.BytesIO()
-        for(key, value) in v_vars:
-            buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
-            buf.write(
-                b'Content-Disposition: form-data; name="' +
-                key.encode("utf-8") +
-                b'"'
-            )
-            buf.write(b'\r\n\r\n' + str(value).encode("utf-8") + b'\r\n')
-        for(key, fd) in files:
-            try:
+else:
+    # upload () Python 2
+    import cStringIO
+    def upload( params=None, nimURL=None, apiKey=None ) :
+        isGUI = False
+        try :
+            #Validate Against DCC Environment
+            if F.get_app() is not None :
+                isGUI = True
+        except :
+            pass
+        
+        connect_info = None
+        if not nimURL :
+            connect_info = get_connect_info()
+        if connect_info :
+            nimURL = connect_info['nim_apiURL']
+            nim_apiUser = connect_info['nim_apiUser']
+            nim_apiKey = connect_info['nim_apiKey']
+        else :
+            nim_apiUser = ''
+            nim_apiKey = ''
+        
+        if apiKey :
+            nim_apiKey = apiKey
+
+        _actionURL = nimURL.encode('ascii')
+
+        # P.info("API URL: %s" % _actionURL)
+        
+        # Test for SSL Redirection
+        isRedirected = False
+        try:
+            testCmd = {'q': 'testAPI'}
+            cmd=urllib.urlencode(testCmd)
+            testURL="".join(( nimURL, cmd ))
+            req = urllib2.Request(testURL)
+
+            try :
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                res = urllib2.urlopen(req, context=ssl_ctx)
+            except :
+                res = urllib2.urlopen(req)
+                #pass
+            
+            finalurl = res.geturl()
+            #P.info("Request URL: %s" % finalurl)
+            if nimURL.startswith('http:') and finalurl.startswith('https'):
+                isRedirected = True
+                _actionURL = _actionURL.replace("http:","https:")
+                # P.info("Redirect: %s" % _actionURL)
+        except:
+            P.error("Failed to test for redirect.")
+
+        # Create opener with extended form post support
+        try:
+            try :
+                P.info( "Opening Connection on HTTPS" )
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname=False
+                ssl_ctx.verify_mode=ssl.CERT_NONE
+                opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ssl_ctx), FormPostHandler)
+            except :
+                P.info( "Opening Connection on HTTP" )
+                opener = urllib2.build_opener(FormPostHandler)
+
+            opener.addheaders = [('X-NIM-API-USER', nim_apiUser),('X-NIM-API-KEY', nim_apiKey)]
+        except:
+            P.error( "Failed building url opener")
+            P.error( traceback.format_exc() )
+            return False
+
+
+        try:
+            result = opener.open(_actionURL, params).read()
+            # P.info( "Result: %s" % result )
+
+            # Test for failed API Validation
+            if type(result)==type(list()) and len(result)==1 :
+                try :
+                    error_msg = result[0]['error']
+                    P.error( error_msg )
+                    if(error_msg == 'API Key Not Found.') :
+                        #Win.popup( title='NIM API Error', msg='NIM API Key Not Found.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please contact your NIM Administrator to obtain a NIM API KEY.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'Failed to validate user.') :
+                        #Win.popup( title='NIM API Error', msg='Failed to validate user.\n\nNIM Security is set to require the use of API Keys. \
+                        #                                        Please obtain a valid NIM API KEY from your NIM Administrator.' )
+                        api_result = Win.setApiKey()
+
+                    if(error_msg == 'API Key Expired.') :
+                        if isGUI :
+                            Win.popup( title='NIM API Error', msg='NIM API Key Expired.\n\nNIM Security is set to require the use of API Keys. \
+                                                                Please contact your NIM Administrator to update your NIM API KEY expiration.' )
+                        else :
+                            print ('NIM API Key Expired.\nNIM Security is set to require the use of API Keys.\n \
+                                   Please contact your NIM Administrator to update your NIM API KEY expiration.')
+                        #return False <-- returning false loads reset prefs msgbox
+                except :
+                    pass
+
+        except urllib2.HTTPError as e:
+            if e.code == 500:
+                P.error("Server encountered an internal error. \n%s\n(%s)\n%s\n\n" % (_actionURL, params, e))
+                return False
+            else:
+                P.error("Unanticipated error occurred uploading image: %s" % (e))
+                return False
+
+        '''
+        # Removing after showing false error.. 
+        # Now passing result json to calling function
+        else:
+            if params["file"] is not None:
+                if not str(result).startswith("1"):
+                    P.error("Could not upload file successfully, but not sure why.\nUrl: %s\nError: %s" % (_actionURL, str(result)))
+                    return False
+        '''
+        return result
+
+
+    class FormPostHandler(urllib2.BaseHandler):
+        """
+        Handler for multipart form data
+        """
+        handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
+        
+        def http_request(self, request):
+            data = request.get_data()
+            if data is not None and not isinstance(data, basestring):
+                files = []
+                params = []
+                for key, value in data.items():
+                    if isinstance(value, file):
+                        files.append((key, value))
+                    else:
+                        params.append((key, value))
+                if not files:
+                    data = urllib.urlencode(params, True) # sequencing on
+                else:
+                    boundary, data = self.encode(params, files)
+                    content_type = 'multipart/form-data; boundary=%s' % boundary
+                    request.add_unredirected_header('Content-Type', content_type)
+                    
+                request.add_data(data)
+            return request
+        
+        def encode(self, params, files, boundary=None, buffer=None):
+            if boundary is None:
+                #boundary = mimetools.choose_boundary()
+                boundary = email_gen._make_boundary()
+            if buffer is None:
+                buffer = cStringIO.StringIO()
+            for (key, value) in params:
+                buffer.write('--%s\r\n' % boundary)
+                buffer.write('Content-Disposition: form-data; name="%s"' % key)
+                buffer.write('\r\n\r\n%s\r\n' % value)
+            for (key, fd) in files:
                 filename = fd.name.split('/')[-1]
-            except AttributeError:
-                # Spoof a file name if the object doesn't have one.
-                # This is designed to catch when the user submits
-                # a StringIO object
-                filename = 'temp.pdf'
-            contenttype = mimetypes.guess_type(filename)[0] or b'application/octet-stream'
-            try:
-                contenttype = contenttype.encode("utf-8")
-            except (UnicodeEncodeError, AttributeError):
-                pass
-            buf.write(b'--' + boundary.encode("utf-8") + b'\r\n')
-            buf.write(
-                b'Content-Disposition: form-data; ' +
-                b'name="' + key.encode("utf-8") + b'"; ' +
-                b'filename="' + filename.encode("utf-8") + b'"\r\n'
-            )
-            buf.write(
-                b'Content-Type: ' +
-                contenttype +
-                b'\r\n'
-            )
-            fd.seek(0)
-            buf.write(
-                b'\r\n' + fd.read() + b'\r\n'
-            )
-        buf.write(b'--')
-        buf.write(boundary.encode("utf-8"))
-        buf.write(b'--\r\n\r\n')
-        buf = buf.getvalue()
-        return boundary, buf
-
-    https_request = http_request
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+                buffer.write('--%s\r\n' % boundary)
+                buffer.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
+                buffer.write('Content-Type: %s\r\n' % content_type)
+                buffer.write('Content-Length: %s\r\n' % file_size)
+                fd.seek(0)
+                buffer.write('\r\n%s\r\n' % fd.read())
+            buffer.write('--%s--\r\n\r\n' % boundary)
+            buffer = buffer.getvalue()
+            return boundary, buffer
+        
+        def https_request(self, request):
+            return self.http_request(request)
 
 
 #  API Functions  #
@@ -570,6 +951,8 @@ def get_app() :
     except :pass
     try :
         import nuke
+        if not hasattr(nuke, 'tprint'):
+            raise ImportError
         return 'Nuke'
     except : pass
     try :
@@ -622,6 +1005,7 @@ def get_cultureCodes() :
 def get_user() :
     'Retrieves the current user\'s username'
     #  Get username :
+    '''
     if os.getenv( 'USER' ) :
         _usr=os.getenv( 'USER' )
     elif os.getenv( 'USERNAME' ) :
@@ -630,9 +1014,29 @@ def get_user() :
         return _usr
     else :
         return False
+    '''
+    # Better use getpass to have compatibility with all systems anf forget about
+    # envvars
+    user = getpass.getuser()
+    # Add domain if not included in the user name
+    if not user.count('@'):
+        user += '@rohtau.com'
+    return user
 
 def get_userID( user='' ) :
-    'Retrieves the current user\'s user ID'
+    '''
+    Retrieves the current user\'s user ID
+
+    Parameters
+    ----------
+    user : str
+        User name
+
+    Returns
+    ---------
+    int
+        User ID or False if  it doesn't exist.
+    '''
     if not user :
         user=get_user()
     try :
@@ -640,9 +1044,12 @@ def get_userID( user='' ) :
         if type(userID)==type(list()) and len(userID)==1 :
             return userID[0]['ID']
         else :
-            return userID
+            if len(userID)>0:
+                return userID
+            else:
+                return False
     except Exception as e :
-        print((traceback.print_exc()))
+        # print (traceback.print_exc())
         return False
 
 def get_userList( url=None ) :
@@ -1712,14 +2119,14 @@ def to_nimDir( nim=None ) :
         if nim.ID('shot') :
             
             #  Asset Information :
-            shotInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
+            shotInfo=get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(nim.ID('shot'))} )
             if shotInfo and type(shotInfo)==type(dict()) and 'root' in shotInfo :
                 shotPath=os.path.normpath( os.path.join( nim.server(), shotInfo['root'] ) )
                 shotPlates=os.path.normpath( os.path.join( nim.server(), shotInfo['plates'] ) )
                 shotRenders=os.path.normpath( os.path.join( nim.server(), shotInfo['renders'] ) )
                 shotComps=os.path.normpath( os.path.join( nim.server(), shotInfo['comps'] ) )
             #  Task Information :
-            taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
+            taskDict=get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
                     if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
@@ -1741,11 +2148,11 @@ def to_nimDir( nim=None ) :
     elif nim.tab()=='ASSET' :
         if nim.ID('asset') :
             #  Asset Information :
-            assetInfo=Api.get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
+            assetInfo=get( {'q': 'getPaths', 'type': 'asset', 'ID' : str(nim.ID('asset'))} )
             if assetInfo and type(assetInfo)==type(dict()) and 'root' in assetInfo :
                 assetPath=assetInfo['root']
             #  Task Information :
-            taskDict=Api.get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
+            taskDict=get( {'q': 'getTaskTypes', 'app': nim.app().upper()} )
             if taskDict and type(taskDict)==type(list()) :
                 for task in taskDict :
                     if 'name' in list(task.keys()) and nim.name('task')==task['name'] :
@@ -1768,21 +2175,95 @@ def to_nimDir( nim=None ) :
         P.error('Function api.to_nimDir() was unable to derive a file directory')
         return False
 
-def to_basename( nim=None ) :
-    'Derives the basenme to use, given a populated NIM dictionary'
-    basename=''
+def extract_basename( nim=None, filepath=None ) :
+    '''
+    Try to extract a basename and tag from a nim dictionary or a filepath.
+    The difference with to_basename() is that this function doesn't require
+    to have a nim dictionary with a published basename, if the file basename
+    hasn't been published yet then it will guess name elements from the file name.
+    These elements like, shot or task will be used if the nim dictionary doesn't have them.
+    The only element from the filename that can't be taken from the nim dictionary if file
+    wasn't published previously is the tag, this needs to be extracted from the file name.
+    This is the name convention for a filename:
+    [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]__[VER].ext
+    The basename is : [SHOT|ASSET]__[[ELEMTYPE_]TASK]__[TAG]
+    As said, if file hasn't been published before then nim.name('base') is empty  and then this
+    function will try to complete parts of the dictionary using the file name.
+    Finally if SHOT|ASSET or TASK from the filename, doesn't match the ones in the dictionary
+    the function will return an error.
+    If nim object has a basename, something has been already published, then latest version will
+    be returned
+
+    Parameters
+    ----------
+    nim : NIM object
+        Nim object with dictionary with publishing info, by default None
+    filepath : str
+        File path used to generate NIM dictionary. If nim dictionary doesn't have a filepath info then this will be used
+
+    Returns
+    -------
+    tuple
+        tuple with basename, tag and version(int). If any error occurs returns False.
+    '''    
+    (basename, tag, ver)=('', '', '')
     
     #  Error Check :
-    if not nim :
-        P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+    # if not nim :
+        # P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+        # return False
+    path = nim.filePath() if nim and nim.filePath() else filepath
+    if not path:
+        P.error( 'Please pass api.extract_basename() a Nim dictionary with a filepath or a explicit File Path.' )
         return False
     
-    short_task=F.task_toAbbrev( task=nim.name('task') )
+    tagname = None
+    vername = None
+    ver = 0
+    if not nim or not nim.name('base'):
+        # File in NIM dictionary hasn't been  published before
+        base = os.path.basename(filepath)
+
+        # (filename, ext) = os.path.splitext(base)
+        filename = base.split('.')[0]
+        nameparts = filename.split('__')
+        if len(nameparts) < 3 or len(nameparts) > 5:
+            P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
+            return False
+        shotname = nameparts[0]
+        taskname = nameparts[1]
+        taskname = nameparts[1].split('_')[0] if nameparts[1].count('_') else taskname
+        elemname = nameparts[1].split('_')[1] if nameparts[1].count('_') else "" # elem is not mandatory
+        basename = '__'.join(nameparts[:2])
+        vername = nameparts[-1]
+        ver = int(vername[1:])
+        if len(nameparts) == 4:
+            #there is tag
+            tagname = nameparts[2]
+            basename = '__'.join(nameparts[:3])
+        elif len(nameparts) == 5:
+            #there is tag and cat
+            tagname = '__'.join(nameparts[2:4])
+            basename = '__'.join(nameparts[:4])
+        if nim:
+            nim.set_name( elem='base', name=basename )
+            nim.set_name( elem='tag', name=tagname)
+        # nim.set_name( elem='ver', name=vername)
+        return (basename, tagname, ver)
     
     #  Derive basename :
     if not nim.name('tag') and nim.name('base') :
         basename=nim.name('base')
+        nameparts = basename.split('__')
+        if len(nameparts) == 4:
+            #there is tag
+            tagname = nameparts[2]
+        elif len(nameparts) == 5:
+            #there is tag and cat
+            tagname = '__'.join(nameparts[2:4])
     else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
         if nim.tab()=='ASSET' :
             if nim.name('tag') :
                 basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
@@ -1793,6 +2274,88 @@ def to_basename( nim=None ) :
                 basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
             else :
                 basename=nim.name('shot')+'_'+short_task
+        '''
+        short_task=F.task_toAbbrev( task=nim.name('task') )
+        elemType=F.elementType_toAbbrev( nim.name('element') )
+        if elemType:
+            short_task = "%s_%s"%(elemType, short_task)
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+                tagname = nim.name('tag') 
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+                tagname = nim.name('tag') 
+            else :
+                basename=nim.name('shot')+'__'+short_task
+
+    # If there is a basename then there is a version
+    vers = nim.Dict('ver')
+    if vers:
+        ver = int(vers[0]['version'])
+    if filepath:
+        # If file path then extract version from it. Probably the is already something published so there is base and tag,
+        # But the verson on the filepath is probably a new onw and doesn't match latest version in the basenames
+        base = os.path.basename(filepath)
+        filename = base.split('.')[0]
+        nameparts = filename.split('__')
+        if len(nameparts) < 3 or len(nameparts) > 5:
+            P.error('Filename not according convention, it needs at least 3 parts separated by __, with an optional TAG and CAT part. SHOT__TASK[__TAG__CAT]__VER: %s'%str(nameparts))
+            return False
+        vername = nameparts[-1]
+        ver = int(vername[1:])
+    
+    #  Returns :
+    if basename :
+        return (basename, tagname, ver)
+    else :
+        P.error('Function api.to_basename() was unable to derive a basename')
+        return False
+
+def to_basename( nim=None ) :
+    'Derives the basename to use, given a populated NIM dictionary'
+    basename=''
+    
+    #  Error Check :
+    if not nim :
+        P.error( 'Please pass api.to_basename() a NIM dictionary.' )
+        return False
+    
+    short_task=F.task_toAbbrev( task=nim.name('task') )
+    elemType=F.elementType_toAbbrev( nim.name('element') )
+    if elemType:
+        short_task = "%s_%s"%(short_task, elemType)
+    
+    #  Derive basename :
+    if not nim.name('tag') and nim.name('base') :
+        basename=nim.name('base')
+    else :
+        # Change NIM convention here and use two __ to separate fields in the file name rather than _
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'_'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'_'+short_task+'_'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'_'+short_task
+        '''
+        if nim.tab()=='ASSET' :
+            if nim.name('tag') :
+                basename=nim.name('asset')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('asset')+'__'+short_task
+        elif nim.tab()=='SHOT' :
+            if nim.name('tag') :
+                basename=nim.name('shot')+'__'+short_task+'__'+nim.name('tag')
+            else :
+                basename=nim.name('shot')+'__'+short_task
     
     #  Returns :
     if basename :
@@ -1855,9 +2418,26 @@ def to_fileDir( nim=None ) :
     
     if nimDir :
         if basename :
+            # TODO: modify scenes paths here!    
             #  Derive File Directory from NIM :
-            if nim.app()=='Maya' : fileDir=os.path.join( nimDir, basename, 'scenes' )
-            elif nim.app()=='3dsMax' : fileDir=os.path.join( nimDir, basename, 'scenes' )
+            # Add app folder name, plus scenes folder.
+            if nim.app():
+                # print("Detected app: %s"%nim.app())
+                scenesfolder = ""
+                if nim.app() in ('Maya', '3dsMax'):
+                    scenesfolder = 'scenes'
+                elif nim.app() in ('Houdini'):
+                    # DEPRECATED: we dont use a project based on $HIP.
+                    # Houdini scenes are saved directly under tr houdini folder
+                    # for the given basename 
+                    # scenesfolder = 'hip'
+                    pass
+                if scenesfolder:
+                    fileDir=os.path.join( nimDir, basename, nim.app().lower(), scenesfolder )
+                else:
+                    fileDir=os.path.join( nimDir, basename, nim.app().lower())
+            # if nim.app()=='Maya' : fileDir=os.path.join( nimDir, basename, 'scenes' )
+            # elif nim.app()=='3dsMax' : fileDir=os.path.join( nimDir, basename, 'scenes' )
             else : fileDir=os.path.join( nimDir, basename )
             #  Return :
             if fileDir : return os.path.normpath( fileDir )
@@ -1947,7 +2527,7 @@ def get_bases( shotID=None, assetID=None, showID=None, task='', taskType=None, t
 def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
     '''
     Retrieves the dictionary of the published file for a given basename.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 
@@ -1980,7 +2560,7 @@ def get_basesPub( shotID=None, assetID=None, basename='', username=None ) :
 def get_basesAllPub( shotID=None, assetID=None, task=None, taskID=None, username=None ) :
     '''
     Retrieves the dictionary of all available published basenames for a given asset or shot.
-    The optional username is used to return the date information in the users seleted timezone.
+    The optional username is used to return the date information in the users selected timezone.
 
         Parameters              Type
 
@@ -2143,11 +2723,35 @@ def get_verInfo( verID=None, username=None ) :
     result = connect( method='get', params=params )
     return result
 
-def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True ) :
-    'NIM Connector Function used to save/publish/version up files'
+def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
+    '''
+    NIM Connector Function used to save/publish/version up files
+    The version parameter can be used to explicitelly force to save under a particular version
+
+    Parameters
+    ----------
+    nim : NIM object
+        NIM object with all the publishing data
+    padding : int
+        Padding length
+    selected : bool
+        Save only selected
+    pub : bool
+        Save file as a published version
+    symLink : bool
+        Create symlinks for published file
+    version : int
+        Force to save under this version. If 0 (default) save using next available version
+
+    Returns
+    -------
+    bool
+        True if everything went fine
+    '''
     user, job, asset, show, shot, basename, task='', '', '', '', '', '', ''
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
+
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
@@ -2158,6 +2762,11 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         #  Set Publish state :
         if pub : nim.set_name( elem='filter', name='Published' )
         else : nim.set_name( elem='filter', name='Work' )
+
+    # import nuke
+    # nuke.tprint("Passed NIM:")
+    # nuke.tprint("================================")
+    # nuke.tprint(pformat( nim.get_nim() ))
     
     #  Print :
     action=''
@@ -2209,207 +2818,319 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         nim.Print()
         Win.popup( title=winTitle+' - Filename Error', msg=msg )
         return False
-    
-    #  Version Up File :
-    #  [AS] returning nim object from verUp to update if loading exported file
-    verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink )
 
-    if verUpResult :
-        filePath = verUpResult['filepath']
-        verUpNim = verUpResult['nim']
-        P.info('Filepath: %s' % filePath)
-        P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
-        #  [AS] END
-        
-        #  Add file to API :
-        if filePath and os.path.isfile( filePath ) :
-            result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
-            if result_addFile :
-                action=''
-                if nim.mode().lower() in ['pub', 'publish'] :
-                    action='Published'
-                elif nim.mode().lower() in ['save', 'saveas'] :
-                    action='Saved'
-                elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
-                    action='Versioned Up'
-                P.info( 'File has been %s successfully.\n' % action )
-                if not pub :
-                    if nim.mode().lower() in ['save', 'saveas'] :
-                        Win.popup( title=winTitle+' - Versioned Up', msg='File has been Saved successfully.' )
-                    elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
-                        Win.popup( title=winTitle+' - Versioned Up', msg='File has been Versioned Up successfully.' )
-                else :
-                    #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
-                    pass
-                
-                #  Publish Sym-Links :
-                if pub and symLink :
-                    P.info( 'Initiating Sym-Link Publish...' )
-                    fileID, versInfo=None, None
-                    basename=to_basename( nim=nim )
-                    if nim.tab()=='SHOT' :
-                        versInfo=get_vers( shotID=nim.ID( 'shot' ), basename=basename, pub=True )
-                    elif nim.tab()=='ASSET' :
-                        versInfo=get_vers( assetID=nim.ID( 'asset' ), basename=basename, pub=True )
-                    for verInfo in versInfo :
-                        temp_path=os.path.normpath( os.path.join( verInfo['filepath'], verInfo['filename'] ) )
-                        if temp_path==filePath :
-                            fileID=verInfo['fileID']
-                            P.info( 'File ID = %s' % fileID )
-                            P.info( 'Publishing Sym-Link...' )
-                            #  Publish sym link, if necessary :
-                            if fileID :
-                                result=get( {'q': 'publishSymlink', 'fileID': str(fileID)} )
-                                P.info( '    Sym-Link Published!' )
-                                #Win.popup( title=winTitle+' - Publish', msg='Sym-Link Published!' )
-                            else :
-                                Win.popup( title=winTitle+' - Publish Error', msg='Problem publishing Sym-Link!!!' )
-                                P.error( 'Sorry!  Problem retrieving File ID.' )
-                            break
-                
-                #  Prompt to open exported file :
-                if selected :
-                    result=Win.popup( title='NIM - Open Export?', type='okCancel', \
-                        msg='Would you like to open your newly exported file?' )
-                    if result=='OK' :
-                        #  Maya :
-                        if nim.app()=='Maya' :
-                            import maya.cmds as mc
-                            try :
-                                mc.file( filePath, force=True, open=True, ignoreVersion=True, prompt=False )
-                                #  Set env vars brought over from nim_file
-                                P.info('Setting Environment Variables')
-                                P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                                from . import nim_maya as M
-                                M.set_vars( nim=verUpNim )
-                                nim = verUpNim
-                                
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
-                        #  Nuke :
-                        elif nim.app()=='Nuke' :
-                            import nuke
-                            try :
-                                #  Prompt to Save :
-                                if nuke.root().modified() :
-                                    from . import nim_nuke as N
-                                    result=N.Win_SavePySide.get_btn()
-                                    if result.lower()=='save' :
-                                        P.info('\nSaving file...\n')
-                                        cur_filePath=F.get_filePath()
-                                        nuke.scriptSaveAs( cur_filePath )
-                                    elif result.lower()=='verup' :
-                                        P.info('\nVersioning file up...\n')
-                                        try : versionUp()
-                                        except :
-                                            P.error('Problem running version up command.  Nothing done.')
-                                            return False
-                                    elif result.lower()=='no' :
-                                        P.info( '\nFile not saved before openning.\n' )
-                                    elif result.lower()=='cancel' :
-                                        P.info('\nCancelling file operation.\n')
-                                        return None
-                                #  Clear the scene, load file and rename :
-                                nuke.scriptClear()
-                                nuke.scriptOpen( filePath )
-                                PS=nuke.root()
-                                knob=PS.knob('name')
-                                knob.setValue( filePath.replace( '\\', '/' ) )
-                                
-                                #  Set env vars brought over from nim_file
-                                P.info('Setting Environment Variables')
-                                P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                                from . import nim_nuke as N
-                                N.set_vars( nim=verUpNim )
-                                nim = verUpNim
-                                
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
-                            try :
-                                P.info( 'Setting Nuke environment variables...' )
-                                from . import nim_nuke as N
-                                N.set_vars( nim )
-                            except :
-                                P.warning( 'Unable to set Nuke environment variables.  Dealine may be affected' )
-                                P.warning( '    %s' % traceback.print_exc() )
-                                Win.popup( title='NIM - ENV VARS, not set', \
-                                    msg='Unable to set Nuke environment variables.  Dealine may be affected' )
-                        #  Hiero :
-                        elif nim.app()=='Hiero' :
-                            import hiero.core
-                            try : hiero.core.openProject( filePath )
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
-                        
-                        elif nim.app()=='C4D' :
-                            import c4d
-                            P.info( 'Opening file...\n    %s' % filePath )
-                            try:
-                                c4d.documents.LoadFile( str(filePath) )
-                                #  Set Variables :
-                                nim_plugin_ID=1032427
-                                from . import nim_c4d as C
-                                C.set_vars( nim=verUpNim, ID=nim_plugin_ID )
-                                nim = verUpNim
-                                
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
-                        
-                        elif nim.app()=='3dsMax' :
-                            from pymxs import runtime as maxRT
-                            try :
-                                maxRT.loadMaxFile(filePath)
-                                #  Set env vars brought over from nim_file
-                                P.info('Setting Environment Variables')
-                                P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                                from . import nim_3dsmax as Max
-                                Max.set_vars( nim=verUpNim )
-                                nim = verUpNim
-                                
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
 
-                        elif nim.app()=='Houdini' :
-                            import hou
-                            try :
-                                #TODO: check unsaved changed RuntimeError
-                                #if hou.hipFile.hasUnsavedChanges():
-                                #    raise RuntimeError
-                                #hou.hipFile.load(file_name=str(filePath), suppress_save_prompt=True)
-                                P.error('Loading File in nim_api')
-                                filePath = filePath.replace('\\','/')
-                                hou.hipFile.load(file_name=str(filePath))
-                                #  Set env vars brought over from nim_file
-                                P.info('Setting Environment Variables')
-                                P.info('NIM: %s \n' % verUpNim.name(elem='base'))
-                                from . import nim_houdini as Houdini
-                                Houdini.set_vars( nim=verUpNim )
-                                nim = verUpNim
-                                
-                            except Exception as e :
-                                P.error( 'Failed reading the file: %s' % filePath )
-                                P.error( '    %s' % traceback.print_exc() )
-                                return False
-                
-                return filePath
-        
-        #  If not successful, fail :
-        else :
-            P.error( 'Failed to log the file to NIM.' )
-            Win.popup( title=winTitle+' - Version Up Failure', \
-                msg='Failed to log the file to NIM.\n\nPlease check the application logs for more details.' )
+    # Check tag name is correct according with pub task
+    comptasks = ('comp', 'roto', 'prep', 'conform')
+    comptools = ('Nuke', 'Flame')
+    pubtask   = nim.name('task')
+    pubtag    = nim.name('tag')
+    if nim.app() in comptools:
+        if pubtask not in comptasks and pubtag == 'main':
+            msg=("Using tag '%s' for non comp tasks (%s) from a comp tool (%s) is not recommended.\nPlease use something like 'slap' for your comp scene for 3D tasks"%( pubtag, pubtask, nim.app() ))
+            nimRt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+            P.error(msg)
+            P.error("Abort file save")
+            return False
+    else:
+        if pubtask in comptasks:
+            msg=("You are about to save a scene from a 3D app (%s) into a comp task: %s. Are you sure this is what you want to do?"%( nim.app(), pubtask))
+            btns = ("No, Im crazy!", "Yes, I know what I'm doing")
+            btn = Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error', buttons=btns)
+            if not btn:
+                P.error("Abort file save")
+                return False
+        if pubtask in comptasks and pubtag == 'main':
+            msg=("Using tag '%s' for a comp tasks (%s) from a non comp tool (%s) is not recommended.\nPlease use a different tag"%( pubtag, pubtask, nim.app() ))
+            Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+            P.error(msg)
+            P.error("Abort file save")
             return False
 
+
+    # Check basename is using the same app as our host.
+    # In other words ensure a Houdini scene is not saved using a tag (basename)
+    # that has Nuke scripts, for instance
+    # FIXME: check this with Hiero scripts. hiero scripts don't publish the path
+    # correctly, they don't put customKeys
+    if nim.name('base') and ( nim.ID('asset') is not None or  nim.ID('shot') is not None ):
+        latestver = get_vers(assetID = int(nim.ID('asset')) if nim.tab() == 'ASSET' else None,
+                                shotID = int(nim.ID('shot')) if nim.tab() == 'SHOT' else None,
+                                basename=nim.name('base'))
+        if latestver:
+            latestver = latestver[0]
+            # pprint(latestver)
+            if 'customKeys' in latestver and 'File Type' in latestver['customKeys']:
+                basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
+                if basenameapp != nim.app() and basenameapp != 'Scene':
+                    msg=("Trying to save using a basename used by another application: %s.\nPlease change your task or tag."%basenameapp)
+                    Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+                    P.error(msg)
+                    P.error("Abort file save")
+                    return False
+
+    #  Version Up File :
+    #  [AS] returning nim object from verUp to update if loading exported file
+    verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink, version=version )
+    filePath = verUpResult['filepath']
+    projPath = verUpResult['projpath']
+    verUpNim = verUpResult['nim']
+    nim.set_fileTypeByExt(nim.name('fileExt'))
+    P.info('Filepath: %s' % filePath)
+    P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
+    #  [AS] END
+    
+    #  Add file to API :
+    # if filePath and os.path.isfile( filePath ) :
+    if verUpResult:
+        '''
+        # Remove tasks for any saving process, is not needed anmymore, this will
+        # be obnly checked in pubPath
+        # Get publishing task
+        pubtask = Rt.pubTask( nim=verUpNim) 
+        if not pubtask:
+            P.error("Can't get a valid publishing task on file save. Aborting")
+            return False
+        '''
+
+        # XXX: just exit here at the moment, only testing
+        # nuke.tprint("Publishing Task:")
+        # nuke.tprint(pformat(pubtask))
+
+        # Set user for publishing:
+        user = get_user()
+        userid = int(get_userID(user))
+        nim.set_userInfo(userName=user, userID=userid)
+        verUpNim.set_userInfo(userName=user, userID=userid)
+        '''
+        import nuke
+        nuke.tprint("Passed NIM:")
+        nuke.tprint("================================")
+        nuke.tprint(pformat( nim.get_nim() ))
+        nuke.tprint("\n\nVerUpNIM NIM:")
+        nuke.tprint("================================")
+        nuke.tprint(pformat( verUpNim.get_nim() ))
+        '''
+
+        # Moved here in order to save file before publishing, there is no
+        # point in publishing data that doesnt exists on disk.
+        # So first save on disk and then update data base
+        # Update host app vars to keep NIM data consistent and actually save files and create dirs
+        # Pass empty string for projpath to avoid creating projects paths.
+        if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
+            return False
+
+        # Publish file
+        result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
+        if result_addFile :
+            action=''
+            if nim.mode().lower() in ['pub', 'publish'] :
+                action='Published'
+            elif nim.mode().lower() in ['save', 'saveas'] :
+                action='Saved'
+            elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
+                action='Versioned Up'
+            # Update nim dictionary with version info from API
+            nim.set_ID('ver', result_addFile)
+
+            if nim.app()=='Nuke' :
+                from . import nim_nuke as N
+                N.set_fileid_var( result_addFile )
+            elif nim.app()=='Houdini' :
+                from . import nim_houdini as Houdini
+                Houdini.set_fileid_var( result_addFile )
+            elif nim.app()=='Maya' :
+                from . import nim_maya as M
+                M.set_fileid_var( result_addFile )
+            else:
+                P.error("Can't set fileid in scene's publishing info. App not supported: %s"%nim.app())
+            
+            # Update published file with File Type depending on the app
+            customkeys =  {'Element Type': nim.name('element') if nim.name('element') else 'N/A', 'File Type': nim.nim['fileExt']['fileType'],  'State': Rt.pubState.name[Rt.pubState.NA]}
+            updatefile_res = update_file( int(result_addFile), customKeys=customkeys )
+
+            
+            P.info( 'File has been %s successfully.\n' % action.lower() )
+            if not pub :
+                if nim.mode().lower() in ['save', 'saveas'] :
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been saved successfully.' )
+                elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
+                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been versioned up successfully.' )
+            else :
+                #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
+                pass
+            
+            #  Publish Sym-Links :
+            if pub and symLink :
+                P.info( 'Initiating Sym-Link Publish...' )
+                fileID, versInfo=None, None
+                basename=to_basename( nim=nim )
+                if nim.tab()=='SHOT' :
+                    versInfo=get_vers( shotID=nim.ID( 'shot' ), basename=basename, pub=True )
+                elif nim.tab()=='ASSET' :
+                    versInfo=get_vers( assetID=nim.ID( 'asset' ), basename=basename, pub=True )
+                for verInfo in versInfo :
+                    temp_path=os.path.normpath( os.path.join( verInfo['filepath'], verInfo['filename'] ) )
+                    if temp_path==filePath :
+                        fileID=verInfo['fileID']
+                        P.info( 'File ID = %s' % fileID )
+                        P.info( 'Publishing Sym-Link...' )
+                        #  Publish sym link, if necessary :
+                        if fileID :
+                            result=get( {'q': 'publishSymlink', 'fileID': str(fileID)} )
+                            P.info( '    Sym-Link Published!' )
+                            #Win.popup( title=winTitle+' - Publish', msg='Sym-Link Published!' )
+                        else :
+                            Win.popup( title=winTitle+' - Publish Error', msg='Problem publishing Sym-Link!!!' )
+                            P.error( 'Sorry!  Problem retrieving File ID.' )
+                        break
+            
+            #  Prompt to open exported file :
+            if selected :
+                result=Win.popup( title='NIM - Open Export?', type='okCancel', \
+                    msg='Would you like to open your newly exported file?' )
+                if result=='OK' :
+                    #  Maya :
+                    if nim.app()=='Maya' :
+                        import maya.cmds as mc
+                        try :
+                            mc.file( filePath, force=True, open=True, ignoreVersion=True, prompt=False )
+                            #  Set env vars brought over from nim_file
+                            P.info('Setting Environment Variables')
+                            P.info('NIM: %s \n' % verUpNim.name(elem='base'))
+                            from . import nim_maya as M
+                            M.set_vars( nim=verUpNim )
+                            nim = verUpNim
+                            
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+                    #  Nuke :
+                    elif nim.app()=='Nuke' :
+                        import nuke
+                        try :
+                            #  Prompt to Save :
+                            if nuke.root().modified() :
+                                from . import nim_nuke as N
+                                result=N.Win_SavePySide.get_btn()
+                                if result.lower()=='save' :
+                                    P.info('\nSaving file...\n')
+                                    cur_filePath=F.get_filePath()
+                                    nuke.scriptSaveAs( cur_filePath )
+                                elif result.lower()=='verup' :
+                                    P.info('\nVersioning file up...\n')
+                                    try : versionUp()
+                                    except :
+                                        P.error('Problem running version up command.  Nothing done.')
+                                        return False
+                                elif result.lower()=='no' :
+                                    P.info( '\nFile not saved before openning.\n' )
+                                elif result.lower()=='cancel' :
+                                    P.info('\nCancelling file operation.\n')
+                                    return None
+                            #  Clear the scene, load file and rename :
+                            nuke.scriptClear()
+                            nuke.scriptOpen( filePath )
+                            PS=nuke.root()
+                            knob=PS.knob('name')
+                            knob.setValue( filePath.replace( '\\', '/' ) )
+                            
+                            #  Set env vars brought over from nim_file
+                            P.info('Setting Environment Variables')
+                            P.info('NIM: %s \n' % verUpNim.name(elem='base'))
+                            from . import nim_nuke as N
+                            N.set_vars( nim=verUpNim )
+                            nim = verUpNim
+                            
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+                        try :
+                            P.info( 'Setting Nuke environment variables...' )
+                            from . import nim_nuke as N
+                            N.set_vars( nim )
+                        except :
+                            P.warning( 'Unable to set Nuke environment variables.  Dealine may be affected' )
+                            P.warning( '    %s' % traceback.print_exc() )
+                            Win.popup( title='NIM - ENV VARS, not set', \
+                                msg='Unable to set Nuke environment variables.  Dealine may be affected' )
+                    #  Hiero :
+                    elif nim.app()=='Hiero' :
+                        import hiero.core
+                        try : hiero.core.openProject( filePath )
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+                    
+                    elif nim.app()=='C4D' :
+                        import c4d
+                        P.info( 'Opening file...\n    %s' % filePath )
+                        try:
+                            c4d.documents.LoadFile( str(filePath) )
+                            #  Set Variables :
+                            nim_plugin_ID=1032427
+                            from . import nim_c4d as C
+                            C.set_vars( nim=verUpNim, ID=nim_plugin_ID )
+                            nim = verUpNim
+                            
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+                    
+                    elif nim.app()=='3dsMax' :
+                        from pymxs import runtime as maxRT
+                        try :
+                            maxRT.loadMaxFile(filePath)
+                            #  Set env vars brought over from nim_file
+                            P.info('Setting Environment Variables')
+                            P.info('NIM: %s \n' % verUpNim.name(elem='base'))
+                            from . import nim_3dsmax as Max
+                            Max.set_vars( nim=verUpNim )
+                            nim = verUpNim
+                            
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+
+                    elif nim.app()=='Houdini' :
+                        import hou
+                        try :
+                            #TODO: check unsaved changed RuntimeError
+                            #if hou.hipFile.hasUnsavedChanges():
+                            #    raise RuntimeError
+                            #hou.hipFile.load(file_name=str(filePath), suppress_save_prompt=True)
+                            P.error('Loading File in nim_api')
+                            filePath = filePath.replace('\\','/')
+                            hou.hipFile.load(file_name=str(filePath))
+                            #  Set env vars brought over from nim_file
+                            P.info('Setting Environment Variables')
+                            P.info('NIM: %s \n' % verUpNim.name(elem='base'))
+                            from . import nim_houdini as Houdini
+                            Houdini.set_vars( nim=verUpNim )
+                            nim = verUpNim
+                            
+                        except Exception as e :
+                            P.error( 'Failed reading the file: %s' % filePath )
+                            P.error( '    %s' % traceback.print_exc() )
+                            return False
+            
+            '''
+            # Moved up in order t o save file before publishing, there is no
+            # point in publishing data that doesnt exists on disk.
+            # So first save on disk and then update data base
+            # Update host app vars to keep NIM data consistent and actually save files and create dirs
+            # Pass empty string for projpath to avoid creating projects paths.
+            if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
+                return False
+            '''
+             
+            return filePath
+    
     #  If not successful, fail :
     else :
         P.error( 'Failed to save the file.' )
@@ -2465,6 +3186,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'Unable to derive filepath/API information, sorry.' )
         Win.popup( title='NIM Error', msg='Unable to derive filepath, sorry.' )
         return False
+    # Publish path as fileDir
     fileDir=os.path.normpath( os.path.dirname( filePath ) )+os.sep
     
     #  Get user information :
@@ -2487,7 +3209,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if not projPath :
         app=F.get_app()
         prefs=Prefs.read()
-        ''' DEPREICATED - REMOVING DEFAULT SERVER PATH FROM PREFS
+        ''' DEPRECATED - REMOVING DEFAULT SERVER PATH FROM PREFS
         if prefs and app+'_DefaultServerPath' in prefs.keys() :
             projPath=prefs[app+'_DefaultServerPath']
         '''
@@ -2515,12 +3237,13 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'api.add_file function needs to be given either a shot, or asset, ID number...  Exiting.' )
         return False
     if not nim.name( 'comment' ) :
-        nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1 ) )
+        nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
             P.warning( '\nNo comment entered.  Tsk, tsk...\n' )
-    
+            nim.set_name( elem='comment', name='')
+
     #  Get Asset information :
-    if nim.ID( 'asset' ) and nim.ID( 'asset' ) != 'None' :
+    if nim.ID( 'asset' ) and nim.ID( 'asset' ) != 'None' and nim.ID('asset') != '0' :
         P.info('Retrieving Asset Information')
         assetInfo=get( {'q': 'getAssetInfo', 'ID': nim.ID( 'asset' )} )
         basenameInfo=get( {'q':'getBasenameVersion', 'class':'ASSET', \
@@ -2540,7 +3263,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         assetName=assetInfo[0]['assetName']
     
     #  Get Shot information :
-    elif nim.ID( 'shot' ) and nim.ID( 'shot' ) != 'None' :
+    elif nim.ID( 'shot' ) and nim.ID( 'shot' ) != 'None' and nim.ID('shot') != '0' :
         P.info('Retrieving Shot Information')
         shotInfo=get( {'q': 'getShotInfo', 'ID':nim.ID( 'shot' )} )
         basenameInfo=get( {'q': 'getBasenameVersion', 'class': 'SHOT', \
@@ -2569,7 +3292,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if nim.tab()=='ASSET' :
         _task=F.task_toAbbrev( nim.name( 'task' ) )
         
-        print(('Task Folder = %s' % nim.taskFolder()))
+        print('Task Folder = %s' % nim.taskFolder())
         
         if not pub :
             result=get( {'q': 'addFile', 'class': 'ASSET', 'itemID': nim.ID( 'asset' ), 
@@ -2598,16 +3321,19 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
                 'userID': str(usrID), 'basename': fileBase, 'filename': os.path.basename(filePath),
                 'filepath': fileDir, 'ext': ext, 'version': str(ver), 'note': nim.name( 'comment' ),
                 'serverID': str(nim.server( get='ID' )), 'isPub': 1, 'isWork': 0} )
+
     if  not result :
         P.error( 'File saved, but there was a problem writing to the NIM database.' )
         P.error( '    Database has not been populated with your file.' )
         P.error( str(result) )
         return False
     else :
+        # This function must return the new file ID or empty string
         P.info( 'NIM API updated with new file.' )
         P.info( '      File ID = %s' % result )
-    
-    return True
+        
+        # return True
+        return result['ID']
 
 def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID=0, basename='', filename='', \
     path='', ext='', version='', comment='', serverID=0, pub=False, forceLink=1, work=True, metadata=None, customKeys=None ) :
@@ -2646,20 +3372,36 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
 
         params = {'q': 'addFile'}
 
-        if parent is not None : params['class'] = parent
-        if parentID is not None : params['itemID'] = parentID
-        if task_type_ID is not None : params['task_type_ID'] = task_type_ID
-        if task_folder is not None : params['task_type_folder'] = task_folder
-        if userID is not None : params['userID'] = userID
-        if basename is not None : params['basename'] = basename
-        if filename is not None : params['filename'] = filename
-        if path is not None : params['filepath'] = path
-        if ext is not None : params['ext'] = ext
-        if version is not None : params['version'] = version
-        if comment is not None : params['note'] = comment
-        if serverID is not None : params['serverID'] = serverID
-        if metadata is not None : params['metadata'] = metadata
-        if customKeys is not None : params['customKeys'] = json.dumps(customKeys)
+        if parent is not None:       params['class']            = parent
+        if parentID is not None:     params['itemID']           = parentID
+        if task_type_ID is not None: params['task_type_ID']     = task_type_ID
+        if task_folder is not None:  params['task_type_folder'] = task_folder
+        if userID is not None:       params['userID']           = userID
+        if basename is not None:     params['basename']         = basename
+        if filename is not None:     params['filename']         = filename
+        if path is not None:         params['filepath']         = path
+        # Adjust filepath to follow NIM convention. Done is (add_file()  but
+        # originally not done in safe_file()
+        # NIM convention is that filepath has the dirname and the basename is in
+        # filename.
+        # So if filename is present at the ne of filepath then convert filepath
+        # into dirname:
+        # FIXME: this is not working yet, my paths looks correct but  is not
+        # published correctly in NIM. filePath has the full path.
+        # if path is not None : 
+            # if path.endswith(filename):
+                # print("File path published as dirname")
+                # params['filepath'] = os.path.dirname(path)
+                # print("File path parm: %s"%params['filepath'])
+            # else:
+                # print("File path published as full path")
+                # params['filepath'] = path
+        if ext is not None:        params['ext']        = ext
+        if version is not None:    params['version']    = version
+        if comment is not None:    params['note']       = comment
+        if serverID is not None:   params['serverID']   = serverID
+        if metadata is not None:   params['metadata']   = metadata
+        if customKeys is not None: params['customKeys'] = json.dumps(customKeys)
 
         result = connect( method='get', params=params )
 
@@ -2711,8 +3453,8 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated with new file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated with new file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
 
         if pub:
             ID = result['ID']
@@ -2798,8 +3540,8 @@ def update_file( ID=None, task_type_ID=None, task_folder=None, userID=None, base
         P.error( result['error'] )
         return result
     else :
-        P.info( 'NIM API updated existing file.' )
-        P.info( '      File ID = %s' % result['ID'] )
+        P.debug( 'NIM API updated existing file.' )
+        P.debug( '      File ID = %s' % result['ID'] )
         if pub:
             #Create symlink for published files
             pub_result = publish_symLink(fileID=ID, forceLink=forceLink)
@@ -3022,6 +3764,7 @@ def upload_edit( showID=None, path=None, nimURL=None, apiKey=None ) :
         result = upload(params=params, nimURL=nimURL, apiKey=apiKey)
     else :
         result = connect( method='get', params=params, nimURL=nimURL, apiKey=apiKey )
+
     return result
 
 # DEPRECATED - upload_dailies() #
@@ -3114,6 +3857,7 @@ def upload_dailiesNote( dailiesID=None, name='', img=None, note='', frame=0, tim
         result = upload(params=params, nimURL=nimURL, apiKey=apiKey)
     else :
         result = connect( method='get', params=params, nimURL=nimURL, apiKey=apiKey )
+
     return result
 
 
@@ -3213,7 +3957,6 @@ def upload_reviewItem( taskID=None, renderID=None, renderKey=None, itemID=None, 
     if renderID is not None : params['renderID'] = renderID
     if renderKey is not None : params['renderKey'] = renderKey
 
-
     if path is not None :
         path = os.path.normpath( path )
         if os.path.isfile(path) :
@@ -3229,7 +3972,6 @@ def upload_reviewItem( taskID=None, renderID=None, renderKey=None, itemID=None, 
         result['success'] = False
         result['error'] = "Path not defined"
         return result
-
 
     if submit is not None : params['submit'] = submit
     if itemID is not None : params['itemID'] = itemID
@@ -3489,4 +4231,3 @@ def get_timecardInfo( timecardID=None ) :
 
 
 #  End
-

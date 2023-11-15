@@ -35,7 +35,7 @@ import nim_core.nim_houdini      as nimHoudini
 import nim_core.nim_rohtau       as nimRt
 import nim_core.nim_rohtau_utils as nimUtl
 import nim_core.nim_rohtau_tc    as nimTc
-from nim_core import padding
+from nim_core.py3 import padding
 
 from rt import pipe
 from rt import utils

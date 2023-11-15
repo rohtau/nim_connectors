@@ -14,20 +14,57 @@
 
 
 #  General Imports :
-import glob, os, platform, re, sys, traceback, urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, time
+import glob, os, platform, re, sys, traceback, time
+from datetime   import datetime
+from datetime   import timedelta
+if sys.version_info >= (3,0):
+    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+else:
+    import urllib, urllib2
+
 try:
     import ssl
 except :
     print("NIM UI: Failed to load SSL")
     pass
+from pprint import pprint
+from pprint import pformat
+
+
 
 #  NIM Imports :
-from . import nim as Nim
-from . import nim_api as Api
-from . import nim_file as F
-from . import nim_prefs as Prefs
-from . import nim_print as P
-from . import nim_win as Win
+if sys.version_info >= (3,0):
+    try:
+        from . import nim              as Nim
+        from . import nim_api          as Api
+        from . import nim_file         as F
+        from . import nim_prefs        as Prefs
+        # from . import nim_cache        as Cache
+        from . import nim_print        as P
+        from . import nim_win          as Win
+        from . import nim_rohtau       as nimRt
+        from . import nim_rohtau_utils as nimUtl
+    except ImportError as e:
+        import nim              as Nim
+        import nim_api          as Api
+        import nim_file         as F
+        import nim_prefs        as Prefs
+        # from . import nim_cache        as Cache
+        import nim_print        as P
+        import nim_win          as Win
+        import nim_rohtau       as nimRt
+        import nim_rohtau_utils as nimUtl
+
+else:
+    import nim              as Nim
+    import nim_api          as Api
+    import nim_file         as F
+    import nim_prefs        as Prefs
+    # import nim_cache        as Cache
+    import nim_print        as P
+    import nim_win          as Win
+    import nim_rohtau       as nimRt
+    import nim_rohtau_utils as nimUtl
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -48,12 +85,15 @@ except ImportError :
                 print("NIM UI: Failed to UI Modules")
 
 #  Variables :
-version='v6.0.4'
 WIN=''
 startTime=''
-winTitle='NIM_'+version
+from .import version 
+from .import winTitle
+from .import padding
+from .import defaultSceneName
 _os=platform.system().lower()
 _osCap=platform.system()
+standardTags = ["main", "slap"]
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
@@ -102,7 +142,7 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 #    'usa.la.nim.fileUI' )
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
-                P.debug( '    %s' % traceback.print_exc() )
+                P.error( '    %s' % traceback.print_exc() )
                 return False
         
         #  Hiero :
@@ -131,7 +171,9 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
         elif app=='Houdini' :
             try :
                 import hou
-                WIN=GUI( mode=mode )
+                # WIN=GUI( mode=mode )
+                win_parent=hou.qt.mainWindow()
+                WIN=GUI( mode=mode, parent=win_parent )
             except Exception as e :
                 P.error( 'Sorry, unable to retrieve variables from the NIM preference file.' )
                 P.debug( '    %s' % traceback.print_exc() )
@@ -180,6 +222,8 @@ class GUI(QtGui.QMainWindow) :
         self.winTitle=winTitle
         self.complete=False
         self.baseUpdated=False
+        self.appsIcons = {}
+        self.backClrs = {}
         #  Start timer :
         startTime=time.time()
         
@@ -225,14 +269,23 @@ class GUI(QtGui.QMainWindow) :
         #  Make main window widget :
         self.mainWidg=QtGui.QWidget(self)
         self.setCentralWidget( self.mainWidg )
+
+        # Create apps icons and colors
+        if not self.mk_icons_clrs ():
+            return False
+
         
         #  Construct the window :
         self.mk_win()
         
-        #  Populate Fields :
+        #  Populate Servers ?, Not at the moment
+        #  Populate Job :
+        '''
         for elem in self.nim.elements :
             self.populate_elem( elem )
         P.debug(' ')
+        '''
+        self.populate_elem( 'job' )
         
         #  Print :
         #self.nim.Print( debug=True )
@@ -283,7 +336,8 @@ class GUI(QtGui.QMainWindow) :
             self.pref_task=self.prefs[self.app+'_Task']
             self.pref_basename=self.prefs[self.app+'_Basename']
             self.pref_version=self.prefs[self.app+'_Version']
-            self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
+            # self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo.png'
+            self.pref_imgDefault=self.pref_nimScripts+'/img/nim_logo_fixed.png'
         except : return False
         P.debug( '%.3f =>     Preferences stored' % (time.time()-startTime) )
         
@@ -327,6 +381,25 @@ class GUI(QtGui.QMainWindow) :
             return True
         else :
             return False
+
+
+    def mk_icons_clrs (self):
+        'Init app icons and several predefined colors'
+        iconsBasePath = os.path.join(os.getenv('NIM_CONNECTOR_ROOT'), 'img')
+        if not os.path.exists(iconsBasePath):
+            P.error("Icons path doesn't exist: %s"%iconsBasePath)
+            return False
+        supportedAppIcons = ('Houdini', 'Nuke', 'Maya', 'Arnold', 'Vray', 'Blender', 'UnrealEngine', 'Fusion')
+        for app in supportedAppIcons:
+            self.appsIcons[app] = QtGui2.QIcon(os.path.join(iconsBasePath, "%s.ico"%app))
+        self.backClrs = {
+            # 'Blue' : QtGui2.QBrush(QtGui2.QColor(62, 62, 140)),
+            # 'Blue' : QtGui2.QBrush(QtGui2.QColor(101, 190, 225)),
+            'Blue' : QtGui2.QBrush(QtGui2.QColor(0, 0, 225)),
+            'Green' : QtGui2.QBrush(QtGui2.QColor(62, 140, 62)),
+            'Red' : QtGui2.QBrush(QtGui2.QColor(249, 118, 90)),
+        }
+        return True
     
     
     #  GUI Element Creation :
@@ -357,7 +430,7 @@ class GUI(QtGui.QMainWindow) :
         self.mainLayout.addWidget( self.horiz_splitter )
         #  Set Main Layout :
         self.setLayout( self.mainLayout )
-        
+
         #  Print success :
         P.debug( '%.3f => Layouts created' % (time.time()-startTime) )
     
@@ -402,12 +475,26 @@ class GUI(QtGui.QMainWindow) :
     def mk_jobWidgets(self) :
         'Constructs all elements of the Job group box'
         self.img_size=self.width()/2.25
+
+        # Rez Context:
+        if os.getenv('REZ_USED_REQUEST') and os.getenv('REZ_USED_RESOLVE'):
+            ctx = os.getenv('REZ_USED_REQUEST')
+            self.ctxLabel = QtGui.QLabel(ctx)
+            self.jobForm.addRow( 'Working Context:', self.ctxLabel )
+
         
         #  Job :
+        self.jobLabel = QtGui.QLabel("Job:")
         self.nim.set_input( elem='job', widget=QtGui.QComboBox() )
-        self.nim.Input('job').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('job').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('job').setMinimumSize(240,20)
-        self.jobForm.addRow( 'Job:', self.nim.Input('job') )
+        self.jobOverride = QtGui.QPushButton("Override Job")
+        self.jobOverride.setCheckable(True)
+        self.jobHLayout=QtGui.QHBoxLayout()
+        self.jobHLayout.addWidget(self.jobLabel)
+        self.jobHLayout.addWidget(self.nim.Input('job'))
+        self.jobHLayout.addWidget(self.jobOverride)
+        self.jobForm.addRow(self.jobHLayout)
         
         #  Server :
         self.nim.set_input( elem='server', widget=QtGui.QComboBox() )
@@ -416,9 +503,13 @@ class GUI(QtGui.QMainWindow) :
         self.jobForm.addRow( 'Server:', self.nim.Input('server') )
         
         #  Asset :
+        self.assetLabel = QtGui.QLabel("Asset:")
         self.nim.set_input( elem='asset', widget=QtGui.QComboBox() )
-        self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        # self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('asset').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('asset').setMinimumSize(240,20)
+        self.assetOverride = QtGui.QPushButton("Override Asset")
+        self.assetOverride.setCheckable(True)
         #  Asset thumbnail :
         try :
             self.nim.set_pic( elem='asset', widget=QtGui2.QPixmap().fromImage( QtGui2.QImage( self.pref_imgDefault ) ) )
@@ -429,6 +520,10 @@ class GUI(QtGui.QMainWindow) :
         self.nim.set_label( elem='asset', widget=QtGui.QLabel() )
         self.nim.label('asset').setPixmap( self.nim.pix('asset') )
         self.nim.label('asset').setScaledContents( True )
+        self.assetHLayout=QtGui.QHBoxLayout()
+        self.assetHLayout.addWidget(self.assetLabel)
+        self.assetHLayout.addWidget(self.nim.Input('asset'))
+        self.assetHLayout.addWidget(self.assetOverride)
         #  Asset Tab :
         self.assetTab=QtGui.QWidget()
         #  Asset Tab Layouts :
@@ -437,12 +532,21 @@ class GUI(QtGui.QMainWindow) :
         self.assetLayout.addLayout( self.assetForm )
         self.assetLayout.addWidget( self.nim.label('asset'), QtCore.Qt.AlignTop )
         #  Populate Asset Tab :
-        self.assetForm.addRow( 'Asset:', self.nim.Input('asset') )
+        # self.assetForm.addRow( 'Asset:', self.nim.Input('asset') )
+        self.assetForm.addRow(self.assetHLayout)
         
         #  Show :
+        self.showLabel = QtGui.QLabel("Show:")
         self.nim.set_input( elem='show', widget=QtGui.QComboBox() )
-        self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        # self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.nim.Input('show').setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.nim.Input('show').setMinimumSize(240,20)
+        self.showOverride = QtGui.QPushButton("Override Show/Shot")
+        self.showOverride.setCheckable(True)
+        self.showHLayout=QtGui.QHBoxLayout()
+        self.showHLayout.addWidget(self.showLabel)
+        self.showHLayout.addWidget(self.nim.Input('show'))
+        self.showHLayout.addWidget(self.showOverride)
         
         #  Shot :
         self.nim.set_input( elem='shot', widget=QtGui.QComboBox() )
@@ -470,7 +574,8 @@ class GUI(QtGui.QMainWindow) :
         self.showLayout.addLayout( self.showForm )
         self.showLayout.addWidget( self.nim.label('shot'), QtCore.Qt.AlignTop )
         #  Populate Show/Shot Tab :
-        self.showForm.addRow( 'Show:', self.nim.Input('show') )
+        # self.showForm.addRow( 'Show:', self.nim.Input('show') )
+        self.showForm.addRow( self.showHLayout )
         self.showForm.addRow( 'Shot:', self.nim.Input('shot') )
         
         #  Tab :
@@ -518,8 +623,23 @@ class GUI(QtGui.QMainWindow) :
         self.taskForm.addRow( 'Basename:', self.nim.Input('base') )
         
         #  Tag widget :
+        self.tagLabel = QtGui.QLabel("Tag:")
         self.nim.set_input( elem='tag', widget=QtGui.QLineEdit() )
-        self.taskForm.addRow( 'Tag:', self.nim.Input('tag') )
+
+        regex=QtCore.QRegExp("^[a-z-A-Z0-9][a-z-A-Z0-9_]+")
+        validator = QtGui2.QRegExpValidator(regex)
+        self.nim.Input('tag').setValidator(validator)
+
+        self.tagPresets = QtGui.QComboBox()
+        self.tagPresets.addItems(standardTags)
+        self.tagPresets.setToolTip("Presets and avaliable tags")
+        #  Create layout :
+        self.tagHLayout=QtGui.QHBoxLayout()
+        #  Add to layout :
+        self.taskForm.addRow(self.tagHLayout)
+        self.tagHLayout.addWidget(self.tagLabel)
+        self.tagHLayout.addWidget(self.nim.Input('tag'))
+        self.tagHLayout.addWidget(self.tagPresets)
         
         #  Deselect basename button :
         self.btn_deselect=QtGui.QPushButton('Deselect Basenames')
@@ -542,6 +662,7 @@ class GUI(QtGui.QMainWindow) :
         self.verPath=QtGui.QLabel('<path>')
         self.verUser=QtGui.QLabel('<user>')
         self.verDate=QtGui.QLabel('<date>')
+        self.verVer=QtGui.QLabel('<ver>')
         self.verNote=QtGui.QLabel('<comment>')
         self.nim.set_input( elem='comment', widget=QtGui.QLineEdit() )
         #  Add widgets to form :
@@ -549,6 +670,7 @@ class GUI(QtGui.QMainWindow) :
         self.verForm.addRow( 'Path:', self.verPath )
         self.verForm.addRow( 'User:', self.verUser )
         self.verForm.addRow( 'Date:', self.verDate )
+        self.verForm.addRow( 'Version:', self.verVer )
         self.verForm.addRow( 'Comment:', self.verNote )
         self.verForm.addRow( 'Comment:', self.nim.Input('comment') )
         
@@ -604,8 +726,7 @@ class GUI(QtGui.QMainWindow) :
 
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        if self.app !='Houdini' :
-            self.menuBar().addMenu( userMenu )
+        self.menuBar().addMenu( userMenu )
 
         #  Make Connections :
         self.changeUserAction.triggered.connect( self.update_user )
@@ -636,8 +757,7 @@ class GUI(QtGui.QMainWindow) :
         
         #Remove from shared menu in Houdini
         #TODO: Verify if needed for any apps
-        if self.app !='Houdini' :
-            self.menuBar().addMenu( modeMenu )
+        self.menuBar().addMenu( modeMenu )
         
         #  Make Connections :
         self.openWin.triggered.connect( self.win_open )
@@ -724,14 +844,21 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable Basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
-        self.nim.Input('tag').setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setVisible(True)
+        self.nim.Input('tag').setVisible( True )
+        self.nim.Input('tag').setEnabled( False )
+        self.tagPresets.setVisible(False)
         
         #  Enable Versions :
         self.nim.Input('ver').setEnabled( True )
@@ -760,6 +887,24 @@ class GUI(QtGui.QMainWindow) :
         #  Enable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
             self.nim.Input( elem ).setEnabled( True )
+            if elem in ('job', 'show', 'shot', 'asset'):
+                if elem=='job' and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOWPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOTPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and not os.getenv('SHOTPATH'):
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+                elif elem=='asset' and os.getenv('REZ_USED_REQUEST') and os.getenv('ASSET') and os.getenv('SHOTPATH'):
+                    self.assetOverride.setEnabled(True)
+                    self.nim.Input( elem ).setEnabled( False )
+                if not os.getenv('REZ_USED_REQUEST'):
+                    self.jobOverride.setEnabled(False)
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+
         self.jobTab.setEnabled( True )
         
         #  Enable version picker :
@@ -769,6 +914,8 @@ class GUI(QtGui.QMainWindow) :
         try : self.btn_1.clicked.disconnect()
         except : pass
         self.btn_1.clicked.connect( self.file_open )
+        # Flags to force in top
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -805,15 +952,21 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable Basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( True )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( True )
+        self.tagLabel.setVisible( True )
         self.nim.Input('tag').clear()
         self.nim.Input('tag').setVisible( True )
+        self.tagPresets.setVisible( True )
         
         #  Disable Versions :
         self.nim.Input('ver').setEnabled( False )
@@ -827,6 +980,16 @@ class GUI(QtGui.QMainWindow) :
         self.verForm.labelForField( self.nim.Input('comment') ).setVisible( True )
         self.nim.Input('comment').setVisible( True )
         self.nim.Input('comment').clear()
+        # Set default comment for Save:
+        filepath = self.nim.filePath()
+        if filepath == 'Root':
+            filepath = 'Untitled'
+        filename = self.nim.fileName()
+        if filename != 'untitled.hip':
+            self.nim.Input('comment').setText("Save from: %s"%filepath)
+        else:
+            self.nim.Input('comment').setText("Initial scene")
+            
         
         #  Check Boxes :
         self.checkBox.setText( 'Selected' )
@@ -869,6 +1032,23 @@ class GUI(QtGui.QMainWindow) :
         #  Enable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
             self.nim.Input( elem ).setEnabled( True )
+            if elem in ('job', 'show', 'shot', 'asset'):
+                if elem=='job' and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOWPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and os.getenv('SHOTPATH'):
+                    self.nim.Input( elem ).setEnabled( False )
+                    self.assetOverride.setEnabled(False)
+                elif (elem=='shot' or elem=='show') and os.getenv('REZ_USED_REQUEST') and not os.getenv('SHOTPATH'):
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
+                elif elem=='asset' and os.getenv('REZ_USED_REQUEST') and os.getenv('ASSET') and os.getenv('SHOTPATH'):
+                    self.assetOverride.setEnabled(True)
+                    self.nim.Input( elem ).setEnabled( False )
+                if not os.getenv('REZ_USED_REQUEST'):
+                    self.jobOverride.setEnabled(False)
+                    self.showOverride.setEnabled(False)
+                    self.assetOverride.setEnabled(False)
         self.jobTab.setEnabled( True )
         
         #  Enable version picker :
@@ -878,6 +1058,13 @@ class GUI(QtGui.QMainWindow) :
         try : self.btn_1.clicked.disconnect()
         except : pass
         self.btn_1.clicked.connect( self.file_saveAs )
+
+        #
+        # Custom initialization
+        # Set default tag name as main
+        self.nim.Input('tag').setText(defaultSceneName)
+        # Flags to force in top
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         
         self.setNimStyle()
 
@@ -920,8 +1107,10 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setVisible( False )
         self.nim.Input('tag').setVisible( False )
+        self.tagPresets.setVisible( False )
         
         #  Enable Versions :
         self.nim.Input('ver').setEnabled( True )
@@ -1063,14 +1252,20 @@ class GUI(QtGui.QMainWindow) :
         
         #  Enable basenames :
         self.nim.Input('base').setEnabled( True )
+        # DEPRECATED: this doesn't allow to setup our own flags for items. Breaks
+        # making some items selectable and others not
+        '''
         for index in range( self.nim.Input('base').count() ) :
             self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                 | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+        '''
         self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
         
         #  Tag elements :
-        self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        # self.taskForm.labelForField( self.nim.Input('tag') ).setVisible( False )
+        self.tagLabel.setVisible( False )
         self.nim.Input('tag').setVisible( False )
+        self.tagPresets.setVisible( False )
         
         #  Disable :
         for elem in ['job', 'server', 'asset', 'show', 'shot', 'task', 'base'] :
@@ -1149,9 +1344,23 @@ class GUI(QtGui.QMainWindow) :
     
     #  Update :
     def populate_elem( self, elem='job', _print=False ) :
-        'Populates a given GUI element'
+        '''
+        Populates a given GUI element
+        Clear and Set Nim dictionary element and update element UI 
+
+        Initialize dictionary for selected element, in other words query NIM about all the 
+        available options for the selected element, job. show, asset, shot, task, basename or version.
+        This function does all the heavy lifting about updating the UI using data from the NIM data base.
+
+        It is usually called from update_elem() after this one has set the ID/name for the selected element.
+        '''
         P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
-        
+        userinfo = self.nim.userInfo()
+
+        # Window modes :
+        # - Open/Import: FILE
+        # - SaveAs: SAVE
+        # print("DEBUG: Window Mode: %s"%self.mode)
         
         #  Clear :
         #===------
@@ -1177,13 +1386,16 @@ class GUI(QtGui.QMainWindow) :
                     self.verPath.setText('<path>')
                     self.verUser.setText('<user>')
                     self.verDate.setText('<date>')
+                    self.verVer.setText('<ver>')
                     self.verNote.setText('<comment>')
             #  Print Time :
+            '''
             try :
-                P.debug( '  Text = "%s"' % self.nim.Input( elem ).currentText() )
+                P.debug( 'Text = "%s"' % self.nim.Input( elem ).currentText() )
                 P.debug( '%.3f => %s finished' % ((time.time()-startTime), elem.upper() ) )
             except : pass
             return
+            '''
         #  Clear tasks, if necessary :
         if elem=='task' :
             if self.nim.name('filter')=='Asset Master' : clear=True
@@ -1198,12 +1410,14 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input( elem ).setEnabled( False )
                 return
         
-        
         #  Print Population Start :
-        if _print : P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
-        else : P.debug( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
+        # P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
         
-        
+        # print("NIM Object before populate:")
+        # pprint(self.nim.get_nim())
+        # print("Element %s dictionary before populating"%elem)
+        # pprint(self.nim.Dict(elem))
+
         #  Combo Boxes :
         #===-------------------
         
@@ -1214,17 +1428,40 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).setEnabled( True )
             self.nim.Input( elem ).clear()
             self.nim.Input( elem ).addItem( 'Select...' )
+            availableTasks = None
+            # userJobs = None
+            # if elem == 'job':
+                # userJobs = Api.get_jobs(int(self.nim.userInfo()['ID']))
+                # userJobs = self.nim.Dict('job')
+            # Get Available tasks for given shot/asset
+            if self.mode in ('FILE', 'LOAD') and elem == 'task' and ( self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None ):
+                availableTasks = Api.get_taskTypes(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  onlyWithFiles=1)
+                if self.nim.name('filter') == 'Published':
+                    # Test availableTasks to only include the ones with some
+                    # basename including a published file
+                    availableTasks = [task for task in availableTasks if len(Api.get_basesAllPub( 
+                        shotID = self.nim.ID('shot') if self.nim.tab() == 'SHOT' else None,
+                        assetID = self.nim.ID('asset') if self.nim.tab() == 'ASSET' else None,
+                        taskID = int(task['ID'])
+                    ))>0]
             #  Make List of Element Items :
             for option in self.nim.Dict( elem ) :
                 #  Assets, Shots and Tasks :
                 if elem in ['asset', 'shot', 'task'] :
-                    elemList.append( option['name'] )
+                    if elem == 'task' and availableTasks:
+                        nexttask = next((item for item in availableTasks if item["name"] == option['name']), None)
+                        if nexttask:
+                            elemList.append( option['name'] )
+                    else:
+                        elemList.append( option['name'] )
                     #  Store Name, ID and Task Folder :
                     if option['name']==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option['name'] )
                         self.nim.set_ID( elem=elem, ID=option['ID'] )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
-                        P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
                         self.update_img()
                         if elem=='task' :
                             self.nim.set_taskFolder( folder=option['folder'] )
@@ -1235,18 +1472,28 @@ class GUI(QtGui.QMainWindow) :
                     if option['showname']==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option['showname'] )
                         self.nim.set_ID( elem=elem, ID=option['ID'] )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
-                        P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID(elem)) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID(elem)) )
                 #  Jobs, Tasks and Filters :
                 else :
-                    elemList.append( option )
+                    '''
+                    if elem == 'job' and userJobs:
+                        # Don't include those jobs were our user is not assigned
+                        # to
+                        if option not in userJobs:
+                            continue
+                    '''
+                    if isinstance(option, str):
+                        elemList.append( option )
+                    else:
+                        elemList.append( option.decode('utf-8') )
                     #  Store Name and ID :
                     if option==self.nimPrefs.name( elem ) :
                         self.nim.set_name( elem=elem, name=option )
-                        P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
                         if elem not in ['task', 'filter'] :
                             self.nim.set_ID( elem=elem, ID=self.nim.Dict( elem )[option] )
-                            P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
+                            # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
                 num +=1
             
             #  Sort Combo Box Item Names :
@@ -1267,9 +1514,91 @@ class GUI(QtGui.QMainWindow) :
             #  Set Filter - ("Work") :
             if elem=='filter' and self.nim.mode().lower() not in ['file', 'open', 'load'] :
                 self.nim.Input( elem ).setCurrentIndex(1)
-            #  Populate Server :
-            if elem=='job' :
-                self.populate_server()
+
+            # Customise some presets using Rez
+            #
+            #  Populate Server and set job based on Rez context:
+            if elem=='job' and not self.jobOverride.isChecked():
+                widget = self.nim.Input( elem )
+                # Get jobs in combo box
+                # jobs = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
+                jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezjob = nimUtl.hasRezCtxJob( jobs )
+                if rezjob:
+                    # Set job according to Rez context if needed
+                    curjob = self.nim.name('job').split()[0] if self.nim.name('job') else ''
+                    if curjob != rezjob:
+                        idx =  jobs.index(rezjob) 
+                        widget.setCurrentIndex( idx )
+                        self.populate_server()
+                        widget.setEnabled( False )
+                        self.nim.set_name( elem='job', name=rezjob )
+                        self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                    P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezjob)
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available job")
+                #  Set tab from Rez :
+                rezTab = nimUtl.getRezCtxTab()
+                if rezTab:
+                    if rezTab=='ASSET' :
+                        self.jobTab.setCurrentIndex(0)
+                        self.nim.set_tab('ASSET')
+                    elif rezTab=='SHOT' :
+                        self.jobTab.setCurrentIndex(1)
+                        self.nim.set_tab('SHOT')
+            if elem=='asset' and not self.assetOverride.isChecked()  :
+                widget = self.nim.Input( elem )
+                # Get shots
+                assets = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezasset = nimUtl.hasRezCtxAsset( assets )
+                if rezasset:
+                    # Set asset according to Rez context
+                    idx = assets.index(rezasset) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='asset', name=rezasset )
+                    self.nim.set_ID( elem='asset', ID=self.nim.Dict( 'asset' )[idx-1]['ID'] )
+                    P.info("Valid Rez context detected: %s. Setting it as asset for NIM dialogues."%rezasset)
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available asset")
+            # Select Show and Shot if available in Rez context
+            if elem=='show' and not self.showOverride.isChecked() :
+                widget = self.nim.Input( elem )
+                # Get shows
+                shows = [widget.itemText(i).split()[0].encode('ascii') for i in range(widget.count())]
+                rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
+                if rezshow:
+                    # Set show according to Rez context
+                    idx = shows.index(rezshow) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='show', name=rezshow )
+                    # Correct index from UI widget if needed
+                    if shows[0].startswith('Select'):
+                        idx -= 1
+                    self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
+                    P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
+                    self.update_elem(elem='show') # Populate shots
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available show")
+            if elem=='shot' and not self.showOverride.isChecked()  :
+                widget = self.nim.Input( elem )
+                # Get shots
+                shots = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                rezshot = nimUtl.hasRezCtxShot( shots )
+                if rezshot:
+                    # Set shot according to Rez context
+                    idx = shots.index(rezshot) 
+                    widget.setEnabled( False )
+                    widget.setCurrentIndex( idx )
+                    self.nim.set_name( elem='shot', name=rezshot )
+                    self.nim.set_ID( elem='shot', ID=self.nim.Dict( 'shot' )[idx-1]['ID'] )
+                    P.info("Valid Rez context detected: %s. Setting it as shot for NIM dialogues."%rezshot)
+                # else:
+                    # P.warning("Couldn't find a valid Rez context for any available shot")
+
+
+
         
         
         #  List Views :
@@ -1281,23 +1610,88 @@ class GUI(QtGui.QMainWindow) :
             
             #  Basenames :
             if elem=='base' :
+                initbasefound = False
+                tags = standardTags
+                # print("Basenames for populate:")
+                # pprint(self.nim.Dict( elem ) )
                 for option in self.nim.Dict( elem ) :
+                    if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
+                        latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  basename=option['basename'], pub=self.nim.name('filter') == 'Published')
+                        # latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  # shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  # basename=option['basename'])
+                        # print("For basename: %s, got these versions:"%option['basename'])
+                        # pprint(latestver)
+                        if latestver:
+                            latestver = latestver[0]
+                            # pprint(latestver)
+                    # Only show Scene files
+                    if latestver:
+                        sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script', 'Maya Scene')
+                        if latestver['customKeys']['File Type'] not in sceneTypes:
+                            continue
+                    else:
+                        continue
+
                     #  Populate :
                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                     item.setText( option['basename'] )
-                    if self.nim.name('filter') !='Asset Master' :
-                        item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
-                            | QtCore.Qt.ItemIsEnabled )
-                    #  Select item, if it matches the preferences :
+                    item.setFlags( QtCore.Qt.ItemIsSelectable \
+                                  | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+                    if latestver:
+                        basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
+                        if basenameapp in self.appsIcons:
+                            item.setIcon( self.appsIcons[basenameapp] )
+                        # Only enable basenames for the current host app if file
+                        # type info is available. Always enable generic 'Scene'
+                        # name.
+                        if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'].split()[0] != self.app \
+                                and latestver['customKeys']['File Type'].split()[0] != 'Scene':
+                            item.setFlags( QtCore.Qt.NoItemFlags )
+                        # Ownership color
+                        if latestver['userID'] == userinfo['ID']:
+                            item.setBackground(self.backClrs['Green'])
+                        else:
+                            item.setBackground(self.backClrs['Red'])
+                        tooltip = "Basename: %s\nLatest Version: %s\nComment: %s\nApplication: %s\nOwner: %s"%(latestver['basename'],
+                                                                                                            latestver['version'],
+                                                                                                            latestver['note'],
+                                                                                                            basenameapp,
+                                                                                                            latestver['username'] )
+                        item.setToolTip( tooltip )
+                        item.setStatusTip( tooltip )
+                        item.setWhatsThis( tooltip )
+                    # Add tag to list of available tags
+                    nameparts = nimUtl.splitName(option['basename'])
+                    if nameparts and nameparts['tag']:
+                        try:
+                            tags.index(nameparts['tag'])
+                        except ValueError:
+                            tags.append(nameparts['tag'])
+                    # Init selection
+                    if not initbasefound and  item.flags() & QtCore.Qt.ItemIsSelectable:
+                        self.nim.Input( elem ).setCurrentItem( item )
+                    # Select item, if it matches the preferences :
                     if option['basename']==self.nimPrefs.name( elem ) :
                         self.nim.Input( elem ).setCurrentItem( item )
                         #  Set variables :
                         self.nim.set_name( elem=elem, name=option['basename'] )
+                        initbasefound = True
+                        self.nim.Input('tag').setText(nameparts['tag'])
+                        self.nim.set_name( elem='tag', name=nameparts['tag'] )
+
+                self.tagPresets.clear()
+                self.tagPresets.addItems(tags)
             
             #  Versions :
             elif elem=='ver' :
                 for option in self.nim.Dict( elem ) :
                     #  Populate "Load" Publish File :
+                    # XXX: This looks more like a legacy thing, the
+                    # self.nim.pub() is always false now, so this section
+                    # is not used and we jump to the next.
                     if self.nim.pub() and self.nim.mode().lower() in ['load'] :
                         nimDir=Api.to_nimDir( nim=self.nim )
                         basename=Api.to_basename( nim=self.nim )
@@ -1340,8 +1734,10 @@ class GUI(QtGui.QMainWindow) :
                             break
                     
                     #  Add normal versions :
+                    #  Here is where actually all versions are loaded
                     else :
                         if self.nim.name('filter')=='Asset Master' :
+                            # XXX: Is asset master used?
                             
                             assetInfo=Api.get_assetInfo( assetID=self.nim.ID('asset') )
 
@@ -1391,6 +1787,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( fileDir )
                                 self.verUser.setText( '<user>' )
                                 self.verDate.setText( '<date>' )
+                                self.verVer.setText( '<version>' )
                                 self.verNote.setText( '<note>' )
                                 return
                             else :
@@ -1405,6 +1802,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( '<path>' )
                                 self.verUser.setText( '<user>' )
                                 self.verDate.setText( '<date>' )
+                                self.verVer.setText( '<version>' )
                                 self.verNote.setText( '<note>' )
                                 P.warning( 'Sorry, no Asset Master found at the following path:' )
                                 P.warning( '    %s' % filePath )
@@ -1413,6 +1811,13 @@ class GUI(QtGui.QMainWindow) :
                         #  Add Published version :
                         elif self.nim.name('filter')=='Published' :
                             if self.nim.mode().lower()=='load' :
+                                # XXX: We have remove this part of the code,
+                                # looks old and wasn't working. We just copied
+                                # the same code used for open mode. Eventually
+                                # this is can be removed and use the same code
+                                # for both modes, there is no difference in how
+                                # versions are loaded for Open or Import.
+                                '''
                                 #self.del_connections()
                                 fileDir=os.path.normpath( option['filepath'] )
                                 if os.path.basename( os.path.normpath( fileDir ) )=='scenes' :
@@ -1420,6 +1825,8 @@ class GUI(QtGui.QMainWindow) :
                                 nimDir=os.path.dirname( fileDir )
                                 fileName=option['basename']+option['ext']
                                 filePath=os.path.normpath( os.path.join( nimDir, fileName ) )
+                                # Finish show  versions  for publish scene
+                                print("Add file path in import Published scene: %s"%filePath)
                                 if os.path.isfile( filePath ) :
                                     #  Add item to list view :
                                     item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
@@ -1447,11 +1854,17 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( nimDir )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( '<version>' )
                                     self.verNote.setText( '<note>' )
                                 #self.mk_connections()
-                            elif self.nim.mode().lower() in ['open', 'file'] :
+                                '''
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                                 item.setText( option['filename']+' - '+option['note'] )
+                                if option['userID'].encode('ascii') == userinfo['ID']:
+                                    item.setBackground(self.backClrs['Green'])
+                                else:
+                                    item.setBackground(self.backClrs['Red'])
+
                                 if self.nim.mode().lower() in ['save', 'saveas'] :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
                                 else :
@@ -1478,9 +1891,16 @@ class GUI(QtGui.QMainWindow) :
                                     ext=F.get_ext( filePath=option['filename'] )
                                     if ext !='.hip' :
                                         item.setFlags( QtCore.Qt.ItemIsEditable )
+
+                                tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                            option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                            option['username'] )
+                                item.setToolTip( tooltip )
+                                item.setStatusTip( tooltip )
+                                item.setWhatsThis( tooltip )
+
                                 #  Set from preferences :
-                                if option['filename']+' - '+option['note']==self.pref_version and \
-                                    self.nim.mode() != 'publish' :
+                                if option['filename']+' - '+option['note']==self.pref_version:
                                     self.nim.Input( elem ).setCurrentItem( item )
                                     #  Set variables :
                                     self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
@@ -1489,11 +1909,77 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
+                                    self.verNote.setText( option['note'] )
+                            elif self.nim.mode().lower() in ['open', 'file'] :
+                                item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
+                                item.setText( option['filename']+' - '+option['note'] )
+                                if option['userID'].encode('ascii') == userinfo['ID']:
+                                    item.setBackground(self.backClrs['Green'])
+                                else:
+                                    item.setBackground(self.backClrs['Red'])
+
+                                if self.nim.mode().lower() in ['save', 'saveas'] :
+                                    item.setFlags( QtCore.Qt.ItemIsEditable )
+                                else :
+                                    item.setFlags( QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable \
+                                        | QtCore.Qt.ItemIsEnabled )
+                                #  Filter file types :
+                                if self.app=='Maya' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext not in ['.ma', '.mb'] :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='Nuke' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext not in ['.nk', '.nknc'] :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='C4D' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.c4d' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='3dsMax' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.max' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+                                elif self.app=='Houdini' :
+                                    ext=F.get_ext( filePath=option['filename'] )
+                                    if ext !='.hip' :
+                                        item.setFlags( QtCore.Qt.ItemIsEditable )
+
+                                tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                            option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                            option['username'] )
+                                item.setToolTip( tooltip )
+                                item.setStatusTip( tooltip )
+                                item.setWhatsThis( tooltip )
+
+                                #  Set from preferences :
+                                if option['filename']+' - '+option['note']==self.pref_version and \
+                                        self.nim.mode() != 'publish' :
+                                    self.nim.Input( elem ).setCurrentItem( item )
+                                    #  Set variables :
+                                    self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
+                                    self.nim.set_ID( elem=elem, ID=option['fileID'] )
+                                    #  Set notes section :
+                                    self.verPath.setText( option['filepath'] )
+                                    self.verUser.setText( option['username'] )
+                                    self.verDate.setText( option['date'] )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
+                            print("User IDs")
+                            print(option['userID'])
+                            print(userinfo['ID'])
+                            option['userID']
+                            userinfo['ID']
+                            if option['userID'] == userinfo['ID']:
+                                item.setBackground(self.backClrs['Green'])
+                            else:
+                                item.setBackground(self.backClrs['Red'])
+
                             if self.nim.mode().lower() in ['save', 'saveas'] :
                                 item.setFlags( QtCore.Qt.ItemIsEditable )
                             else :
@@ -1520,6 +2006,14 @@ class GUI(QtGui.QMainWindow) :
                                 ext=F.get_ext( filePath=option['filename'] )
                                 if ext !='.hip' :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
+
+                            tooltip = "Filename: %s\nComment: %s\nApplication: %s\nOwner: %s"%(option['filename'], option['note'],
+                                                                                        option['customKeys']['File Type'].split()[0] if 'File Type' in option['customKeys'] else "",
+                                                                                         option['username'] )
+                            item.setToolTip( tooltip )
+                            item.setStatusTip( tooltip )
+                            item.setWhatsThis( tooltip )
+
                             #  Set from preferences :
                             if option['filename']+' - '+option['note']==self.pref_version and \
                                 self.nim.mode() != 'publish' :
@@ -1531,6 +2025,7 @@ class GUI(QtGui.QMainWindow) :
                                 self.verPath.setText( option['filepath'] )
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
+                                self.verVer.setText( str(option['version']).zfill(padding) )
                                 self.verNote.setText( option['note'] )
         
         
@@ -1603,11 +2098,18 @@ class GUI(QtGui.QMainWindow) :
     
     
     def update_elem( self, elem='job' ) :
-        'Updates a given GUI element, along with its dependent fields'
+        '''
+        Updates a given GUI element, along with its dependent fields
+
+        Set name/Id for the selected element in the NIM dict and call populate to update the dependent fields.
+        '''
         
         
         #  Combo Boxes :
         #===-------------------
+        # P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
+
+
         
         if elem in self.nim.comboBoxes :
             #  Update Name and ID in NIM dictionary :
@@ -1637,10 +2139,12 @@ class GUI(QtGui.QMainWindow) :
                             self.nim.set_ID( elem=elem, ID=self.nim.Dict( elem )[str(self.nim.name( elem ))] )
                             break
                 #  Print :
+                '''
                 if not self.nim.ID( elem ) :
                     P.info( '%s = "%s"' % (elem.upper(), self.nim.name( elem )) )
                 else :
                     P.info( '%s = "%s" (ID #%s)' % (elem.upper(), self.nim.name( elem ), self.nim.ID( elem )) )
+                '''
             #  Clear variables, if field not set :
             else :
                 self.nim.set_name( elem=elem, name='' )
@@ -1744,7 +2248,12 @@ class GUI(QtGui.QMainWindow) :
                     if self.nim.Input( elem ).currentItem() :
                         if option['basename']==self.nim.Input( elem ).currentItem().text() :
                             #  Set variables :
+                            nameparts = nimUtl.splitName(self.nim.Input( elem ).currentItem().text())
+                            if nameparts and nameparts['tag']:
+                                self.nim.Input('tag').setText(nameparts['tag'])
+                                self.nim.set_name( elem='tag', name=nameparts['tag'] )
                             self.nim.set_name( elem=elem, name=self.nim.Input( elem ).currentItem().text() )
+                '''
                 if self.nim.name('filter') !='Asset Master' :
                     self.nim.Input( elem ).setEnabled( True )
                 else :
@@ -1752,6 +2261,7 @@ class GUI(QtGui.QMainWindow) :
                     for index in range( self.nim.Input('base').count() ) :
                         self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                             | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
+                '''
             
             #  Versions :
             elif elem=='ver' :
@@ -1762,6 +2272,7 @@ class GUI(QtGui.QMainWindow) :
                     #  Add Published version :
                     elif self.nim.name('filter')=='Published' :
                         if self.nim.mode().lower()=='load' :
+                            '''
                             fileDir=os.path.normpath( option['filepath'] )
                             if os.path.basename( os.path.normpath( fileDir ) )=='scenes' :
                                 fileDir=os.path.dirname( fileDir )
@@ -1791,6 +2302,18 @@ class GUI(QtGui.QMainWindow) :
                                 self.verUser.setText( option['username'] )
                                 self.verDate.setText( option['date'] )
                                 self.verNote.setText( '<note>' )
+                            '''
+                            if self.nim.Input( elem ).currentItem() :
+                                if option['filename']+' - '+option['note']==self.nim.Input( elem ).currentItem().text() :
+                                    #  Set variables :
+                                    self.nim.set_name( elem=elem, name=option['filename']+' - '+option['note'] )
+                                    self.nim.set_ID( elem=elem, ID=option['fileID'] )
+                                    #  Set notes section :
+                                    self.verPath.setText( option['filepath'] )
+                                    self.verUser.setText( option['username'] )
+                                    self.verDate.setText( option['date'] )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
+                                    self.verNote.setText( option['note'] )
                         elif self.nim.mode().lower() in ['open', 'file'] :
                             if self.nim.Input( elem ).currentItem() :
                                 if option['filename']+' - '+option['note']==self.nim.Input( elem ).currentItem().text() :
@@ -1801,6 +2324,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verPath.setText( option['filepath'] )
                                     self.verUser.setText( option['username'] )
                                     self.verDate.setText( option['date'] )
+                                    self.verVer.setText( str(option['version']).zfill(padding) )
                                     self.verNote.setText( option['note'] )
                     #  Work Filter :
                     elif self.nim.name('filter')=='Work' :
@@ -1831,6 +2355,7 @@ class GUI(QtGui.QMainWindow) :
                                         self.verPath.setText( option['filepath'] )
                                         self.verUser.setText( option['username'] )
                                         self.verDate.setText( option['date'] )
+                                        self.verVer.setText( str(option['version']).zfill(padding) )
                                         self.verNote.setText( option['note'] )
         
         
@@ -1848,6 +2373,9 @@ class GUI(QtGui.QMainWindow) :
         index=self.nim.elements.index( elem )+1
         if elem=='asset' :
             index=4
+
+        # print("NIM Object after update:")
+        # pprint(self.nim.get_nim())
         while index<len(self.nim.elements) :
             self.populate_elem( elem=self.nim.elements[index] )
             if self.nim.elements[index]=='ver' :
@@ -1950,7 +2478,10 @@ class GUI(QtGui.QMainWindow) :
             return None
         
         # Get domain name from URL
-        from urllib.parse import urlparse
+        if sys.version_info >= (3,0):
+            from urllib.parse import urlparse
+        else:
+            from urlparse import urlparse
         #parsed_uri = urlparse( self.prefs['NIM_URL'] )
         #updated to use global vars
         connect_info = Api.get_connect_info()
@@ -1970,7 +2501,7 @@ class GUI(QtGui.QMainWindow) :
                     #Failed to build img path
                     print('Failed to build icon path')
                     img_loc='/img/nim_logo.png'
-                    print(('Using default img: %s' % img_loc))
+                    print('Using default img: %s' % img_loc)
             else :
                 img_loc = None
         except:
@@ -1979,15 +2510,20 @@ class GUI(QtGui.QMainWindow) :
         #  Set Shot/Asset image :
         if _type and img_loc :
             #print("set image")
-            _data = None
-            try :
-                myssl = ssl.create_default_context()
-                myssl.check_hostname=False
-                myssl.verify_mode=ssl.CERT_NONE
-                _data=urllib.request.urlopen( img_loc,context=myssl ).read()
-            except :
+            if sys.version_info >= (3,0):
                 try :
+                    myssl = ssl.create_default_context()
+                    myssl.check_hostname=False
+                    myssl.verify_mode=ssl.CERT_NONE
+                    _data=urllib.request.urlopen( img_loc,context=myssl ).read()
+                except :
                     _data=urllib.request.urlopen( img_loc ).read()
+            else:
+                try :
+                    myssl = ssl.create_default_context()
+                    myssl.check_hostname=False
+                    myssl.verify_mode=ssl.CERT_NONE
+                    _data=urllib.urlopen( img_loc,context=myssl ).read()
                 except :
                     print('Failed to read image from url.')
             
@@ -2037,11 +2573,18 @@ class GUI(QtGui.QMainWindow) :
 
         return
 
+    def update_tag_from_preset(self):
+        'Update tag field from preset from combo box'
+        presetstr = self.tagPresets.currentText()
+        self.nim.Input('tag').setText(presetstr)
+        self.update_tag()
+
+        pass
     
     def update_tag(self) :
         'Updates the tag string in the main NIM dictionary'
-        #  Update NIM dictionary entry :
-        self.nim.set_name( elem='tag', name=self.nim.Input('tag').text().replace( ' ', '_' ) )
+        # DEPRECATED: no disable basenames, just select if existing tag
+        '''
         #  Disable Basename window if necessary :
         if self.nim.name('tag') :
             self.nim.Input('base').setEnabled( False )
@@ -2055,6 +2598,34 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input('base').item( index ).setFlags( QtCore.Qt.ItemIsSelectable \
                     | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
             self.nim.Input('base').setSelectionMode( QtGui.QAbstractItemView.SingleSelection )
+        '''
+        tag = self.nim.Input('tag').text().replace( ' ', '_' )
+        if self.nim.name('tag') :
+            # self.nim.Input('base').setEnabled( False )
+            basenamefound = False
+            for index in range( self.nim.Input('base').count() ) :
+                nameparts = nimUtl.splitName(self.nim.Input('base').item( index ).text())
+                if nameparts and nameparts['tag']:
+                    if tag  == nameparts['tag']:
+                        if self.nim.Input('base').item( index ).flags() & QtCore.Qt.ItemIsSelectable:
+                            self.nim.Input('base').setCurrentItem(self.nim.Input('base').item( index ))
+                            self.update_elem('base')
+                        else:
+                            # If the tag exists in the basenames list, and that
+                            # basename is not selectable then don't allow to use
+                            # this tag. Reset tag
+                            nimRt.DisplayMessage.get_btn( "Tag %s is not used by a %s basename.\nPlease choose a different tag or task"%(nameparts['tag'], self.app), 
+                                                         title= 'NIM Save Error')
+                            name=self.nim.Input('tag').clear()
+                            self.nim.set_name( elem='tag', name='' )
+                        basenamefound=True
+            if not basenamefound:
+                self.base_deselect()
+
+
+        #  Update NIM dictionary entry :
+        self.nim.set_name( elem='tag', name=tag )
+
         return
     
     
@@ -2093,22 +2664,110 @@ class GUI(QtGui.QMainWindow) :
                 pass
         return
 
-    
+    def toggleOverrideJobs(self):
+        self.nim.Input('job').setEnabled(self.jobOverride.isChecked())
+        if self.jobOverride.isChecked():
+            self.jobOverride.setText("Use Context Job")
+        else:
+            self.jobOverride.setText("Override Job")
+            widget = self.nim.Input( 'job' )
+            # Get jobs in combo box
+            jobs = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshow = nimUtl.hasRezCtxJob( jobs )
+            if rezshow:
+                # Set job according to Rez context
+                idx =  jobs.index(rezshow) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='job', name=rezshow )
+                self.nim.set_ID( elem='job', ID=self.nim.Dict( 'job' )[widget.itemText(idx)] )
+                P.info("Valid Rez context detected: %s. Setting it as job for NIM dialogs."%rezshow)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available job")
+
+    def toggleOverrideShowShots(self):
+        self.nim.Input('show').setEnabled(self.showOverride.isChecked())
+        self.nim.Input('shot').setEnabled(self.showOverride.isChecked())
+        if self.showOverride.isChecked():
+            self.showOverride.setText("Use Context Show/Shot")
+        else:
+            self.showOverride.setText("Override Show/Shot")
+            # Show
+            widget = self.nim.Input( 'show' )
+            # Get jobs in combo box
+            shows = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshow = nimUtl.hasRezCtxShot( shows, testshow=True )
+            if rezshow:
+                # Set show according to Rez context
+                idx =  shows.index(rezshow) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='show', name=rezshow )
+                self.nim.set_ID( elem='show', ID=self.nim.Dict( 'show' )[idx] )
+                P.info("Valid Rez context detected: %s. Setting it as show for NIM dialogues."%rezshow)
+                self.update_elem(elem='show') # Populate shots
+            else:
+                P.warning("Couldn't find a valid Rez context for any available show")
+
+            # Shot
+            widget = self.nim.Input( 'shot' )
+            # Get jobs in combo box
+            shots = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezshot = nimUtl.hasRezCtxShot( shots)
+            if rezshot:
+                # Set shot according to Rez context
+                idx =  shots.index(rezshot) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='shot', name=rezshot )
+                self.nim.set_ID( elem='shot', ID=self.nim.Dict( 'shot' )[idx-1]['ID'] )
+                P.info("Valid Rez context detected: %s. Setting it as shot for NIM dialogues."%rezshot)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available shot")
+
+    def toggleOverrideAssets(self):
+        self.nim.Input('asset').setEnabled(self.assetOverride.isChecked())
+        if self.assetOverride.isChecked():
+            self.assetOverride.setText("Use Context Asset")
+        else:
+            self.assetOverride.setText("Override Asset")
+            widget = self.nim.Input( 'asset' )
+            # Get assets in combo box
+            assets = [widget.itemText(i).split()[0] for i in range(widget.count())]
+            rezasset = nimUtl.hasRezCtxAsset( assets )
+            if rezasset:
+                # Set asset according to Rez context
+                idx =  assets.index(rezasset) 
+                widget.setEnabled( False )
+                widget.setCurrentIndex(idx)
+                self.nim.set_name( elem='asset', name=rezasset )
+                self.nim.set_ID( elem='asset', ID=self.nim.Dict( 'asset' )[idx-1]['ID'] )
+                P.info("Valid Rez context detected: %s. Setting it as asset for NIM dialogs."%rezasset)
+            else:
+                P.warning("Couldn't find a valid Rez context for any available asset")
+
     #  Connections :
     def mk_connections(self) :
         'Connects dynamic elements of the GUI'
         self.nim.Input('job').activated.connect( lambda: self.update_elem('job') )
+        # self.jobOverride.stateChanged.connect( self.toggleOverrideJobs )
+        self.jobOverride.clicked.connect( self.toggleOverrideJobs )
         self.jobTab.currentChanged.connect( self.update_tab )
         self.nim.Input('asset').activated.connect( lambda: self.update_elem('asset') )
         self.nim.Input('asset').activated.connect( self.update_img )
+        self.assetOverride.clicked.connect( self.toggleOverrideAssets )
         self.nim.Input('show').activated.connect( lambda: self.update_elem('show') )
         self.nim.Input('show').activated.connect( self.update_img )
+        self.showOverride.clicked.connect( self.toggleOverrideShowShots )
         self.nim.Input('shot').activated.connect( lambda: self.update_elem('shot') )
         self.nim.Input('shot').activated.connect( self.update_img )
         self.nim.Input('filter').activated.connect( lambda: self.update_elem('filter') )
         self.nim.Input('task').activated.connect( lambda: self.update_elem('task') )
         self.nim.Input('base').itemClicked.connect( lambda: self.update_elem('base') )
-        self.nim.Input('tag').textChanged.connect( self.update_tag )
+        self.nim.Input('base').itemClicked.connect( self.update_tag )
+        # self.nim.Input('tag').textChanged.connect( self.update_tag )
+        self.nim.Input('tag').editingFinished.connect( self.update_tag )
+        self.tagPresets.activated.connect( self.update_tag_from_preset )
         self.nim.Input('ver').currentItemChanged.connect( lambda: self.update_elem('ver') )
         self.nim.Input('comment').textChanged.connect( self.update_comment )
         self.nim.Input('fileExt').activated.connect( self.update_fileExt )
@@ -2138,7 +2797,11 @@ class GUI(QtGui.QMainWindow) :
         except : pass
         try : self.nim.Input('base').currentItemChanged.disconnect()
         except : pass
-        try : self.nim.Input( 'tag' ).textChanged.disconnect()
+        # try : self.nim.Input( 'tag' ).textChanged.disconnect()
+        # except : pass
+        try : self.nim.Input( 'tag' ).editingFinished.disconnect()
+        except : pass
+        try : self.tagPresets.activated.disconnect()
         except : pass
         try : self.nim.Input('ver').currentItemChanged.disconnect()
         except : pass
@@ -2314,8 +2977,15 @@ class GUI(QtGui.QMainWindow) :
         'Function called when Open button is pressed'
         filePath=self.get_filePath()
         pathInfo, prefix='', ''
+        global padding
         
         P.debug('file_open - filePath: %s' % filePath)
+
+        if not filePath:
+            P.error('Sorry, no version selected.')
+            Win.popup( title='NIM Error', msg='Sorry, no file specified.\nPlease select a version to open.' )
+            return False
+            
          
         # Get Server OS Path from server ID
         P.info("FileID: %s" % self.nim.ID('ver'))
@@ -2325,9 +2995,9 @@ class GUI(QtGui.QMainWindow) :
         if open_file_versionInfo:
             open_file_serverID = open_file_versionInfo[0]['serverID']
             self.nim.set_server( ID=open_file_serverID )
-            P.info("ServerID: %s" % open_file_serverID)
+            P.debug("ServerID: %s" % open_file_serverID)
             serverOsPathInfo = Api.get_serverOSPath( open_file_serverID, platform.system() )
-            P.info("Server OS Path Info: %s" % serverOsPathInfo)
+            P.debug("Server OS Path Info: %s" % serverOsPathInfo)
             serverOSPath = serverOsPathInfo[0]['serverOSPath']
             P.info("Server OS Path: %s" % serverOSPath)
             self.nim.set_server( path=serverOSPath )
@@ -2346,6 +3016,7 @@ class GUI(QtGui.QMainWindow) :
         ver=F.get_ver( filePath=filePath )
         self.nim.set_version( version=str(ver) )
         
+        # XXX: All paths needs to be updated also in nim_file.verUp() in nim_file.py
         #  Comp Path :
         if self.nim.tab()=='SHOT' and self.nim.ID('shot') :
             pathInfo=Api.get( {'q': 'getPaths', 'type': 'shot', 'ID' : str(self.nim.ID('shot'))} )
@@ -2359,6 +3030,26 @@ class GUI(QtGui.QMainWindow) :
             compPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['comps'] ) )
             self.nim.set_compPath( compPath=compPath )
         
+        #  Set Render Path :
+        if pathInfo and type(pathInfo)==type(dict()) and 'renders' in pathInfo :
+            renderPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['renders'] ) )
+            self.nim.set_renderPath( renderPath=renderPath )
+
+        #  Set Plates Path :
+        if pathInfo and type(pathInfo)==type(dict()) and 'plates' in pathInfo :
+            platesPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['plates'] ) )
+            self.nim.set_platesPath( platesPath=platesPath )
+
+        # Shot/Asset path
+        if pathInfo and type(pathInfo)==type(dict()) and 'root' in pathInfo :
+            shotPath=os.path.normpath( os.path.join( self.nim.server(), pathInfo['root'] ) )
+            self.nim.set_shotPath( shotPath=shotPath )
+
+        jobnumber = str(self.nim.get_nim()['job']['name'].split()[0])
+        jobpath = os.path.normpath(os.path.join(serverOSPath, jobnumber ))
+        self.nim.set_jobPath( jobPath=jobpath )
+
+            
         #  Error check :
         if not filePath :
             P.error('Sorry, no file specified, aborting.')
@@ -2415,6 +3106,8 @@ class GUI(QtGui.QMainWindow) :
                 nimCheck=Nim.NIM()
                 N.get_vars( nim=nimCheck )
                 mod=nuke.root().modified()
+                name=nuke.root().name()
+                nuke.tprint("Scne name: %s"%name)
                 #  Prompt to manually save the file, if modified and no variables present :
                 if mod and not nimCheck.ID('shot') and not nimCheck.ID('asset') :
                     msg='Please Save your current file first'
@@ -2424,7 +3117,13 @@ class GUI(QtGui.QMainWindow) :
                     return False
                 #  Prompt to Save the current file :
                 elif mod :
-                    result=N.Win_SavePySide.get_btn()
+                    # result=N.Win_SavePySide.get_btn()
+                    choices = ("Save", 'VerUp', 'No', 'Cancel',)
+                    result = nuke.choice('Save Before Opening Script', 'Current file is about to be closed...  Save first?',  choices)
+                    if result is not None:
+                        result = choices[ result ]
+                    else:
+                        result = "Cancel"
                     if result.lower()=='save' :
                         P.info('\nSaving file...\n')
                         cur_filePath=F.get_filePath()
@@ -2432,7 +3131,7 @@ class GUI(QtGui.QMainWindow) :
                     elif result.lower()=='verup' :
                         P.info('\nVersioning file up...\n')
                         try :
-                            Api.versionUp()
+                            Api.versionUp( padding=padding)
                         except :
                             P.error('Problem running version up command.  Nothing done.')
                             return False
@@ -2512,11 +3211,6 @@ class GUI(QtGui.QMainWindow) :
             try :
                 import hou
                 from . import nim_houdini as Houdini
-                #TODO: check for unsaved file change RuntimeError
-                #if hou.hipFile.hasUnsavedChanges():
-                #    raise RuntimeError
-                #hou.hipFile.load(file_name=str(filePath), suppress_save_prompt=True)
-                P.error('Loading file in UI-2451')
                 filePath=filePath.replace( '\\', '/' )
                 hou.hipFile.load(file_name=str(filePath))
             except Exception as e :
@@ -2665,18 +3359,33 @@ class GUI(QtGui.QMainWindow) :
     
     def file_saveAs(self) :
         'Function called when Save As button is activated.'
-        
+        # Only for debug
+        global padding
+
         #  Set Selected flag for saving only the selected objects :
         selected=False
         if self.app in ['Maya', 'Nuke', '3dsMax','Houdini'] :
             selected=self.checkBox.checkState()
         
-       
         #  Variables :
         self.update_server()
 
         tag=self.nim.Input('tag').text()
         task=self.nim.Input('task').currentText()
+
+        #
+        # Do some checkings before saving
+        # We must have a tag
+        if not tag:
+            msg = "A tag is mandatory in order to save the scene.\nPlease try again and set a tag for the scene.\nDefault tag \"%s\" has been initialise"%defaultSceneName
+            P.error(msg)
+            Win.popup( title='NIM - Save Error', msg=msg )
+            self.nim.Input('tag').setText(defaultSceneName)
+            return False
+        else:
+            #  Update NIM dictionary entry (Just in case) :
+            self.nim.set_name( elem='tag', name=tag )
+
         basename=Api.to_basename( nim=self.nim )
         if self.app=='Maya' : 
             import maya.cmds as mc
@@ -2690,7 +3399,9 @@ class GUI(QtGui.QMainWindow) :
         elif self.app=='C4D' : ext='.c4d'
         elif self.app=='3dsMax' : ext='.max'
         elif self.app=='Houdini' : ext='.hip'
-        
+
+        # TODO: ensure that tag is for a basename for the same app type. For
+        # instance dont try to save a Houdini scene on a Nuke basename tag
         #  Ensure that if tag has been entered, that the Basename doesn't already exist :
         if self.nim.name('tag') :
             for item in self.nim.Dict('base') :
@@ -2702,18 +3413,39 @@ class GUI(QtGui.QMainWindow) :
                     Win.popup( title='NIM - Tag Error', msg=msg )
                     return False
         
-        
         # Stop Maya Undo Queue
         if self.app=='Maya' :
             mc.undoInfo(openChunk=True)
-        
+
+        '''
+        # Save current before Save As:
+        if self.app == "Nuke":
+            # If the Nuke script has been modified, then save it to preserve SG settings.
+            import nuke
+            root = nuke.Root()
+            if root.modified():
+                if root.name() != "Root":
+                    msg = "Script has been modified, do you want to save it before saving it as a different file?"
+                    title='NIM - Save'
+                    buttons = ('Cancel', 'Yes, Save it Please')
+                    ret = nimRt.DisplayMessage.get_btn( msg, title= title, buttons=buttons, default_button=0)
+                    if ret == 1:
+                        nuke.scriptSave( root.name() )
+        elif self.app == 'Houdini':
+            import hou
+            if hou.hipFile.hasUnsavedChanges() and hou.hipFile.basename() != 'untitled.hip':
+                if hou.ui.displayMessage( "Scene has been modified, do you want to save it before saving it as a different file?", buttons=( "Yes" , "No" ), title="NIM - Save" ) == 0:
+                    hou.hipFile.save()
+        '''
+
         #  Version up file and add to API :
         try : 
-            Api.versionUp( nim=self.nim, selected=selected, win_launch=True )
+            Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
         except Exception as e :
-            P.error("Failed to Save File")
-            print('    %s' % traceback.print_exc())
-            
+            P.error(traceback.format_exc())
+            # P.error(sys.exc_info()[2])
+            P.error("Failed to Save File: %s"%str(e))
+            nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
         
         # Start Maya Undo Queue
         if self.app=='Maya' :    
@@ -2723,6 +3455,20 @@ class GUI(QtGui.QMainWindow) :
 
         #  Refresh the Window :
         #self.win_save()
+
+        # Run globals to update scene for the potential new shpt/show
+        if self.app=='Houdini' :
+            from . import nim_houdini as Houdini
+            Houdini.set_globals()
+        elif self.app=='Nuke' :
+            from . import nim_nuke as N
+            N.set_globals()
+            pass
+        elif self.app=='Maya' :
+            from . import nim_maya as M
+            M.set_globals()
+            pass
+
         
         #  Close the window :
         self.close()
@@ -2730,6 +3476,7 @@ class GUI(QtGui.QMainWindow) :
         return
     
     
+    # DEPRECATED
     def file_verUp(self) :
         'Versions up the file, when the Version Up button is pressed'
         #  Get File Extension :
@@ -2799,7 +3546,7 @@ class GUI(QtGui.QMainWindow) :
 
         #  Version up file and add to API :
         try :
-            ver_filePath=Api.versionUp( nim=self.nim, win_launch=True )
+            ver_filePath=Api.versionUp( nim=self.nim, win_launch=True, padding=padding )
         except :
             P.error("Failed to Save Working File")
 
@@ -2816,6 +3563,7 @@ class GUI(QtGui.QMainWindow) :
             #  Publish :
             P.info('\nPublishing Step #3 - Publishing work file and sym-link...\n')
             symLink=self.checkBox.isChecked()
+            symLink=False
 
             # Stop Maya Undo Queue
             if self.app=='Maya' :
@@ -2823,7 +3571,7 @@ class GUI(QtGui.QMainWindow) :
 
             #  Version up file and add to API :
             try :
-                pub_filePath=Api.versionUp( nim=self.nim, win_launch=True, pub=True, symLink=symLink )
+                pub_filePath=Api.versionUp( nim=self.nim, win_launch=True, pub=True, symLink=symLink, padding=padding )
             except :
                 P.error("Failed to Save Publish")
 
@@ -2874,7 +3622,10 @@ class GUI(QtGui.QMainWindow) :
 
             #  Set Variables :
             if self.nim.app().lower()=='maya' :
-                from . import nim_maya as M
+                try:
+                    import nim_maya as M
+                except ImportError as e:
+                    from . import nim_maya as M
                 M.set_vars( nim=self.nim )
             elif self.nim.app().lower()=='nuke' :
                 from . import nim_nuke as N
@@ -2927,7 +3678,7 @@ class GUI(QtGui.QMainWindow) :
     #  3dsMax File Operations :
     def max_fileReference(self) :
         'References a given 3dsMax file'
-        from pymxs import runtime as maxRT
+        import MaxPlus
 
         #  Get File Path :
         filePath=self.get_filePath()
@@ -2997,10 +3748,12 @@ class GUI(QtGui.QMainWindow) :
         if self.app=='Houdini' :
             import hou
             try :
+                # Grab style sheet from Houdini 
+                '''
                 #self.pref_styleSheetDir = self.pref_styleSheetDir.rstrip('/')
                 nimScriptPath = os.path.dirname(os.path.realpath(__file__))
                 nimScriptPath = nimScriptPath.replace('\\','/')
-                nimScriptPath = nimScriptPath.replace('/nim_core/py3','')
+                nimScriptPath = nimScriptPath.replace('/nim_core','')
                 darkStyleSheetPath = nimScriptPath+'/css/nim_darkStyleSheet.css'
                 with open(darkStyleSheetPath, 'r') as styleSheetFile:
                     darkStyleSheet=styleSheetFile.read().replace('\n', '')
@@ -3009,6 +3762,9 @@ class GUI(QtGui.QMainWindow) :
                 self.setStyleSheet(darkStyleSheet)
                 #self.setStyleSheet(hou.ui.qtStyleSheet())
                 #self.setStyleSheet(QtGui.QApplication.instance().styleSheet())
+                '''
+                style = hou.qt.styleSheet()
+                self.setStyleSheet(style)
             except:
                 P.info('NIM: Unable to set stylesheet')
         return
@@ -3018,4 +3774,3 @@ class GUI(QtGui.QMainWindow) :
 
 
 #  END
-
