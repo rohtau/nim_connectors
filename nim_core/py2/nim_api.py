@@ -2,7 +2,7 @@
 #******************************************************************************
 #
 # Filename: nim_api.py
-# Version:  v6.0.4.230905
+# Version:  v6.1.4.231110
 #
 # Copyright (c) 2014-2023 NIM Labs LLC
 # All rights reserved.
@@ -200,10 +200,11 @@ def post( sqlCmd=None, debug=True, nimURL=None ) :
 #           params['q'] = 'getShots'
 #           params['showID'] = '100'
 #       nimURL optional (not passing the nimURL will trigger a prefs read)
+#       apiUser optional (required if passing nimURL and Require API Keys is enabled)
 #       apiKey optional (required if passing nimURL and Require API Keys is enabled)
 #
-def connect( method='get', params=None, nimURL=None, apiKey=None ) :
-    'Querys MySQL server and returns decoded json array'
+def connect( method='get', params=None, nimURL=None, apiUser=None, apiKey=None ) :
+    'Query URL with params and returns decoded json array'
     result=None
     
     isGUI = False
@@ -225,6 +226,8 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
         nim_apiUser = ''
         nim_apiKey = ''
     
+    if apiUser :
+        nim_apiUser = apiUser
     if apiKey :
         nim_apiKey = apiKey
 
@@ -340,9 +343,10 @@ def connect( method='get', params=None, nimURL=None, apiKey=None ) :
 #            params['name'] = 'note name'
 #            params['file'] = open(imageFile,'rb')
 #       nimURL optional (not passing the nimURL will trigger a prefs read)
+#       apiUser optional (required if passing nimURL and Require API Keys is enabled)
 #       apiKey optional (required if passing nimURL and Require API Keys is enabled)
 #
-def upload( params=None, nimURL=None, apiKey=None ) :
+def upload( params=None, nimURL=None, apiUser=None, apiKey=None ) :
 
     isGUI = False
     try :
@@ -363,6 +367,8 @@ def upload( params=None, nimURL=None, apiKey=None ) :
         nim_apiUser = ''
         nim_apiKey = ''
     
+    if apiUser :
+        nim_apiUser = apiUser
     if apiKey :
         nim_apiKey = apiKey
 
@@ -625,10 +631,12 @@ def get_jobs( userID=None, folders=False ) :
         for job in _jobs :
             if not folders :
                 #jobDict[str(job['number'])+'_'+str(job['jobname'])]=str(job['ID'])
-                jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                #jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ u' '.join((job['number'],job['jobname'])).encode('utf-8') ] = str(job['ID'])
             else :
                 #jobDict[str(job['number'])+'_'+str(job['folder'])]=str(job['ID'])
-                jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                #jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = job['ID'].encode('utf-8')
+                jobDict[ u' '.join((job['number'],'_',job['folder'])).encode('utf-8') ] = str(job['ID'])
         return jobDict
     except :
         P.error("Failed to get jobs")
