@@ -19,18 +19,12 @@ import re
 from   pprint import pprint
 from   pprint import pformat
 
-if sys.version_info >= (3,0):
-    try:
-        from . import nim_api as Api
-        from . import nim_file as F
-        from . import nim_prefs as Prefs
-        from . import nim_print as P
-    except ImportError as e:
-        import nim_api as Api
-        import nim_file as F
-        import nim_prefs as Prefs
-        import nim_print as P
-else:
+try:
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+except ImportError as e:
     import nim_api as Api
     import nim_file as F
     import nim_prefs as Prefs
@@ -530,12 +524,9 @@ class NIM( object ) :
             # trying yo guess as most as possible from the file path.
             # if task hasn't been found then basename nd version are also
             # missing
-            if sys.version_info >= (3,0):
-                try:
-                    from . import nim_rohtau_utils as nimUtl
-                except ImportError as e:
-                    import nim_rohtau_utils as nimUtl
-            else:
+            try:
+                from . import nim_rohtau_utils as nimUtl
+            except ImportError as e:
                 import nim_rohtau_utils as nimUtl
             nameparts = nimUtl.splitName(filename)
             if nameparts:

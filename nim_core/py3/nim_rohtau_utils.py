@@ -27,16 +27,10 @@ from pprint     import pprint
 from pprint     import pformat
 from itertools  import groupby
 
-if sys.version_info >= (3, 0):
-    from . import nim       as Nim
-    from . import nim_api   as nimAPI
-    from . import nim_prefs as nimPrefs
-    from . import nim_print as nimP
-else:
-    import nim       as Nim
-    import nim_api   as nimAPI
-    import nim_prefs as nimPrefs
-    import nim_print as nimP
+from . import nim       as Nim
+from . import nim_api   as nimAPI
+from . import nim_prefs as nimPrefs
+from . import nim_print as nimP
 
 #  Variables :
 from .import version
@@ -841,14 +835,8 @@ def getShotGlobals( shot, entity_type='SHOT', job=0 ):
 
     # Shot
     # pprint(shotinfo)
-    if sys.version_info >= (3, 0):
-        shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName']
-    else:
-        shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName'] 
-    if sys.version_info >= (3, 0):
-        shotglobals['description'] = shotinfo['description']
-    else:
-        shotglobals['description'] = shotinfo['description']
+    shotglobals['name'] = shotinfo['shotName'] if entity_type=='SHOT' else shotinfo['assetName']
+    shotglobals['description'] = shotinfo['description']
     shotglobals['id'] = int(shotid)
     if entity_type=='SHOT':
         shotglobals['frames'] = int(shotinfo['frames']) if shotinfo['frames'] else 0

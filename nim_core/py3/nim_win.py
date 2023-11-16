@@ -22,24 +22,17 @@ except:
     builtin_mod_available = False
 
 #  NIM Imports :
-if sys.version_info >= (3,0):
-    try:
-        from . import nim_api as Api
-        from . import nim_file as F
-        from . import nim_prefs as Prefs
-        from . import nim_print as P
-    except ImportError as e:
-        import nim_api as Api
-        import nim_file as F
-        import nim_prefs as Prefs
-        import nim_print as P
-
-else:
+try:
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_prefs as Prefs
+    from . import nim_print as P
+except ImportError as e:
     import nim_api as Api
     import nim_file as F
     import nim_prefs as Prefs
     import nim_print as P
-     
+
 
 
 from .import version 

@@ -17,10 +17,7 @@
 import glob, os, platform, re, sys, traceback, time
 from datetime   import datetime
 from datetime   import timedelta
-if sys.version_info >= (3,0):
-    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
-else:
-    import urllib, urllib2
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 
 try:
     import ssl
@@ -33,38 +30,27 @@ from pprint import pformat
 
 
 #  NIM Imports :
-if sys.version_info >= (3,0):
-    try:
-        from . import nim              as Nim
-        from . import nim_api          as Api
-        from . import nim_file         as F
-        from . import nim_prefs        as Prefs
-        # from . import nim_cache        as Cache
-        from . import nim_print        as P
-        from . import nim_win          as Win
-        from . import nim_rohtau       as nimRt
-        from . import nim_rohtau_utils as nimUtl
-    except ImportError as e:
-        import nim              as Nim
-        import nim_api          as Api
-        import nim_file         as F
-        import nim_prefs        as Prefs
-        # from . import nim_cache        as Cache
-        import nim_print        as P
-        import nim_win          as Win
-        import nim_rohtau       as nimRt
-        import nim_rohtau_utils as nimUtl
-
-else:
+try:
+    from . import nim              as Nim
+    from . import nim_api          as Api
+    from . import nim_file         as F
+    from . import nim_prefs        as Prefs
+    # from . import nim_cache        as Cache
+    from . import nim_print        as P
+    from . import nim_win          as Win
+    from . import nim_rohtau       as nimRt
+    from . import nim_rohtau_utils as nimUtl
+except ImportError as e:
     import nim              as Nim
     import nim_api          as Api
     import nim_file         as F
     import nim_prefs        as Prefs
-    # import nim_cache        as Cache
+    # from . import nim_cache        as Cache
     import nim_print        as P
     import nim_win          as Win
     import nim_rohtau       as nimRt
     import nim_rohtau_utils as nimUtl
+
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
@@ -1970,9 +1956,9 @@ class GUI(QtGui.QMainWindow) :
                         elif self.nim.name('filter')=='Work' :
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
-                            print("User IDs")
-                            print(option['userID'])
-                            print(userinfo['ID'])
+                            # print("User IDs")
+                            # print(option['userID'])
+                            # print(userinfo['ID'])
                             option['userID']
                             userinfo['ID']
                             if option['userID'] == userinfo['ID']:
@@ -2478,10 +2464,7 @@ class GUI(QtGui.QMainWindow) :
             return None
         
         # Get domain name from URL
-        if sys.version_info >= (3,0):
-            from urllib.parse import urlparse
-        else:
-            from urlparse import urlparse
+        from urllib.parse import urlparse
         #parsed_uri = urlparse( self.prefs['NIM_URL'] )
         #updated to use global vars
         connect_info = Api.get_connect_info()
@@ -2510,22 +2493,13 @@ class GUI(QtGui.QMainWindow) :
         #  Set Shot/Asset image :
         if _type and img_loc :
             #print("set image")
-            if sys.version_info >= (3,0):
-                try :
-                    myssl = ssl.create_default_context()
-                    myssl.check_hostname=False
-                    myssl.verify_mode=ssl.CERT_NONE
-                    _data=urllib.request.urlopen( img_loc,context=myssl ).read()
-                except :
-                    _data=urllib.request.urlopen( img_loc ).read()
-            else:
-                try :
-                    myssl = ssl.create_default_context()
-                    myssl.check_hostname=False
-                    myssl.verify_mode=ssl.CERT_NONE
-                    _data=urllib.urlopen( img_loc,context=myssl ).read()
-                except :
-                    print('Failed to read image from url.')
+            try :
+                myssl = ssl.create_default_context()
+                myssl.check_hostname=False
+                myssl.verify_mode=ssl.CERT_NONE
+                _data=urllib.request.urlopen( img_loc,context=myssl ).read()
+            except :
+                _data=urllib.request.urlopen( img_loc ).read()
             
             if _data is not None :
                 try :

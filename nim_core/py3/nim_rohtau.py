@@ -40,19 +40,12 @@ except:
     builtin_mod_available = False
 # from urllib.parse import uses_relative
 
-if sys.version_info >= (3,0):
-    from . import nim                as Nim
-    from . import nim_api            as nimAPI
-    from . import nim_print          as nimP
-    from . import nim_file          as nimF
-    from . import nim_rohtau_utils   as nimUtl
-    from . import nim_win as Win
-else:
-    import nim                as Nim
-    import nim_api            as nimAPI
-    import nim_rohtau_utils   as nimUtl
-    import nim_print          as nimP
-    import nim_win as Win
+from . import nim                as Nim
+from . import nim_api            as nimAPI
+from . import nim_print          as nimP
+from . import nim_file          as nimF
+from . import nim_rohtau_utils   as nimUtl
+from . import nim_win as Win
 
 #  Variables :
 from .import version 
@@ -543,28 +536,14 @@ def runAsyncCommand( cmd, env=None, timeout=120 ):
     except FileNotFoundError:
         nimP.error( "Command is not available in PATH: %s"%cmd)
         return False
-    if sys.version_info >= (3,0):
-        # Python 3
-        try:
-            proc.wait( timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            # outs, errs = proc.communicate()
-            nimP.error( "Command timeout: %s "%cmd)
-            return False
-    else:
-        # Python 2
-        delay = 1.0
-        waittime = int(timeout / delay)
-        #while the process is still executing and we haven't timed-out yet
-        while proc.poll() is None and waittime > 0:
-            #do other things too if necessary e.g. print, check resources, etc.
-            time.sleep(delay)
-            waittime -= delay
-        if waittime < 0:
-            proc.kill()
-            nimP.error( "Command timeout: %s "%cmd)
-            return False
+    # Python 3
+    try:
+        proc.wait( timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        # outs, errs = proc.communicate()
+        nimP.error( "Command timeout: %s "%cmd)
+        return False
             
     if proc.returncode != 0:
         nimP.error( "Command Failed (ErrorCode %d): %s"%(proc.returncode, cmd))
@@ -765,9 +744,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.error("Command: %s"%e.cmd)
         if e.output:
             nimP.error("Output: %s"%e.output)
-        if sys.version_info >= (3,0):
-            if e.stderr:
-                nimP.error("Stderr: %s"%e.stderr)
+        if e.stderr:
+            nimP.error("Stderr: %s"%e.stderr)
         nimP.error("Error code: %d"%e.returncode)
         return False
     except FileNotFoundError:
@@ -779,9 +757,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.error("Command: %s"%ret.args)
         if ret.stdout:
             nimP.error("Output: %s"%ret.stdout)
-        if sys.version_info >= (3,0):
-            if ret.stderr:
-                nimP.error("Stderr: %s"%ret.stderr)
+        if ret.stderr:
+            nimP.error("Stderr: %s"%ret.stderr)
         nimP.error("Error code: %d"%ret.returncode)
         return False
     elif not os.path.isfile(outdraft):
@@ -790,9 +767,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         nimP.error("Command: %s"%ret.args)
         if ret.stdout:
             nimP.error("Output: %s"%ret.stdout)
-        if sys.version_info >= (3,0):
-            if ret.stderr:
-                nimP.error("Stderr: %s"%ret.stderr)
+        if ret.stderr:
+            nimP.error("Stderr: %s"%ret.stderr)
         nimP.error("Error code: %d"%ret.returncode)
         return False
     else:
@@ -1512,9 +1488,8 @@ def createRenderIcon( elementInfo ):
         nimP.error("Command: %s"%e.cmd)
         if e.output:
             nimP.error("Output: %s"%e.output)
-        if sys.version_info >= (3,0):
-            if e.stderr:
-                nimP.error("Stderr: %s"%e.stderr)
+        if e.stderr:
+            nimP.error("Stderr: %s"%e.stderr)
         nimP.error("Error code: %d"%e.returncode)
         return False
     except FileNotFoundError:
@@ -2576,65 +2551,23 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     # 2011-11-04T00:05:23+04:00
     # Microseconds are  always removed
     if starttimedate:
-        if sys.version_info >= (3,0): # Python 3 returns
-            try:
-                # Test ISO format
-                starttimedate = datetime.fromisoformat(starttimedate)
-                starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
-            except ValueError as e:
-                nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
-                starttimedate = ''
-        else:
-            # Python 2
-            # Supported formats:
-            # 2011-11-04 00:05:23 -> Used by NIM
-            # 2011-11-04T00:05:23
-            if starttimedate.count('.') > 0:
-                starttimedate = starttimedate.split('.')[0] # Remove miliseconds. After .
-            try:
-                #Test ISO format
-                starttimedate = datetime.strptime(starttimedate, "%Y-%m-%d %H:%M:%S")
-            except ValueError as e:
-                try :
-                    #Test ISO format 2
-                    starttimedate = datetime.strptime(starttimedate, "%Y-%m-%dT%H:%M:%S")
-                    starttimedate = datetime.strptime(str(starttimedate).replace("T", " "), "%Y-%m-%d %H:%M:%S")
-                except ValueError as e:
-                    nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
-                    starttimedate = ''
-            if starttimedate:
-                starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            # Test ISO format
+            starttimedate = datetime.fromisoformat(starttimedate)
+            starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            starttimedate = ''
 
 
     if endtimedate:
-        if sys.version_info >= (3,0): # Python 3 returns
-            try:
-                # Test ISO format
-                endtimedate = datetime.fromisoformat(endtimedate)
-                endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
-            except ValueError as e:
-                nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
-                endtimedate = ''
-        else:
-            # Python 2
-            # Supported formats:
-            # 2011-11-04 00:05:23 -> Used by NIM
-            # 2011-11-04T00:05:23
-            if endtimedate.count('.') > 0:
-                endtimedate = endtimedate.split('.')[0] # Remove miliseconds. After .
-            try:
-                #Test ISO format
-                endtimedate = datetime.strptime(endtimedate, "%Y-%m-%d %H:%M:%S")
-            except ValueError as e:
-                try :
-                    #Test ISO format 2
-                    endtimedate = datetime.strptime(endtimedate, "%Y-%m-%dT%H:%M:%S")
-                    endtimedate = datetime.strptime( str(endtimedate).replace("T", " "), "%Y-%m-%d %H:%M:%S" )
-                except ValueError as e:
-                    nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
-                    endtimedate = ''
-            if endtimedate:
-                endtime= endtimedate.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            # Test ISO format
+            endtimedate = datetime.fromisoformat(endtimedate)
+            endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            endtimedate = ''
 
     if starttimedate and endtimedate:
         # Calculate total time and average time for render
@@ -3082,8 +3015,7 @@ def pubReview(fileID, reviewpath, taskID=None, renderID=None, renderkey=None, us
     else:
         res_review = nimAPI.upload_reviewItem( itemID=pid, itemType=parent.lower(), renderKey=renderkey, userID=userID, path=reviewpath, reviewItemTypeID=reviewtype, name=rendername, description=comment, keywords=keywords)
 
-    if sys.version_info >= (3,0):
-        res_review = res_review.decode('utf-8')
+    res_review = res_review.decode('utf-8')
 
     # Return review ID
     # print("Review result:")

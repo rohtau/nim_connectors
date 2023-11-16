@@ -28,24 +28,15 @@ except:
 from pprint import pprint, pformat
 
 # Hack to use urllib in Python 2 and 3
-if sys.version_info >= (3,0):
-    import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
-else:
-    import urllib, urllib2, urlparse
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 
 #  NIM Imports :
-if sys.version_info >= (3,0):
-    try:
-        from . import nim_api as Api
-        from . import nim_file as F
-        from . import nim_print as P
-        from . import nim_win as Win
-    except ImportError as e:
-        import nim_api as Api
-        import nim_file as F
-        import nim_print as P
-        import nim_win as Win
-else:
+try:
+    from . import nim_api as Api
+    from . import nim_file as F
+    from . import nim_print as P
+    from . import nim_win as Win
+except ImportError as e:
     import nim_api as Api
     import nim_file as F
     import nim_print as P
@@ -253,10 +244,7 @@ def _verifyURL( url='' ) :
     if not url : return False
 
     # Validate URL Pattern
-    if sys.version_info >= (3,0):
-        parsedURL = urllib.parse.urlparse(url)
-    else:
-        parsedURL = urlparse.urlparse(url)
+    parsedURL = urllib.parse.urlparse(url)
     min_attributes = ('scheme', 'netloc')
     if not all([getattr(parsedURL, attr) for attr in min_attributes]):
         #error = "'{url}' string has no scheme or netloc.".format(url=parsedURL.geturl())

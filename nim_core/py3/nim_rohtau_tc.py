@@ -54,21 +54,13 @@ from pprint import pprint,pformat
 
 
 # NIM imports
-if sys.version_info >= (3,0):
-    # from . import nim                as Nim
-    from . import nim_api          as nimAPI
-    from . import nim_print        as nimP
-    # from . import nim_file          as nimF
-    from . import nim_rohtau       as nimRt
-    from . import nim_rohtau_utils as nimUtl
-    # from . import nim_win as Win
-else:
-    # import nim                as Nim
-    import nim_api          as nimAPI
-    import nim_rohtau       as nimRt
-    import nim_rohtau_utils as nimUtl
-    import nim_print        as nimP
-    # import nim_win as Win
+# from . import nim                as Nim
+from . import nim_api          as nimAPI
+from . import nim_print        as nimP
+# from . import nim_file          as nimF
+from . import nim_rohtau       as nimRt
+from . import nim_rohtau_utils as nimUtl
+# from . import nim_win as Win
 
 #  Variables :
 from .import version 

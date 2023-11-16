@@ -18,22 +18,14 @@ import os, platform, re, shutil, stat, traceback, sys, time
 from pprint import pprint
 from pprint import pformat
 #  NIM Imports :
-if sys.version_info >= (3,0):
-    try:
-        from . import nim_api as Api
-        from . import nim_print as P
-        from . import nim_win as Win
-        from . import nim as Nim
-        from . import nim_rohtau as Rt
-        from . import nim_rohtau_utils as Utl
-    except ImportError as e:
-        import nim_api as Api
-        import nim_print as P
-        import nim_win as Win
-        import nim as Nim
-        import nim_rohtau as Rt
-        import nim_rohtau_utils as Utl
-else:
+try:
+    from . import nim_api as Api
+    from . import nim_print as P
+    from . import nim_win as Win
+    from . import nim as Nim
+    from . import nim_rohtau as Rt
+    from . import nim_rohtau_utils as Utl
+except ImportError as e:
     import nim_api as Api
     import nim_print as P
     import nim_win as Win
