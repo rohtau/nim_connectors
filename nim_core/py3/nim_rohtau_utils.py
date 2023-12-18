@@ -1950,6 +1950,42 @@ def completeFileInfoWithMetadata( fileinfo, elmts):
     if 'src_offset' in metadata and metadata['src_offset']:
         fileinfo['src_offset'] = int(metadata['src_offset'])
 
+def get_baseVerInfo( shotID=None, assetID=None, showID=None, basenames=None, username=None ) :
+    """Using custom call in rohtauAPI.pgp call to getBasenameVersionInfo and get the file info of the latest version
+
+
+    Parameters
+    -----------
+    basenames : str
+        A comma separated list of basenames to retrieve the highest version information for
+    username : str
+        Optional username is used to return the date information in the users selected timezone.
+
+    Returns
+    -----------
+    dict
+    """
+        
+    params = {'q': 'getBasenameVersionInfo'}
+
+    if shotID is not None : 
+        params['itemID'] = shotID
+        params['class'] = 'SHOT'
+
+    elif assetID is not None : 
+        params['itemID'] = assetID
+        params['class'] = 'ASSET'
+    
+    else :
+        params['itemID'] = showID
+        params['class'] = 'SHOW'
+
+    if basenames is not None : params['basenames'] = basenames
+    if username is not None : params['username'] = username
+
+    # result = connect( method='get', params=params )
+    result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url )
+    return result
 
 
     

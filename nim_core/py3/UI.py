@@ -80,6 +80,13 @@ from .import defaultSceneName
 _os=platform.system().lower()
 _osCap=platform.system()
 standardTags = ["main", "slap"]
+sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script', 'Maya Scene')
+scene_types_by_ext = {
+        'hip': 'Houdini Scene',
+        'mb' : 'Maya Scene',
+        'ma' : 'Maya Scene',
+        'nk' : 'Nuke Script'
+        }
 
 #  Wrapper function :
 def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
@@ -209,7 +216,7 @@ class GUI(QtGui.QMainWindow) :
         self.complete=False
         self.baseUpdated=False
         self.appsIcons = {}
-        self.backClrs = {}
+        self.ownership_clrs = {}
         #  Start timer :
         startTime=time.time()
         
@@ -378,12 +385,14 @@ class GUI(QtGui.QMainWindow) :
         supportedAppIcons = ('Houdini', 'Nuke', 'Maya', 'Arnold', 'Vray', 'Blender', 'UnrealEngine', 'Fusion')
         for app in supportedAppIcons:
             self.appsIcons[app] = QtGui2.QIcon(os.path.join(iconsBasePath, "%s.ico"%app))
-        self.backClrs = {
+        self.ownership_clrs = {
             # 'Blue' : QtGui2.QBrush(QtGui2.QColor(62, 62, 140)),
             # 'Blue' : QtGui2.QBrush(QtGui2.QColor(101, 190, 225)),
             'Blue' : QtGui2.QBrush(QtGui2.QColor(0, 0, 225)),
-            'Green' : QtGui2.QBrush(QtGui2.QColor(62, 140, 62)),
-            'Red' : QtGui2.QBrush(QtGui2.QColor(249, 118, 90)),
+            # 'Green' : QtGui2.QBrush(QtGui2.QColor(62, 140, 62)),
+            # 'Red' : QtGui2.QBrush(QtGui2.QColor(249, 118, 90)),
+            'Green' : QtGui2.QColor('#27cc35'),
+            'Red' : QtGui2.QColor('#fc4903'),
         }
         return True
     
@@ -814,8 +823,14 @@ class GUI(QtGui.QMainWindow) :
         
         #  Refresh the window :
         self.del_connections()
+        # P.info( 'Updating GUI elements from NIM ...' )
+        # XXX: This update_elem triggers the queries to NIM to upddate theGUI elemetns and is the responsible of the slowness
+        # Looks like selecting a task with lots of basenames is the culprit
+        # The P.info() calls also affect the performance. If I enable this one it takes the triple for soem reason. If I remove the
+        # P.info() in nim.py:215 it also take longer. Strange
         self.update_elem('job')
         self.mk_connections()
+        # P.info("Paso")
         
         #  Print :
         self.nim.Print( debug=True )
@@ -906,6 +921,8 @@ class GUI(QtGui.QMainWindow) :
         self.setNimStyle()
 
         self.complete=True
+
+
         return True
     
     
@@ -1601,21 +1618,20 @@ class GUI(QtGui.QMainWindow) :
                 # print("Basenames for populate:")
                 # pprint(self.nim.Dict( elem ) )
                 for option in self.nim.Dict( elem ) :
+                    latestver = None
                     if self.nim.ID('asset') is not None or  self.nim.ID('shot') is not None:
-                        latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
-                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
-                                                  basename=option['basename'], pub=self.nim.name('filter') == 'Published')
                         # latestver = Api.get_vers(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
                                                   # shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
-                                                  # basename=option['basename'])
-                        # print("For basename: %s, got these versions:"%option['basename'])
-                        # pprint(latestver)
+                                                  # basename=option['basename'], pub=self.nim.name('filter') == 'Published')
+                        # Use custom API call nimUtl.get_baseVerInfo(), is a little bit faster
+                        latestver = nimUtl.get_baseVerInfo(assetID = int(self.nim.ID('asset')) if self.nim.tab() == 'ASSET' else None,
+                                                  shotID = int(self.nim.ID('shot')) if self.nim.tab() == 'SHOT' else None,
+                                                  basenames=option['basename'])
                         if latestver:
                             latestver = latestver[0]
                             # pprint(latestver)
                     # Only show Scene files
                     if latestver:
-                        sceneTypes = ('Scene', 'Houdini Scene', 'Nuke Script', 'Maya Scene')
                         if latestver['customKeys']['File Type'] not in sceneTypes:
                             continue
                     else:
@@ -1628,19 +1644,23 @@ class GUI(QtGui.QMainWindow) :
                                   | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled )
                     if latestver:
                         basenameapp = latestver['customKeys']['File Type'].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
+                        if basenameapp == 'Scene' and latestver['ext'][1:] in scene_types_by_ext:
+                            # If for whatever reason the scene type is set to generic make another attemp of getting filetyep from extension
+                            # Extension is saved with ., like .hip, hence the [1:]
+                            basenameapp = scene_types_by_ext[latestver['ext'][1:]].split()[0] if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'] else ""
                         if basenameapp in self.appsIcons:
                             item.setIcon( self.appsIcons[basenameapp] )
                         # Only enable basenames for the current host app if file
                         # type info is available. Always enable generic 'Scene'
-                        # name.
+                        # name. 
                         if 'File Type' in latestver['customKeys'] and latestver['customKeys']['File Type'].split()[0] != self.app \
                                 and latestver['customKeys']['File Type'].split()[0] != 'Scene':
                             item.setFlags( QtCore.Qt.NoItemFlags )
                         # Ownership color
-                        if latestver['userID'] == userinfo['ID']:
-                            item.setBackground(self.backClrs['Green'])
+                        if int(latestver['userID']) == int(userinfo['ID']):
+                            item.setForeground(self.ownership_clrs['Green'])
                         else:
-                            item.setBackground(self.backClrs['Red'])
+                            item.setForeground(self.ownership_clrs['Red'])
                         tooltip = "Basename: %s\nLatest Version: %s\nComment: %s\nApplication: %s\nOwner: %s"%(latestver['basename'],
                                                                                                             latestver['version'],
                                                                                                             latestver['note'],
@@ -1846,10 +1866,10 @@ class GUI(QtGui.QMainWindow) :
                                 '''
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                                 item.setText( option['filename']+' - '+option['note'] )
-                                if option['userID'].encode('ascii') == userinfo['ID']:
-                                    item.setBackground(self.backClrs['Green'])
+                                if int(option['userID']) == int(userinfo['ID']):
+                                    item.setForeground(self.ownership_clrs['Green'])
                                 else:
-                                    item.setBackground(self.backClrs['Red'])
+                                    item.setForeground(self.ownership_clrs['Red'])
 
                                 if self.nim.mode().lower() in ['save', 'saveas'] :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
@@ -1900,10 +1920,10 @@ class GUI(QtGui.QMainWindow) :
                             elif self.nim.mode().lower() in ['open', 'file'] :
                                 item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                                 item.setText( option['filename']+' - '+option['note'] )
-                                if option['userID'].encode('ascii') == userinfo['ID']:
-                                    item.setBackground(self.backClrs['Green'])
+                                if int(option['userID']) == int(userinfo['ID']):
+                                    item.setForeground(self.ownership_clrs['Green'])
                                 else:
-                                    item.setBackground(self.backClrs['Red'])
+                                    item.setForeground(self.ownership_clrs['Red'])
 
                                 if self.nim.mode().lower() in ['save', 'saveas'] :
                                     item.setFlags( QtCore.Qt.ItemIsEditable )
@@ -1961,10 +1981,10 @@ class GUI(QtGui.QMainWindow) :
                             # print(userinfo['ID'])
                             option['userID']
                             userinfo['ID']
-                            if option['userID'] == userinfo['ID']:
-                                item.setBackground(self.backClrs['Green'])
+                            if int(option['userID']) == int(userinfo['ID']):
+                                item.setForeground(self.ownership_clrs['Green'])
                             else:
-                                item.setBackground(self.backClrs['Red'])
+                                item.setForeground(self.ownership_clrs['Red'])
 
                             if self.nim.mode().lower() in ['save', 'saveas'] :
                                 item.setFlags( QtCore.Qt.ItemIsEditable )
@@ -2371,6 +2391,7 @@ class GUI(QtGui.QMainWindow) :
         return
     
     
+    # DEPRECATED
     def update_styleSheet(self) :
         'Sets the style sheet for the window'
         for index in range(len(self.menuItems)) :
@@ -2388,6 +2409,7 @@ class GUI(QtGui.QMainWindow) :
                     Prefs.update( attr='useStyleSheet', app=self.app, value=self.cssFiles[index] )
                 else :
                     self.setStyleSheet('')
+        pass
 
     
     def update_server(self) :
@@ -2720,6 +2742,17 @@ class GUI(QtGui.QMainWindow) :
             else:
                 P.warning("Couldn't find a valid Rez context for any available asset")
 
+    def select_latest_version( self ):
+        """Select latest available version for basename
+        This function is mean to be called as a callback when a new base name is selected
+        """
+        basename =self.nim.Input('base').currentItem().text()
+        # self.nim.Input('ver').setCurrentIndex(0)
+        self.nim.Input('ver').setCurrentRow(0)
+
+        pass
+
+
     #  Connections :
     def mk_connections(self) :
         'Connects dynamic elements of the GUI'
@@ -2739,6 +2772,7 @@ class GUI(QtGui.QMainWindow) :
         self.nim.Input('task').activated.connect( lambda: self.update_elem('task') )
         self.nim.Input('base').itemClicked.connect( lambda: self.update_elem('base') )
         self.nim.Input('base').itemClicked.connect( self.update_tag )
+        self.nim.Input('base').itemClicked.connect( self.select_latest_version )
         # self.nim.Input('tag').textChanged.connect( self.update_tag )
         self.nim.Input('tag').editingFinished.connect( self.update_tag )
         self.tagPresets.activated.connect( self.update_tag_from_preset )
@@ -3737,8 +3771,9 @@ class GUI(QtGui.QMainWindow) :
                 #self.setStyleSheet(hou.ui.qtStyleSheet())
                 #self.setStyleSheet(QtGui.QApplication.instance().styleSheet())
                 '''
-                style = hou.qt.styleSheet()
-                self.setStyleSheet(style)
+                # style = hou.qt.styleSheet()
+                # self.setStyleSheet(style)
+                pass
             except:
                 P.info('NIM: Unable to set stylesheet')
         return
