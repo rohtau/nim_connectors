@@ -132,11 +132,11 @@ class NimHieroConnector():
             nim_sequence_tag = self.getNimTag(sequence)
             if nim_sequence_tag != False:
                 print ( "NIM: Updating sequence tag" )
-                nim_sequence_tag.metadata().setValue("tag.showID" , showID)
+                nim_sequence_tag.metadata().setValue("tag.showID" , str(showID))
             else:
                 print ( "NIM: Adding sequence tag" )
                 nim_sequence_tag = hiero.core.Tag("NIM")
-                nim_sequence_tag.metadata().setValue("tag.showID" , showID)
+                nim_sequence_tag.metadata().setValue("tag.showID" , str(showID))
                 nim_script_path = os.path.dirname(__file__)
                 nim_icon_path = os.path.join(nim_script_path,'NIM.png')
                 nim_sequence_tag.setIcon(nim_icon_path)
@@ -169,8 +169,8 @@ class NimHieroConnector():
 
                 print ( '		Adding NIM Tag to shot %s' % trackItem.name() )
                 nim_tag = hiero.core.Tag("NIM")
-                nim_tag.metadata().setValue("tag.showID" , showID)
-                nim_tag.metadata().setValue("tag.shotID" , shotID)
+                nim_tag.metadata().setValue("tag.showID" , str(showID))
+                nim_tag.metadata().setValue("tag.shotID" , str(shotID))
                 nim_tag.metadata().setValue("tag.shotPath" , nim_shotPath)
                 nim_tag.metadata().setValue("tag.platesPath" , nim_platesPath)
                 nim_tag.metadata().setValue("tag.renderPath" , nim_renderPath)
@@ -239,11 +239,11 @@ class NimHieroConnector():
                 nim_sequence_tag = self.getNimTag(sequence)
                 if nim_sequence_tag != False:
                     print ( "NIM: Updating sequence tag" )
-                    nim_sequence_tag.metadata().setValue("tag.showID" , showID)
+                    nim_sequence_tag.metadata().setValue("tag.showID" , str(showID))
                 else:
                     print ( "NIM: Adding sequence tag" )
                     nim_sequence_tag = hiero.core.Tag("NIM")
-                    nim_sequence_tag.metadata().setValue("tag.showID" , showID)
+                    nim_sequence_tag.metadata().setValue("tag.showID" , str(showID))
                     nim_script_path = os.path.dirname(__file__)
                     nim_icon_path = os.path.join(nim_script_path,'NIM.png')
                     nim_sequence_tag.setIcon(nim_icon_path)
