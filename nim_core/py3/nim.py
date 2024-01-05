@@ -54,8 +54,10 @@ class NIM( object ) :
         self.print_elements=['job', 'asset', 'show', 'shot', 'filter', 'element', 'task', 'basename', 'version']
         self.comboBoxes=['job', 'asset', 'show', 'shot', 'filter', 'task']
         self.listViews=['base', 'ver']
+
         
-        #  Instantiate dictionary of settings :
+        # Instantiate dictionary of settings :
+        # Initialise elements dictionaries
         for elem in self.elements :
             self.clear( elem )
         
@@ -90,6 +92,7 @@ class NIM( object ) :
 
         # Publishing elements types:
         self.nim['elements'] = Api.get_elementTypes()
+
 
         # NIM version
         self.nim['nimver'] = version # Init nim version on object construct
@@ -129,7 +132,7 @@ class NIM( object ) :
             if self.nim['server']['name'] :
                 P.info( ' '*indent*2+'  Name = "%s"' % self.nim['server']['name'] )
             if self.nim['server']['ID'] :
-                P.info( ' '*indent*2+'  ID = "%s"' % self.nim['server']['ID'] )
+                P.info( ' '*indent*2+'  ID = "%d"' % self.nim['server']['ID'] )
             if self.nim['server']['Dict'] :
                 P.info( ' '*indent*2+'  Dict = "%s"' % self.nim['server']['Dict'] )
             if self.nim['server']['input'] :
@@ -139,7 +142,7 @@ class NIM( object ) :
                 if self.Input( elem ) :
                     P.info( ' '*indent*2+'  Input = %s' % self.Input( elem ) )
                 if self.ID( elem ) :
-                    P.info( ' '*indent*2+'  ID = "%s"' % self.ID( elem ) )
+                    P.info( ' '*indent*2+'  ID = "%d"' % self.ID( elem ) )
                 if self.Dict( elem ) :
                     P.info( ' '*indent*2+'  Dict = %s' % self.Dict( elem ) )
                 if elem=='task' :
@@ -153,7 +156,7 @@ class NIM( object ) :
             if self.nim['server']['path'] :
                 P.debug( ' '*indent*2+'  Path = "%s"' % self.nim['server']['path'] )
             if self.nim['server']['ID'] :
-                P.debug( ' '*indent*2+'  ID = "%s"' % self.nim['server']['ID'] )
+                P.debug( ' '*indent*2+'  ID = "%d"' % self.nim['server']['ID'] )
             if self.nim['server']['Dict'] :
                 P.debug( ' '*indent*2+'  Dict = "%s"' % self.nim['server']['Dict'] )
             if self.nim['server']['input'] :
@@ -163,7 +166,7 @@ class NIM( object ) :
                 if self.Input( elem ) :
                     P.debug( ' '*indent*2+'  Input = %s' % self.Input( elem ) )
                 if self.ID( elem ) :
-                    P.debug( ' '*indent*2+'  ID = "%s"' % self.ID( elem ) )
+                    P.debug( ' '*indent*2+'  ID = "%d"' % self.ID( elem ) )
                 if self.Dict( elem ) :
                     P.debug( ' '*indent*2+'  Dict = %s' % self.Dict( elem ) )
                 if elem=='task' and self.taskFolder() :
@@ -174,7 +177,8 @@ class NIM( object ) :
         return
     
     def clear( self, elem='job' ) :
-        'Clears the dictionary of a given element'
+        """Initialise a dictionary for a gicen element
+        """
         label, pic='', ''
         
         if elem in ['asset', 'shot'] and elem in list(self.nim.keys()) :
@@ -185,12 +189,12 @@ class NIM( object ) :
         if elem in list(self.nim.keys()) and 'input' in list(self.nim[elem].keys()) and self.nim[elem]['input'] :
             #  Preserve job dictionary, if it exists :
             if elem=='job' and len(self.nim[elem]['Dict']) :
-                self.nim[elem]={'name': '', 'ID': None, 'Dict': self.nim[elem]['input'], \
-                    'input': self.nim[elem]['input'], 'inputID': None}
+                self.nim[elem]={'name': '', 'ID': 0, 'Dict': self.nim[elem]['input'], \
+                    'input': self.nim[elem]['input'], 'inputID': 0}
             else :
-                self.nim[elem]={'name': '', 'ID': None, 'Dict': {}, 'input': self.nim[elem]['input'], 'inputID': None}
+                self.nim[elem]={'name': '', 'ID': 0, 'Dict': {}, 'input': self.nim[elem]['input'], 'inputID': 0}
         else :
-            self.nim[elem]={'name': '', 'ID': None, 'Dict': {}, 'input': None, 'inputID': None}
+            self.nim[elem]={'name': '', 'ID': 0, 'Dict': {}, 'input': None, 'inputID': 0}
         #  Re-set image pixmap and label :
         if elem in ['asset', 'shot'] and elem in list(self.nim.keys()) :
             if pic : self.nim[elem]['img_pix']=pic
@@ -258,14 +262,19 @@ class NIM( object ) :
         [JOB]/[work|build]/[SHOT|ASSET]/[ELEMPATH]/[TASK]/[BASENAME]/[VER]/
         [SHOT|ASSET]__[TASK_ELEMTYPE]__[TAG]__[VER].####.ext
         '''
+
+        # DEBUG: NIM dict
+        # print("Starting Dict")
+        # pprint(self.get_nim())
+        # import nuke
+        # nuke.tprint("NIM Dict:")
+        # nuke.tprint(pformat(self.get_nim()))
         
         jobFound, assetFound, showFound, shotFound=False, False, False, False
         taskFound, basenameFound, versionFound=False, False, False
         elementFound, potentialElement, potentialTask= False, False, False
         jobs, assets, shows, shots, tasks, basenames, version={}, {}, {}, {}, {}, {}, {}
         
-        # print("Starting Dict")
-        # pprint(self.get_nim())
 
         #  Get and set jobs dictionary :
         jobsfolders = Api.get_jobs( userID=self.nim['user']['ID'], folders=True )
@@ -322,6 +331,7 @@ class NIM( object ) :
         # Init filepath
         self.set_filePath(filePath)
 
+
         # Find Job :
         for tok in toks :
             if not jobFound :
@@ -346,6 +356,7 @@ class NIM( object ) :
                                 self.set_name( elem='job', name=jobfullname )
                                 
                         jobFound=True
+                        # Build shows and assets dicts
                         self.set_dict('asset')
                         self.set_dict('show')
                         break
@@ -380,6 +391,7 @@ class NIM( object ) :
                                 self.set_ID( elem='show', ID=show['ID'] )
                                 self.set_tab( _type='SHOT' )
                                 showFound=True
+                                # Build shots dict
                                 self.set_dict('shot')
                                 break
                 #  Find Shot, once Show is found :
@@ -880,11 +892,12 @@ class NIM( object ) :
             self.nim[elem]['Dict']=Api.get_elementTypes()
             # To extract paths for special elements, plates, renders and comps, shot or asset must be discovered first and set in the NIM dict
             paths = {}
-            if self.ID('shot') is not None:
+            if self.ID('shot'):
                 paths = Api.get_paths( item='shot', ID=int(self.ID('shot')))
-            elif self.ID('asset') is not None:
+            elif self.ID('asset'):
                 paths = Api.get_paths( item='asset', ID=int(self.ID('asset')))
 
+            # P.info("Paths")
             # P.info(pformat(paths))
                 
             for elm in self.nim[elem]['Dict']:

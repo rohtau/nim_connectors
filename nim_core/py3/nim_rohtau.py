@@ -1285,6 +1285,8 @@ def publish_elmt( nim, elmpath=None, ID=None, start=1001, end=1001, handles=0, p
             nimP.error("Error updating published element %s v%s"%(nim.name('base'), nim.version()))
             return False
 
+    if 'ID' in addelmt_result:
+        addelmt_result['ID'] = int(addelmt_result['ID']) # Ensure is int
 
     return addelmt_result
 
@@ -1878,6 +1880,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     res['filepath']  = nim.filePath()
     res['version']   = nim.version()
 
+    # DEBUG: NIM dict
     # print("NIM Dict:")
     # pprint(nim.get_nim())
     # import nuke
@@ -1966,11 +1969,18 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         # addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=pid, task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), \
             # filename=nim.name('file'), path=nim.filePath(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
                 # pub=False, forceLink=False, customKeys=customkeys)
+        #FIXME: so it looks like nim.ID('task') returns None, should in theory return the ID for task type comp, but if it is looking
+        # for a task ID is going to fail becasue there is no comp tsk for the shot.
+        # Check if the problem is that there is no comp task i nthe shot, or is an error becasue the comp task ID is retuning 0 for some reason
+        # import nuke
+        # nuke.tprint(nim.ID('task'))
+        # nuke.tprint(nim.server('ID'))
+        # nuke.tprint(nim.version())
         addfile_result=nimAPI.save_file(parent=nim.tab(), parentID=pid, task_type_ID=int(nim.ID('task')), userID=userid, basename=nim.name('base'), \
             filename=nim.name('file'), path=nim.fileDir(), serverID=int(nim.server('ID')), ext=nim.name('fileExt'), version=int(nim.version()), \
                 pub=False, forceLink=False, customKeys=customkeys)
         if addfile_result['success']:
-            res['fileID'] = addfile_result['ID']
+            res['fileID'] = int(addfile_result['ID'])
         else:
             if verbose:
                 nimP.error("Error creating new file publishing %s v%s"%(nim.name('base'), nim.version()))
@@ -1993,7 +2003,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
             res['msg']       = "Error creating new element publishing %s v%s"%(nim.name('base'), nim.version())
             return res if not plain and not jsonout else False
         else:
-            res['elementID'] = addelmt_result['ID']
+            res['elementID'] = int(addelmt_result['ID'])
     else:
         res['elementID'] = element['ID']
         addelmt_result = publish_elmt( nim, ID=element['ID'], start=start, end=end, handles=handles, pubtask=pubtask, userid=userid)
@@ -2091,7 +2101,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     res['filename']  = nim.name('file')
     res['filepath']  = nim.filePath()
     # res['version']   = nim.version()
-    res['version']   = nim.version()
+    res['version']   = int(nim.version())
     # res['fileID']    = int(res['fileID'].encode('ascii'))
     # res['elementID'] = int(res['elementID'].encode('ascii'))
     res['fileID']    = res['fileID']
@@ -2107,6 +2117,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # print("Pub structures")
     # pprint(info)
     # pprint(elm)
+    # import nuke
+    # nuke.tprint("Pub structures")
+    # nuke.tprint(pformat(info))
+    # nuke.tprint(pformat(elm))
 
     # Store publish info into a pub.json file
     if not os.path.exists(os.path.dirname(posixpath)):
@@ -2124,7 +2138,10 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         else:
             print("\tAsset         : %s"%nim.name('asset'))
         # print("\tTask        : %s"%nim.name('task'))
-        print("\tTask           : %s"%nimUtl.gettasksTypesIDDict()[int(info['task_type_ID'])])
+        if int(info['task_type_ID']) > 0:
+            print("\tTask           : %s"%nimUtl.gettasksTypesIDDict()[int(info['task_type_ID'])])
+        else:
+            print("\tTask           : - ")
         print("\tOwner          : %s"%info['username'])
         print("\tDate           : %s"%info['date'])
         print("\tFile Type      : %s"%info['ext'][1:] if info['ext'].startswith('.') else info['ext'])
@@ -2675,8 +2692,6 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
 
     # userid
     if not userid:
-        # FIXME: apparently when calling to this from nuke it cant get the user
-        # correctly
         myuser = nimAPI.get_user()
         if not myuser:
             nimP.error("Can't get user from NIM. Is user correctly setup?")

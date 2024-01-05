@@ -605,7 +605,7 @@ def getTaskNameFromVars(tasktypeid):
             return task['name']
 
     # Not found
-    warning("Task with ID %d, not found in Publishing Tasks in NIM script's data"%tasktypeid)
+    P.warning("Task with ID %d, not found in Publishing Tasks in NIM script's data"%tasktypeid)
     return False
 
     pass
@@ -636,7 +636,7 @@ def getElementTypeNameFromVars(elmtypeid):
             return elm['name'].encode('ascii')
 
     # Not found
-    warning("Element with ID %d, not found in Publishing Elements in NIM script's data"%elmtypeid)
+    P.warning("Element with ID %d, not found in Publishing Elements in NIM script's data"%elmtypeid)
     return False
 
     pass
