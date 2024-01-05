@@ -895,7 +895,8 @@ def getNextPublishVer ( filename, parent='SHOT', parentID=''):
     else:
         lastver = nimAPI.get_baseVer( assetID=parentID, basename=fileparts['base'] )
     if lastver:
-        lastverstr = lastver[0]['version'].encode('utf8')
+        # lastverstr = lastver[0]['version'].encode('utf8')
+        lastverstr = lastver[0]['version']
         newver = int(lastverstr) + 1
         return newver
     else:
