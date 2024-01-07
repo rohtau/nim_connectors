@@ -522,8 +522,8 @@ def get_job_users(jobid):
         jobs = ""
         jobfound = False
         for jobname in jobsnames.keys():
-            (jobnumber, name) = jobname.decode('utf-8').strip().split(' ', 1)
-            jobID = jobsnames[jobname].decode('utf-8')
+            (jobnumber, name) = jobname.strip().split(' ', 1)
+            jobID = jobsnames[jobname]
             if int(jobid) == int(jobID):
                 jobusers.append(user)
     # pprint(jobusers)
