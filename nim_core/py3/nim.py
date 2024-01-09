@@ -132,7 +132,7 @@ class NIM( object ) :
             if self.nim['server']['name'] :
                 P.info( ' '*indent*2+'  Name = "%s"' % self.nim['server']['name'] )
             if self.nim['server']['ID'] :
-                P.info( ' '*indent*2+'  ID = "%d"' % self.nim['server']['ID'] )
+                P.info( ' '*indent*2+'  ID = "%d"' % int(self.nim['server']['ID']) )
             if self.nim['server']['Dict'] :
                 P.info( ' '*indent*2+'  Dict = "%s"' % self.nim['server']['Dict'] )
             if self.nim['server']['input'] :
@@ -142,7 +142,7 @@ class NIM( object ) :
                 if self.Input( elem ) :
                     P.info( ' '*indent*2+'  Input = %s' % self.Input( elem ) )
                 if self.ID( elem ) :
-                    P.info( ' '*indent*2+'  ID = "%d"' % self.ID( elem ) )
+                    P.info( ' '*indent*2+'  ID = "%d"' % int(self.ID( elem )) )
                 if self.Dict( elem ) :
                     P.info( ' '*indent*2+'  Dict = %s' % self.Dict( elem ) )
                 if elem=='task' :
@@ -156,7 +156,7 @@ class NIM( object ) :
             if self.nim['server']['path'] :
                 P.debug( ' '*indent*2+'  Path = "%s"' % self.nim['server']['path'] )
             if self.nim['server']['ID'] :
-                P.debug( ' '*indent*2+'  ID = "%d"' % self.nim['server']['ID'] )
+                P.debug( ' '*indent*2+'  ID = "%d"' % int(self.nim['server']['ID']) )
             if self.nim['server']['Dict'] :
                 P.debug( ' '*indent*2+'  Dict = "%s"' % self.nim['server']['Dict'] )
             if self.nim['server']['input'] :
@@ -166,7 +166,7 @@ class NIM( object ) :
                 if self.Input( elem ) :
                     P.debug( ' '*indent*2+'  Input = %s' % self.Input( elem ) )
                 if self.ID( elem ) :
-                    P.debug( ' '*indent*2+'  ID = "%d"' % self.ID( elem ) )
+                    P.debug( ' '*indent*2+'  ID = "%d"' % int(self.ID( elem )) )
                 if self.Dict( elem ) :
                     P.debug( ' '*indent*2+'  Dict = %s' % self.Dict( elem ) )
                 if elem=='task' and self.taskFolder() :
