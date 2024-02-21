@@ -3215,7 +3215,7 @@ def save_file( parent='SHOW', parentID=0, task_type_ID=0, task_folder='', userID
             if pub_result == True:
                 P.info('...Success')
             else:
-                P.error('There was a problem creating the symlink for the published file\n \
+                P.warning('There was a problem creating the symlink for the published file\n \
                         Please check to make sure the file exists on disk.')
     return result
 
@@ -3299,7 +3299,7 @@ def update_file( ID=None, task_type_ID=None, task_folder=None, userID=None, base
             if pub_result == 'true':
                 P.info('...Success')
             else:
-                P.error('There was a problem creating the symlink for the published file \
+                P.warning('There was a problem creating the symlink for the published file \
                         Please check to make sure the file exists on disk.')
     return result
 

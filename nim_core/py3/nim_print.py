@@ -195,7 +195,7 @@ def error( msg='', showwindow=False ) :
             elif isMaya:
                 om.MGlobal.displayError('NIM.Error ~> %s' % toke)
             elif isHoudini and hou.isUIAvailable():
-                print('NIM.Warning ~> %s' % toke)
+                print('NIM.Error ~> %s' % toke)
                 hou.ui.setStatusMessage( 'NIM.Error ~> %s' % toke , hou.severityType.Error)
             else:
                 print('NIM.Error ~> %s' % toke)

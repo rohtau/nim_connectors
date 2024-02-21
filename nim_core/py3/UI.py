@@ -3391,7 +3391,6 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input('tag').setText(defaultSceneName)
             return False
         else:
-            #  Update NIM dictionary entry (Just in case) :
             self.nim.set_name( elem='tag', name=tag )
 
         basename=Api.to_basename( nim=self.nim )

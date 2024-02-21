@@ -25,6 +25,7 @@ import shutil
 import stat
 import getpass
 import copy
+from typing import Union
 from glob import glob
 from subprocess import Popen
 from datetime   import datetime
@@ -1183,10 +1184,6 @@ def checkFileAndElementPublished( nim ):
         metadata = json.loads(file['metadata'])
         if 'elementID' in metadata:
             # Try to use the element linked to our file
-            print("Shot ID")
-            print(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset'))
-            print("Element ID")
-            print(nim.ID('element'))
             elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
             element = next((elm for elm in elmts if elm['ID']==metadata['elementID']), None)
     # try to find at least a valid element if file is not published
@@ -2363,6 +2360,119 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
 
     return True
 
+
+def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] ='', parent: str ="shot", parentID: str ="", 
+             taskID: int=0,comment: str='', starttimedate: str = '', endtimedate: str = '', verbose: bool=False) -> dict:
+    """Add extra data for a published file assuming it represents a cache.
+    By cache we refer to any data that is not a render (image). In general here
+    we talk about geometry caches, hence it's name
+
+    Time
+    ----
+    starttimedate and endtimedate are expected to be passed in datetime.isoformat: 2015-02-04T20:55:08.914461+00:00
+    NIM uses this date time format: "2017-01-01 08:00:00"
+
+    Parameters
+    -----------
+    fileID : str|int
+        ID for published file
+    filename : str
+        Filename of element to query. Name convention: [SHOT|ASSET]__[TASK[_ELEMTYPE]]__[TAG]__[VER].####.ext
+    userid    : int
+        User ID who owns the published item.
+    job : str
+        number or ID for job
+    parent : str
+        Parent for publish element:SHOT or ASSET
+    parentID : str
+        Shot or Asset ID
+    taskid : str
+        Id for publishing task. If not provided the function will search for the first user's task in the shot for this element type.
+    comment   : str
+        Render comment.
+    starttimedate   : str
+        Render start in UTC
+    endtimedate      : str
+        Render end in UTC
+    verbose : bool
+        Output extra information
+
+    Returns
+    -----------
+    dict
+        'success' key return if there where errors (False). Error message in 'msg' key
+    """
+    res = {'success' : False}
+    fileInfo = None
+    # Grab just published info
+    info = nimAPI.get_verInfo( fileID )
+    fileInfo = info[0]
+    parentID = int(fileInfo['parentID'])
+    parent = fileInfo['fileClass'].lower()
+    if parent.upper() == 'SHOT':
+        parentname = nimAPI.get_shotInfo( shotID=parentID)[0]['shotName']
+    else:
+        parentname = nimAPI.get_assetInfo( shotID=parentID)[0]['assetName']
+    tasktype = int(fileInfo['task_type_ID'])
+    elementInfo = nimAPI.find_elements( name=fileInfo['filename'], assetID=parentID if parent.upper()=='ASSET' else '', 
+                                       shotID=parentID if parent.upper()=='SHOT' else '')
+    if elementInfo:
+        elementInfo=elementInfo[0]
+    else:
+        nimP.warning("Couldn't find an element for the render")
+    if elementInfo:
+        nframes = int(elementInfo['endFrame']) - int(elementInfo['startFrame'])
+
+    if starttimedate:
+        try:
+            # Test ISO format
+            start_timedate = datetime.fromisoformat(starttimedate)
+            # starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            starttimedate = ''
+
+
+    if endtimedate:
+        try:
+            # Test ISO format
+            end_timedate = datetime.fromisoformat(endtimedate)
+            # endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            endtimedate = ''
+
+    if starttimedate and endtimedate:
+        # Calculate total time and average time for render
+        # starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        # endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        rendertime = end_timedate - start_timedate
+        rendertimestr = str(rendertime.seconds)
+        if nframes:
+            avgtime = rendertime.seconds / float(nframes)
+            #avgtimestr = str(avgtime.seconds)
+    
+    # Add timings info to metadata
+    metadata = json.loads(fileInfo['metadata'])
+    metadata['startdatetime'] =starttimedate 
+    metadata['enddatetime'] = endtimedate  
+    metadata['elapsedtime'] = rendertime.seconds
+    metadata['avgtime'] = avgtime if nframes else 0
+    metadata = json.dumps(metadata, sort_keys=True)
+    updatefile_res = nimAPI.update_file( fileID, metadata=metadata)
+    if updatefile_res['success'] != 'true':
+        if verbose:
+            nimP.error("Error updating file info metadata")
+        res['success'] = False
+        res['msg']     = "Error updating file info metadata"
+        return res if not plain and not jsonout else False
+
+    res['success'] = True
+    nimP.info("Cache %s in %s %s published"%(filename, parent.lower(), parentname))
+
+    return res
+
+
 def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID=0,
               comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
     '''
@@ -2556,6 +2666,11 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     nframes = 0
     if elementInfo:
         nframes = int(elementInfo['endFrame']) - int(elementInfo['startFrame'])
+    if starttimedate and endtimedate:
+        rendertime = endtimedate - starttimedate
+        rendertimestr = str(rendertime.seconds)
+        if nframes:
+            avgtime = rendertime // nframes
 
     # Ensure starttimedate and endtimedate are in the correct format.
     # Convert several ISO variants datetime string used by NIM
@@ -2615,6 +2730,23 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
             res['success'] = False
             res['msg']     = "Error linking element to task"
             return res if not plain and not jsonout else False
+        # TODO: add render time infor to File metadata
+        info = nimAPI.get_verInfo( fileID )
+        fileInfo = info[0]
+        metadata = json.loads(fileInfo['metadata'])
+        metadata['startdatetime'] =starttimedate 
+        metadata['enddatetime'] = endtimedate  
+        metadata['avgtime'] = avgtime
+        metadata = json.dumps(metadata, sort_keys=True)
+        updatefile_res = nimAPI.update_file( int(res['fileID']), metadata=metadata)
+        if updatefile_res['success'] != 'true':
+            if verbose:
+                nimP.error("Error updating file info metadata")
+            res['success'] = False
+            res['msg']     = "Error updating file info metadata"
+            return res if not plain and not jsonout else False
+
+
         res['success'] = True
         nimP.info("Render %s in %s %s published"%(filename, parent.lower(), parentname))
     else:
