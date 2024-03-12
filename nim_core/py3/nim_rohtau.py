@@ -2473,8 +2473,8 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
     return res
 
 
-def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID=0,
-              comment='', rendertype='', starttimedate='', endtimedate='', icon='', verbose=False):
+def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:str="shot", parentID:str="", renderkey:str='', taskID:int=0,
+              comment:str='', rendertype:str='', starttimedate:str='', endtimedate:str='', icon:str='', verbose=False):
     '''
     Publish a new render from a basename
     This is needed to get file sequences available in the render and review sections
@@ -2666,12 +2666,44 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
     nframes = 0
     if elementInfo:
         nframes = int(elementInfo['endFrame']) - int(elementInfo['startFrame'])
+
+    if starttimedate:
+        try:
+            # Test ISO format
+            starttimedate = datetime.fromisoformat(starttimedate)
+            starttime = starttimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("Start date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            starttimedate = ''
+
+
+    if endtimedate:
+        try:
+            # Test ISO format
+            endtimedate = datetime.fromisoformat(endtimedate)
+            endtime = endtimedate.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            nimP.warning("End date/time format not supported, please use ISO format: 2011-11-04 00:05:23")
+            endtimedate = ''
+
     if starttimedate and endtimedate:
+        # Calculate total time and average time for render
+        # starttime = datetime.strptime( starttimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
+        # endtime = datetime.strptime( endtimedate.split('.')[0], "%Y-%m-%dT%H:%M:%S" ) # remove microseconds
         rendertime = endtimedate - starttimedate
         rendertimestr = str(rendertime.seconds)
         if nframes:
-            avgtime = rendertime // nframes
+            avgtime = rendertime.seconds / float(nframes)
+            avgtimestr = str(timedelta(seconds=avgtime))
+    
+    # Add timings info to metadata
+    metadata = json.loads(fileInfo['metadata'])
+    metadata['startdatetime'] =starttime
+    metadata['enddatetime'] = endtime
+    metadata['elapsedtime'] = rendertime.seconds
+    metadata['avgtime'] = avgtime if nframes else 0
 
+    """
     # Ensure starttimedate and endtimedate are in the correct format.
     # Convert several ISO variants datetime string used by NIM
     # NIM uses this date time format: "2017-01-01 08:00:00" ->
@@ -2711,6 +2743,7 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
         if nframes:
             avgtime = rendertime // nframes
             avgtimestr = str(avgtime.seconds)
+    """
 
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
     # print("Task for render: %s"%task['taskID'])
@@ -2734,11 +2767,12 @@ def pubRender(fileID='', filename='', job='', userid ='', parent="shot", parentI
         info = nimAPI.get_verInfo( fileID )
         fileInfo = info[0]
         metadata = json.loads(fileInfo['metadata'])
-        metadata['startdatetime'] =starttimedate 
-        metadata['enddatetime'] = endtimedate  
-        metadata['avgtime'] = avgtime
+        metadata['startdatetime'] = starttime
+        metadata['enddatetime'] = endtime
+        metadata['avgtime'] = avgtimestr
         metadata = json.dumps(metadata, sort_keys=True)
-        updatefile_res = nimAPI.update_file( int(res['fileID']), metadata=metadata)
+        # updatefile_res = nimAPI.update_file( int(res['fileID']), metadata=metadata)
+        updatefile_res = nimAPI.update_file( fileID, metadata=metadata)
         if updatefile_res['success'] != 'true':
             if verbose:
                 nimP.error("Error updating file info metadata")
@@ -2924,8 +2958,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         parentname = nimAPI.get_assetInfo( assetID=pid)[0]['assetName']
     outdir = os.path.dirname(path)
     tasktype = int(fileInfo['task_type_ID'])
-    # Check availability:
 
+    # Check availability:
     available = fileInfo['customKeys']['State'] == 'Available'
     if not available:
         nimP.warning("File is not set as available. ther could be errors: %s, State: %s"%(name, fileInfo['customKeys']['State']))

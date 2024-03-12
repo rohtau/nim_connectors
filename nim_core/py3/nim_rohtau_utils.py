@@ -301,6 +301,10 @@ def getjobs(userid=None):
     dict
         Dictionary with jobnames as str and IDs as int. False if error
     
+    Warning
+    --------
+    Careful with this function. Due to a dubious implementation in NIM this function is really expensive.
+    Use only if necessary.
 
     '''
     # get NIM jobs
