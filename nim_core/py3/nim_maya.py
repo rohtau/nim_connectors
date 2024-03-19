@@ -596,27 +596,28 @@ def set_globals():
         frames = shotglobals['frames'] if shotglobals['frames'] else default_frame_range
         # Save current range
         stash_frame_range()
+        # first = 1001 # We always start at 1001 by convention
+        # last = 1001 + frames - 1
+        handles = shotglobals['handles']
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + frames - 1
+        last = first + frames + (2*handles) - 1
         mc.playbackOptions(ast=first)
         mc.playbackOptions(aet=last)
-        mc.playbackOptions(minTime=first+shotglobals['handles'])
-        mc.playbackOptions(maxTime=last-shotglobals['handles'])
-        mc.playbackOptions(maxTime=last-shotglobals['handles'])
-        mel.currentTime( first+shotglobals['handles'] )
+        mc.playbackOptions(minTime=first+handles)
+        mc.playbackOptions(maxTime=last-handles)
+        mel.currentTime( first+handles )
         mel.putenv('SHOTSTART', str(first))
         mel.putenv('SHOTEND', str(last))
-        mel.putenv('SHOTSTARTCUT', str(first+shotglobals['handles']))
-        mel.putenv('SHOTENDCUT', str(last-shotglobals['handles']))
+        mel.putenv('SHOTSTARTCUT', str(first+handles))
+        mel.putenv('SHOTENDCUT', str(last-handles))
         mel.putenv('SHOTFRAMES', str(frames))
         mel.putenv('SHOTHANDLES', str(shotglobals['handles']))
         if not mel.getenv('SHOTPREROLL'):
             mel.putenv('SHOTPREROLL', str(0))
-        mel.putenv('SHOTSIMSTART', str(first-int(mel.getenv('SHOTPREROLL'))))
+        mel.putenv('SHOTSIMSTART', str(first - int(mel.getenv('SHOTPREROLL'))))
 
 
-        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+shotglobals['handles'], 
-                                                                                   last-shotglobals['handles'])
+        msg += "- Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
     else:
         msg += "- WARNING: No Frame Range information for this shot"
 
@@ -659,13 +660,13 @@ def set_shot_range():
     if frames :
         stash_frame_range()
         first = 1001 # We always start at 1001 by convention
-        last = 1001 + frames - 1
+        last = first + frames + (2*handles) - 1
         mc.playbackOptions(ast=first)
         mc.playbackOptions(aet=last)
         mc.playbackOptions(minTime=first+handles)
         mc.playbackOptions(maxTime=last-handles)
         mel.currentTime( first+handles )
-        msg = "Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, last-handles)
+        msg = "Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
         om.MGlobal.displayInfo(msg)
     else:
         msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
@@ -718,7 +719,7 @@ def set_preroll():
             preroll  = int(mc.promptDialog(query=True, text=True))
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
-            last = 1001 + frames - 1
+            last = first + frames + (2*handles) - 1
             first = first - preroll
             mc.playbackOptions(ast=first)
             mc.playbackOptions(aet=last)
@@ -767,7 +768,7 @@ def set_sim_range():
         if preroll:
             stash_frame_range()
             first = 1001 # We always start at 1001 by convention
-            last = 1001 + frames - 1
+            last = first + frames + (2*handles) - 1
             first = first - preroll
             mc.playbackOptions(ast=first)
             mc.playbackOptions(aet=last)

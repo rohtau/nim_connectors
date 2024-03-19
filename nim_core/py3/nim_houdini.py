@@ -799,8 +799,7 @@ def set_globals():
         hou.putenv('SHOTSIMSTART', str(first-int(hou.getenv('SHOTPREROLL'))))
 
 
-        msg += "- Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, 
-                                                                                   last-handles)
+        msg += "- Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
     else:
         msg += "- WARNING: No Frame Range information for this shot"
 
@@ -852,7 +851,7 @@ def set_shot_range():
         hou.playbar.setFrameRange(first, last)
         hou.playbar.setPlaybackRange(first+handles, (last-handles))
         hou.setFrame(first+handles)
-        msg = "Frame range set to %d-%d. Shot Range (with handles): %d - %d\n"%(first, last, first+handles, last-handles)
+        msg = "Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
         hou.ui.setStatusMessage(msg)
     else:
         msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
