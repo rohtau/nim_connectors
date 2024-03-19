@@ -1018,8 +1018,7 @@ def set_globals():
             viewer_range = "%d-%d"%(first+handles, (last-handles))
             QTimer.singleShot(100, lambda: setViewerRange(n, viewer_range))
 
-        msg += "- Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, 
-                                                                                   last-handles)
+        msg += "- Frame range set to %d-%d\n- Cut Range set to: %d - %d\n- Shot length: %d\n"%(first, last, first+handles, last-handles, frames)
     else:
         msg += "- WARNING: No Frame Range information for this shot w "
 

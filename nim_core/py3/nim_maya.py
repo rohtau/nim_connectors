@@ -617,7 +617,7 @@ def set_globals():
         mel.putenv('SHOTSIMSTART', str(first - int(mel.getenv('SHOTPREROLL'))))
 
 
-        msg += "- Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
+        msg += "- Frame range set to %d-%d\n- Cut Range set to: %d - %d\n- Shot length: %d\n"%(first, last, first+handles, last-handles, frames)
     else:
         msg += "- WARNING: No Frame Range information for this shot"
 
@@ -666,7 +666,7 @@ def set_shot_range():
         mc.playbackOptions(minTime=first+handles)
         mc.playbackOptions(maxTime=last-handles)
         mel.currentTime( first+handles )
-        msg = "Frame range set to %d-%d. Cut Range: %d - %d\n"%(first, last, first+handles, last-handles)
+        msg += "- Frame range set to %d-%d\n- Cut Range set to: %d - %d\n- Shot length: %d\n"%(first, last, first+handles, last-handles, frames)
         om.MGlobal.displayInfo(msg)
     else:
         msg = "Couldn't find shot frame range information, SHOTFRAMES and/or SHOTHANDLES are missing. Please run Set Globals to update shot information."
