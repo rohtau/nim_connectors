@@ -3504,7 +3504,7 @@ def find_published_asset( job, parent, parentid, element, name, use_task_priorit
 
     # If asset not found in any task
     if not found_asset:
-        nimP.error("Couldn't find any asset with name: %s, type: %s published in %s %s"%(name, elementname, parent.tolower(), parentname))
+        nimP.error("Couldn't find any asset with name: %s, type: %s published in %s %s"%(name, elementname, parent.lower(), parentname))
         return False
     # If there is an asset version tag as publish, then return the latest task
     # found with the "published" asset:
