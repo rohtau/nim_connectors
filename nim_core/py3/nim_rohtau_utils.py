@@ -278,6 +278,42 @@ def toNIMFramePadding(path, posix=False):
 
     return nimpath
 
+def timespan_str_to_secs( timespane:str ) -> int:
+    """Convert tiem span string represnetation into seconds
+    A time span stringhas the format: HH:MM:SS
+    For instance: 00:4:30 -> 0hrs. 4mins, 30secs
+
+    Deadline & NIM
+    ---------------
+    In Deadline we get many statistics about time in the time span format string described above.
+    but NIM in order to publish render stats requires it to be a string representing only seconds, so
+    the main porpose of this function is to convert time span strings from Deadline stats to NIM seconds format.
+
+    Parameters
+    ------------
+    timespan : str
+        Time span string
+
+    Returns
+    ----------
+    int
+        Seconds
+
+    """
+    timeparts = timespan.split(':')
+    hrs = 0
+    mins = 0
+    secs = int(timeparts[-1])
+    if len(timeparts) > 1:
+        mins = int(timeparts[-2])
+    if len(timeparts) > 2:
+        hrs = int(timeparts[-3])
+    secs += mins * 60
+    secs += hrs * 60 * 60
+
+    return secs
+
+
 
 
 

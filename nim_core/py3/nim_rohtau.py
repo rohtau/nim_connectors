@@ -2362,7 +2362,7 @@ def setPubState(fileID= None, filename="", job= "", parent="", parentID="", stat
 
 
 def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] ='', parent: str ="shot", parentID: str ="", 
-             taskID: int=0,comment: str='', starttimedate: str = '', endtimedate: str = '', verbose: bool=False) -> dict:
+             taskID: int=0,comment: str='', starttimedate: str = '', endtimedate: str = '', stats: dict ={}, verbose: bool=False) -> dict:
     """Add extra data for a published file assuming it represents a cache.
     By cache we refer to any data that is not a render (image). In general here
     we talk about geometry caches, hence it's name
@@ -2371,6 +2371,16 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
     ----
     starttimedate and endtimedate are expected to be passed in datetime.isoformat: 2015-02-04T20:55:08.914461+00:00
     NIM uses this date time format: "2017-01-01 08:00:00"
+
+    Stats
+    -------
+    We can pass several information about the performance of the render using the start and endtime parameters or for a more complete
+    information pass a stats dictionary. This is designed to support a set of statistics from Deadline, although it can easily be adapted
+    to other environments.
+    The ideas  is to have a set of key data and values that we can use later in other tools like NIM. This dictionary will be saved as
+    metadata in the puyblshing system.
+    See pubRender() help for more info about the render stats dicitonary.
+    The dictionary support the next keys:
 
     Parameters
     -----------
@@ -2394,6 +2404,8 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
         Render start in UTC
     endtimedate      : str
         Render end in UTC
+    stats : dict
+        Render stats dictionary.
     verbose : bool
         Output extra information
 
@@ -2456,8 +2468,37 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
     metadata['enddatetime'] = endtime
     metadata['elapsedtime'] = rendertime.seconds
     metadata['avgtime'] = avgtime if nframes else 0
+    if stats:
+        if 'start_date' in stats:
+            metadata['startdatetime'] = stats['start_date']
+        if 'end_date' in stats:
+            metadata['enddatetime'] = stats['end_date']
+        if 'elapsed_time' in stats:
+            metadata['elapsed_time'] = stats['elapsed_time']
+        if 'total_task_time' in stats:
+            metadata['total_task_time'] = stats['total_task_time']
+        if 'total_task_render_time' in stats:
+            metadata['total_task_render_time'] = stats['total_task_render_time']
+        if 'total_task_startup_time' in stats:
+            metadata['total_task_startup_time'] = stats['total_task_startup_time']
+        if 'avg_task_time' in stats:
+            metadata['avg_task_time'] = stats['avg_task_time']
+        if 'avg_task_render_time' in stats:
+            metadata['avg_task_render_time'] = stats['avg_task_render_time']
+        if 'avg_task_startup_time' in stats:
+            metadata['avg_task_startup_time'] = stats['avg_task_startup_time']
+        if 'avg_cpu_usage' in stats:
+            metadata['avg_cpu_usage'] = stats['avg_cpu_usage']
+        if 'peak_cpu_usage' in stats:
+            metadata['peak_cpu_usage'] = stats['peak_cpu_usage']
+        if 'avg_ram_usage' in stats:
+            metadata['avg_ram_usage'] = stats['avg_ram_usage']
+        if 'peak_ram_usage' in stats:
+            metadata['peak_ram_usage'] = stats['peak_ram_usage']
+    print("Cache Metadata")
+    pprint(metadata)
     metadata = json.dumps(metadata, sort_keys=True)
-    updatefile_res = nimAPI.update_file( fileID, metadata=metadata)
+    updatefile_res = nimAPI.update_file(fileID, metadata=metadata)
     if updatefile_res['success'] != 'true':
         if verbose:
             nimP.error("Error updating file info metadata")
@@ -2472,7 +2513,7 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
 
 
 def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:str="shot", parentID:str="", renderkey:str='', taskID:int=0,
-              comment:str='', rendertype:str='', starttimedate:str='', endtimedate:str='', icon:str='', verbose=False):
+              comment:str='', rendertype:str='', starttimedate:str='', endtimedate:str='', stats:dict={}, icon:str='', verbose=False) -> dict :
     '''
     Publish a new render from a basename
     This is needed to get file sequences available in the render and review sections
@@ -2485,12 +2526,40 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
         Filename: RND_001__comp_2d__OUT__v007.####.exr
 
     Time
-    ----
+    ------
     starttimedate and endtimedate are expected to be passed in datetime.isoformat: 2015-02-04T20:55:08.914461+00:00
     NIM uses this date time format: "2017-01-01 08:00:00"
 
+    Stats
+    -------
+    We can pass several information about the performance of the render using the start and endtime parameters or for a more complete
+    information pass a stats dictionary. This is designed to support a set of statistics from Deadline, although it can easily be adapted
+    to other environments.
+    the ideas  is to have a set of key data and values that we can use later in other tools like NIM. This dictionary will be saved as
+    metadata in the puyblshing system.
+    The dictionary support the next keys:
+        stats = {} # Render stats dict
+        stats['start_date'] = jobStartDate
+        stats['end_date'] = jobEndDate
+        stats['total_task_time'] =jobStats.TotalTaskTimeAsString.split('.')[0] # remove microseconds
+        stats['total_task_render_time'] =jobStats.TotalTaskRenderTimeAsString.split('.')[0] # remove microseconds
+        stats['total_task_startup_time'] =jobStats.TotalTaskStartupTimeAsString.split('.')[0] # remove microseconds
+        stats['avg_task_time'] =jobStats.AverageTaskTimeAsString.split('.')[0] # remove microseconds
+        stats['avg_task_render_time'] =jobStats.AverageTaskRenderTimeAsString.split('.')[0] # remove microseconds
+        stats['avg_task_startup_time'] =jobStats.AverageTaskStartupTimeAsString.split('.')[0] # remove microseconds
+        stats['avg_cpu_usage'] =jobStats.AverageCpuUsage
+        stats['peak_cpu_usage'] =jobStats.PeakCpuUsage
+        stats['avg_ram_usage'] =(jobStats.AverageRamUsage / 1024 / 1024) * 0.125 # bites to MB
+        stats['peak_ram_usage'] =( jobStats.PeakRamUsage / 1024 / 1024 ) * 0.125 # bites to MB
+
+    Dates are strings in the format: 2024-04-03 00:59:18 
+    Task times are strings in the format: 00:00:21
+    CPU usage is a percent in float [0-100]
+    RAM usage is in MB
+
+
     Render Key
-    ----------
+    -----------
     When publishing from the farm we need a way to link several publishing stages to the same render.
     This is done using the farm job id as part of the log for the render in NIM.
     This allows to refer to a rent item in NIM without knowing the render ID.
@@ -2524,6 +2593,8 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
         Render start in UTC
     endtimedate      : str
         Render end in UTC
+    stats : dict
+        Render stats dictionary.
     icon : str
         Path to an image to be used as icon for the renders
     verbose : bool
@@ -2658,7 +2729,9 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
     metadata = json.loads(fileInfo['metadata'])
     elementID = metadata['elementID'] if 'elementID' in metadata else 0
     elementTypeID = fileInfo['customKeys']['Element Type'] if 'Element Type' in fileInfo['customKeys'] else 0
+    rendertime = 0
     rendertimestr = ""
+    avgtime = 0
     avgtimestr = ""
     nframes = 0
     if elementInfo:
@@ -2693,17 +2766,51 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
     
     # Add timings info to metadata
     # metadata = json.loads(fileInfo['metadata'])
-    metadata['startdatetime'] =starttime
-    metadata['enddatetime'] = endtime
-    metadata['elapsedtime'] = rendertime.seconds
-    metadata['avgtime'] = avgtime if nframes else 0
+    metadata['start_date'] =starttime
+    metadata['end_date'] = endtime
+    metadata['elapsed_time'] = rendertime.seconds
+    metadata['avg_task_time'] = avgtime if nframes else 0
+
+    if stats:
+        if 'start_date' in stats:
+            metadata['startdatetime'] = stats['start_date']
+            starttimedate = stats['start_date']
+        if 'end_date' in stats:
+            metadata['enddatetime'] = stats['end_date']
+            endtimedate = stats['end_date']
+        if 'elapsed_time' in stats:
+            metadata['elapsed_time'] = stats['elapsed_time']
+            rendertime = nimUtl.timespan_str_to_secs(stats['elapsed_time'])
+        if 'total_task_time' in stats:
+            metadata['total_task_time'] = stats['total_task_time']
+        if 'total_task_render_time' in stats:
+            metadata['total_task_render_time'] = stats['total_task_render_time']
+        if 'total_task_startup_time' in stats:
+            metadata['total_task_startup_time'] = stats['total_task_startup_time']
+        if 'avg_task_time' in stats:
+            metadata['avg_task_time'] = stats['avg_task_time']
+            avgtimestr = nimUtl.timespan_str_to_secs(stats['avg_task_time'])
+        if 'avg_task_render_time' in stats:
+            metadata['avg_task_render_time'] = stats['avg_task_render_time']
+        if 'avg_task_startup_time' in stats:
+            metadata['avg_task_startup_time'] = stats['avg_task_startup_time']
+        if 'avg_cpu_usage' in stats:
+            metadata['avg_cpu_usage'] = stats['avg_cpu_usage']
+        if 'peak_cpu_usage' in stats:
+            metadata['peak_cpu_usage'] = stats['peak_cpu_usage']
+        if 'avg_ram_usage' in stats:
+            metadata['avg_ram_usage'] = stats['avg_ram_usage']
+        if 'peak_ram_usage' in stats:
+            metadata['peak_ram_usage'] = stats['peak_ram_usage']
+
 
     # XXX: for AOVs follow file metadata extra elements to get all the paths and output dirs
     # print("Task for render: %s"%task['taskID'])
     res = nimAPI.add_render( jobID=jobid, itemType=parent, taskID=int(task['taskID']), fileID=int(fileInfo['fileID']), \
         renderKey=renderkey, renderName=rendername, renderType=rendertype, renderComment=comment, \
         outputDirs=(outdir,), outputFiles=(path,), elementTypeID=elementTypeID, start_datetime=starttimedate, end_datetime=endtimedate, \
-        avgTime=avgtimestr, totalTime=rendertimestr, frame=nframes )
+        avgTime=avgtimestr, totalTime=rendertimestr, frame=str(nframes) )
+        # avgTime="70", totalTime="120", frame=str(nframes) )
     if res['success'] == 'true' and icon and os.path.exists(icon):
         resicon = nimAPI.upload_renderIcon( renderID=int(res['ID']), img=icon) 
         if verbose:
@@ -2716,15 +2823,7 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
             res['success'] = False
             res['msg']     = "Error linking element to task"
             return res if not plain and not jsonout else False
-        # TODO: add render time infor to File metadata
-        # info = nimAPI.get_verInfo( fileID )
-        # fileInfo = info[0]
-        # metadata = json.loads(fileInfo['metadata'])
-        # metadata['startdatetime'] = starttime
-        # metadata['enddatetime'] = endtime
-        # metadata['avgtime'] = avgtimestr
         metadata = json.dumps(metadata, sort_keys=True)
-        # updatefile_res = nimAPI.update_file( int(res['fileID']), metadata=metadata)
         updatefile_res = nimAPI.update_file( fileID, metadata=metadata)
         if updatefile_res['success'] != 'true':
             if verbose:
@@ -2744,8 +2843,9 @@ def pubRender(fileID:str='', filename:str='', job:str='', userid:str='', parent:
     
     return res
 
-def createRender(fileID='', filename='', job='', userid ='', parent="shot", parentID="", renderkey='', taskID=0, comment='',
-                 rendertype='', starttimedate='', endtimedate='', doreview=True, reviewtype=reviewType.DAILY, verbose=False):
+def createRender(fileID:Union[str,int]='', filename:str='', job:Union[str,int]='', userid:int=None, parent:str="shot", 
+                 parentID:Union[str,int]="", renderkey:str='', taskID:int=0, comment:str='',rendertype:str='', starttimedate:str='',
+                 endtimedate:str='', stats={}, doreview:bool=True, reviewtype:int=reviewType.DAILY, verbose:bool=False) -> dict :
     '''
     Do all steps to create all the elements needed to get a render properly published, and log them into NIM
     This is the function to call to get a published path, with pubpath(), and create a render for it.
@@ -2787,6 +2887,8 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         Render start in UTC
     endtimedate      : str
         Render end in UTC
+    stats : dict
+        Render stats dictionary.
     reviewtype      : reviewType
         Review type: reviewType.DAILY(1), reviewType.EDIT(2), reviewType.REF(3)
     doreview : bool
@@ -2978,7 +3080,7 @@ def createRender(fileID='', filename='', job='', userid ='', parent="shot", pare
         if verbose:
             nimP.info("Publish render ....")
         res = pubRender(fileID=fileid, userid=userid, renderkey=renderkey, comment=comment, rendertype=rendertype, taskID=int(taskID),
-                        starttimedate=starttimedate, endtimedate=endtimedate, icon=icon, verbose=verbose)
+                        starttimedate=starttimedate, endtimedate=endtimedate, stats=stats, icon=icon, verbose=verbose)
         if not res['success']:
             res['success'] = False
             res['msg']     = "Error publishing render %s in %s %s"%(fileparts['base'], fileparts['shot'], parentname)
