@@ -2507,12 +2507,13 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
         nim=Nim.NIM()
-        #nim.ingest_filePath( pub=pub )
+        nim.ingest_filePath( pub=pub )
         if not nim.mode() :
             nim.set_mode('ver')
         #  Set Publish state :
         if pub : nim.set_name( elem='filter', name='Published' )
         else : nim.set_name( elem='filter', name='Work' )
+
 
     # import nuke
     # nuke.tprint("Passed NIM:")
@@ -2630,6 +2631,8 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     P.info('Filepath: %s' % filePath)
     P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
     #  [AS] END
+    # print("NIM Object for ver Up:")
+    # pprint(nim.get_nim())
     
     #  Add file to API :
     # if filePath and os.path.isfile( filePath ) :
@@ -2643,10 +2646,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             P.error("Can't get a valid publishing task on file save. Aborting")
             return False
         '''
-
-        # XXX: just exit here at the moment, only testing
-        # nuke.tprint("Publishing Task:")
-        # nuke.tprint(pformat(pubtask))
 
         # Set user for publishing:
         user = get_user()

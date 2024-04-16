@@ -76,7 +76,14 @@ class NIM( object ) :
         for elem in ['comment', 'fileExt', 'tag'] :
             self.nim[elem]={'name': '', 'input': None}
         self.nim['server']={'name':'', 'path': '', 'input':'', 'ID': '', 'Dict': ''}
-        self.nim['fileExt']['fileType']=''
+        # self.nim['fileExt']['fileType']=''
+        #  Derive file extension :
+        file_ext = F.get_ext( self.filePath() )
+        if  file_ext:
+            self.set_name( elem='fileExt', name=file_ext )
+            self.set_fileTypeByExt(file_ext)
+        else:
+            self.nim['fileExt']['fileType']=''
         self.nim['app']=F.get_app()
         self.nim['class']=None
         self.nim['mode']=None
@@ -1084,11 +1091,16 @@ class NIM( object ) :
             
         if self.nim['file']['path'] :
             self.nim['file']['name']=ntpath.basename( self.nim['file']['path'] )
+            self.nim['file']['filename']=ntpath.basename( self.nim['file']['path'] )
             self.nim['file']['dir']=os.path.dirname( self.nim['file']['path'] )
+            # Assume basename if the filename (no ext) without the last part, the version
+            basename = os.path.splitext(self.nim['file']['filename'])[0]
+            basename = '__'.join(basename.split('__')[:-1])
+            self.nim['file']['basename']=basename
         else :
             self.nim['file']['name']=''
             self.nim['file']['path']=''
-        self.nim['file']['basename']=None
+            self.nim['file']['basename']=None
     
     def set_fileTypeByExt( self, ext) :
         '''
