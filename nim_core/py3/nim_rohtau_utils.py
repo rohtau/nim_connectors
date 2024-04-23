@@ -278,7 +278,7 @@ def toNIMFramePadding(path, posix=False):
 
     return nimpath
 
-def timespan_str_to_secs( timespane:str ) -> int:
+def timespan_str_to_secs( timespan:str ) -> int:
     """Convert tiem span string represnetation into seconds
     A time span stringhas the format: HH:MM:SS
     For instance: 00:4:30 -> 0hrs. 4mins, 30secs
