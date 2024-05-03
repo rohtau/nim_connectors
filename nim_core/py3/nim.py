@@ -855,7 +855,7 @@ class NIM( object ) :
     
     def set_dict( self, elem='job', pub=False ) :
         'Sets the dictionary for a given element'
-        #print "set_dict: %s" % elem
+        print("Set Dict for element type: %s"%elem)
         dic={}
         
         if elem=='job' :
@@ -927,6 +927,7 @@ class NIM( object ) :
             #REMOVED AS REDUNDANT
             #if self.nim['mode'] and self.nim['mode'].lower() in ['load', 'open', 'file'] :
             
+
             # WAS INSIDE IF
             if self.nim['filter']['name'] not in ['Select...', 'None', ''] and self.nim['filter']['name'] !='Asset Master' :
                 
@@ -959,6 +960,10 @@ class NIM( object ) :
 
             elif self.nim['filter']['name']=='Asset Master' :
                 self.nim[elem]['Dict']={}
+
+            print("Task Dict:")
+            pprint(self.nim[elem])
+
 
             # REMOVED AS REDUNDANT
             #else :

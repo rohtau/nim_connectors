@@ -1357,8 +1357,10 @@ class GUI(QtGui.QMainWindow) :
 
         It is usually called from update_elem() after this one has set the ID/name for the selected element.
         '''
-        P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
+        # P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
         userinfo = self.nim.userInfo()
+
+        print("0 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
 
         # Window modes :
         # - Open/Import: FILE
@@ -1369,7 +1371,7 @@ class GUI(QtGui.QMainWindow) :
         #===------
         
         #  Clear and Set Dictionaries :
-        self.nim.clear( elem )
+        # self.nim.clear( elem )
         response = self.nim.set_dict( elem )
         if response == False:
             P.error('Failed to populate elements.')
@@ -1399,6 +1401,7 @@ class GUI(QtGui.QMainWindow) :
             except : pass
             return
             '''
+        print("1 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
         #  Clear tasks, if necessary :
         if elem=='task' :
             if self.nim.name('filter')=='Asset Master' : clear=True
@@ -1412,6 +1415,7 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input( elem ).addItem('None')
                 self.nim.Input( elem ).setEnabled( False )
                 return
+        print("2 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
         
         #  Print Population Start :
         # P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
@@ -1461,6 +1465,7 @@ class GUI(QtGui.QMainWindow) :
                         elemList.append( option['name'] )
                     #  Store Name, ID and Task Folder :
                     if option['name']==self.nimPrefs.name( elem ) :
+                        print("For element init name using prefs: %s"%option['name'])
                         self.nim.set_name( elem=elem, name=option['name'] )
                         self.nim.set_ID( elem=elem, ID=option['ID'] )
                         # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
@@ -1506,6 +1511,53 @@ class GUI(QtGui.QMainWindow) :
             
             #  Populate :
             self.nim.Input( elem ).addItems( elemList )
+
+            # Set combobox if it hasnt been set before (element not included in prefs)
+            # FIXME: we need to select first item in combobox if current name is empty or if
+            # current name doesnt exists in the combobox.
+            # And if combobox has more than 1 item
+            # XXX: so it seemstask is always reset task from prefs from, take a look at line 1460
+            # We need to store previous task selected and save for later
+            items = [self.nim.Input( elem ).itemText(x) for x in range(self.nim.Input( elem ).count())]
+            print(self.nim.name( elem ))
+            print(items)
+            if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
+                # Set second element in combobox items, the first one is always Selct ...
+                print("Item that should be selected:")
+                print(self.nim.Input( elem ).itemText(1))
+                toselect = self.nim.Input( elem ).itemText(1)
+                for item in self.nim.Dict( elem ) :
+                    print("Check with: %s"%item['name'])
+                    if item['name'] == toselect:
+                        self.nim.set_name( elem=elem, name=item['name'] )
+                        self.nim.set_ID( elem=elem, ID=item['ID'] )
+                        print("Item selected with ID: %d"%int(item['ID']))
+                        print("Name set in the UI: %s"%self.nim.name( elem ))
+                        break
+            else:
+                print("For element %s we have selected item %s"%(elem, self.nim.name( elem ) ))
+                # print("Element Dict")
+                # pprint(self.nim.Dict( elem ))
+                if isinstance(self.nim.Dict( elem ), dict):
+                    for item in self.nim.Dict( elem ) :
+                        print(item)
+                        # print(self.nim.Dict( elem )[item])
+                        if isinstance(item, dict):
+                            namekey = 'name'
+                            if elem == 'show':
+                                namekey='showname'
+                            if item[namekey] == self.nim.name( elem ):
+                                elmid = int(item['ID'])
+                                print("Select elemetn with ID: %d"%elmid)
+                                self.nim.set_ID( elem=elem, ID=elmid )
+                        else:
+                            if item == self.nim.name( elem ):
+                                elmid = int(self.nim.Dict( elem )[item])
+                                print("Select elemetn with ID: %d"%elmid)
+                                self.nim.set_ID( elem=elem, ID=elmid )
+                        break
+
+
             
             #  Set Combo Box :
             if self.nim.name( elem ) :
@@ -1613,6 +1665,7 @@ class GUI(QtGui.QMainWindow) :
             
             #  Basenames :
             if elem=='base' :
+                print("Add Basenames ....")
                 initbasefound = False
                 tags = standardTags
                 # print("Basenames for populate:")
@@ -1688,11 +1741,16 @@ class GUI(QtGui.QMainWindow) :
                         self.nim.Input('tag').setText(nameparts['tag'])
                         self.nim.set_name( elem='tag', name=nameparts['tag'] )
 
+
                 self.tagPresets.clear()
                 self.tagPresets.addItems(tags)
             
             #  Versions :
             elif elem=='ver' :
+                # print("Update versions ....")
+                # print("Filter:")
+                # print(self.nim.name('filter'))
+                # pprint(self.nim.Dict( elem ) )
                 for option in self.nim.Dict( elem ) :
                     #  Populate "Load" Publish File :
                     # XXX: This looks more like a legacy thing, the
@@ -1974,6 +2032,7 @@ class GUI(QtGui.QMainWindow) :
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :
+                            print("Add work versions ...")
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
                             # print("User IDs")
@@ -2033,6 +2092,33 @@ class GUI(QtGui.QMainWindow) :
                                 self.verDate.setText( option['date'] )
                                 self.verVer.setText( str(option['version']).zfill(padding) )
                                 self.verNote.setText( option['note'] )
+
+
+
+            # Set list view if it hasnt been set before (element not included in prefs)
+            # TODO: select first item in list if list has items, is current item  name in nim
+            # object is empty or if current element nmae in nim object doesnt exists in the list
+            items = [self.nim.Input( elem ).item(x).text() for x in range(self.nim.Input( elem ).count())]
+            if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
+                # Select first in the list
+                print("Item in list view that should be selected:")
+                idx = self.nim.Input( elem ).model().index(0, 0)
+                self.nim.Input( elem ).setCurrentIndex(idx)
+                current_item = self.nim.Input( elem ).currentIndex()
+                toselect = current_item.data(QtCore.Qt.DisplayRole)
+                print(toselect)
+                # for item in self.nim.Dict( elem ) :
+                    # if item['name'] == toselect:
+                        # self.nim.set_name( elem=elem, name=item['name'] )
+                        # self.nim.set_ID( elem=elem, ID=item['ID'] )
+            else:
+                # print("Element List View Dict")
+                # pprint(self.nim.Dict( elem ))
+                key = 'basename'
+                if elem != 'base':
+                    for item in self.nim.Dict( elem ) :
+                        if item[key] == self.nim.name( elem ):
+                            self.nim.set_ID( elem=elem, ID=item['ID'] )
         
         
         P.debug( '%.3f => %s finished' % ((time.time()-startTime), elem.upper() ) )
