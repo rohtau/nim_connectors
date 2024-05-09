@@ -222,6 +222,9 @@ class GUI(QtGui.QMainWindow) :
         
         self.saveServerPref = False
 
+        # Last selected task
+        self.last_task = ""
+
         #  Instantiate Variables :
         try :
             stored=self.mk_vars()
@@ -284,6 +287,7 @@ class GUI(QtGui.QMainWindow) :
         #self.nim.Print( debug=True )
         
         self.complete=True
+        print("UI initialised, latest task = %s"%self.last_task)
         return
     
     
@@ -1359,6 +1363,7 @@ class GUI(QtGui.QMainWindow) :
         '''
         # P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
         userinfo = self.nim.userInfo()
+        P.info( '  Populate %s...' % self.nim.get_printElem( elem ).upper() )
 
         print("0 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
 
@@ -1380,7 +1385,9 @@ class GUI(QtGui.QMainWindow) :
             return
 
         #  Clear Fields for Empty Dictionaries :
+        pprint(self.nim.Dict( elem ))
         if not self.nim.Dict( elem ) or not len(self.nim.Dict( elem )) :
+            print("Clear UI")
             if elem in self.nim.comboBoxes :
                 self.nim.Input( elem ).clear()
                 self.nim.Input( elem ).addItem( 'None' )
@@ -1401,6 +1408,10 @@ class GUI(QtGui.QMainWindow) :
             except : pass
             return
             '''
+        # Reset element in NIM before populate
+        self.nim.set_name( elem=elem, name='' )
+        self.nim.set_ID( elem=elem, ID=None )
+
         print("1 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
         #  Clear tasks, if necessary :
         if elem=='task' :
@@ -1464,15 +1475,27 @@ class GUI(QtGui.QMainWindow) :
                     else:
                         elemList.append( option['name'] )
                     #  Store Name, ID and Task Folder :
-                    if option['name']==self.nimPrefs.name( elem ) :
-                        print("For element init name using prefs: %s"%option['name'])
-                        self.nim.set_name( elem=elem, name=option['name'] )
-                        self.nim.set_ID( elem=elem, ID=option['ID'] )
-                        # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
-                        # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
-                        self.update_img()
-                        if elem=='task' :
-                            self.nim.set_taskFolder( folder=option['folder'] )
+                    # if option['name']==self.nimPrefs.name( elem ) :
+                    if elem == 'task':
+                        print("Last task: %s"%self.last_task)
+                        if self.last_task and option['name'] == self.last_task or\
+                                not self.last_task and option['name'] ==self.nimPrefs.name( elem ):  
+                            if self.last_task:
+                                print("For element init name using latest task: %s"%option['name'])
+                            else:
+                                print("For element init name using prefs: %s"%option['name'])
+                            self.nim.set_name( elem=elem, name=option['name'] )
+                            self.nim.set_ID( elem=elem, ID=option['ID'] )
+                            # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
+                            # P.info( '  %s ID = "%s"' % (elem.upper(), self.nim.ID()) )
+                            self.update_img()
+                            if elem=='task' :
+                                self.nim.set_taskFolder( folder=option['folder'] )
+                    else:
+                        if option['name']==self.nimPrefs.name( elem ) :
+                            self.nim.set_name( elem=elem, name=option['name'] )
+                            self.nim.set_ID( elem=elem, ID=option['ID'] )
+                            self.update_img()
                 #  Shows :
                 elif elem in ['show'] :
                     elemList.append( option['showname'] )
@@ -1531,16 +1554,17 @@ class GUI(QtGui.QMainWindow) :
                     if item['name'] == toselect:
                         self.nim.set_name( elem=elem, name=item['name'] )
                         self.nim.set_ID( elem=elem, ID=item['ID'] )
-                        print("Item selected with ID: %d"%int(item['ID']))
-                        print("Name set in the UI: %s"%self.nim.name( elem ))
+                        if elem == 'task':
+                            self.last_task = toselect
+                            print("Item selected with ID: %d"%int(item['ID']))
+                            print("Name set in the UI: %s"%self.nim.name( elem ))
+                        print(self.nim.Input( elem ))
+                        # self.nim.Input( elem ).setItemText(toselect)
+                        self.nim.Input( elem ).setCurrentIndex(1)
                         break
             else:
-                print("For element %s we have selected item %s"%(elem, self.nim.name( elem ) ))
-                # print("Element Dict")
-                # pprint(self.nim.Dict( elem ))
                 if isinstance(self.nim.Dict( elem ), dict):
                     for item in self.nim.Dict( elem ) :
-                        print(item)
                         # print(self.nim.Dict( elem )[item])
                         if isinstance(item, dict):
                             namekey = 'name'
@@ -1555,6 +1579,8 @@ class GUI(QtGui.QMainWindow) :
                                 elmid = int(self.nim.Dict( elem )[item])
                                 print("Select elemetn with ID: %d"%elmid)
                                 self.nim.set_ID( elem=elem, ID=elmid )
+                        if elem == 'task':
+                            self.last_task = toselect
                         break
 
 
@@ -1665,7 +1691,6 @@ class GUI(QtGui.QMainWindow) :
             
             #  Basenames :
             if elem=='base' :
-                print("Add Basenames ....")
                 initbasefound = False
                 tags = standardTags
                 # print("Basenames for populate:")
@@ -1731,7 +1756,8 @@ class GUI(QtGui.QMainWindow) :
                             tags.append(nameparts['tag'])
                     # Init selection
                     if not initbasefound and  item.flags() & QtCore.Qt.ItemIsSelectable:
-                        self.nim.Input( elem ).setCurrentItem( item )
+                        # self.nim.Input( elem ).setCurrentItem( item )
+                        self.nim.Input( elem ).setCurrentItem( self.nim.Input( elem ).itemAt(0,0) )
                     # Select item, if it matches the preferences :
                     if option['basename']==self.nimPrefs.name( elem ) :
                         self.nim.Input( elem ).setCurrentItem( item )
@@ -2032,7 +2058,6 @@ class GUI(QtGui.QMainWindow) :
                                     self.verNote.setText( option['note'] )
                         #  Add Work versions :
                         elif self.nim.name('filter')=='Work' :
-                            print("Add work versions ...")
                             item=QtGui.QListWidgetItem( self.nim.Input( elem ) )
                             item.setText( option['filename']+' - '+option['note'] )
                             # print("User IDs")
@@ -2095,22 +2120,24 @@ class GUI(QtGui.QMainWindow) :
 
 
 
-            # Set list view if it hasnt been set before (element not included in prefs)
-            # TODO: select first item in list if list has items, is current item  name in nim
+            # Set list view if it hasn't been set before (element not included in prefs)
+            # Select first item in list if list has items, is current item  name in nim
             # object is empty or if current element nmae in nim object doesnt exists in the list
             items = [self.nim.Input( elem ).item(x).text() for x in range(self.nim.Input( elem ).count())]
             if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
                 # Select first in the list
-                print("Item in list view that should be selected:")
                 idx = self.nim.Input( elem ).model().index(0, 0)
                 self.nim.Input( elem ).setCurrentIndex(idx)
-                current_item = self.nim.Input( elem ).currentIndex()
-                toselect = current_item.data(QtCore.Qt.DisplayRole)
-                print(toselect)
-                # for item in self.nim.Dict( elem ) :
-                    # if item['name'] == toselect:
-                        # self.nim.set_name( elem=elem, name=item['name'] )
-                        # self.nim.set_ID( elem=elem, ID=item['ID'] )
+                # current_item = self.nim.Input( elem ).currentIndex()
+                current_item = self.nim.Input( elem ).currentItem()
+                if current_item:
+                    toselect = current_item.text()
+                    for item in self.nim.Dict( elem ) :
+                        if elem == 'base' and  item['basename'] == toselect:
+                            self.nim.set_name( elem=elem, name=item['basename'] )
+                        if elem == 'ver' and item['filename'] == toselect:
+                            self.nim.set_name( elem=elem, name=item['filename'] )
+                            self.nim.set_ID( elem=elem, ID=item['ID'] )
             else:
                 # print("Element List View Dict")
                 # pprint(self.nim.Dict( elem ))
@@ -2199,7 +2226,7 @@ class GUI(QtGui.QMainWindow) :
         
         #  Combo Boxes :
         #===-------------------
-        # P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
+        P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
 
 
         
