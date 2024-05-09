@@ -287,7 +287,6 @@ class GUI(QtGui.QMainWindow) :
         #self.nim.Print( debug=True )
         
         self.complete=True
-        print("UI initialised, latest task = %s"%self.last_task)
         return
     
     
@@ -1363,9 +1362,7 @@ class GUI(QtGui.QMainWindow) :
         '''
         # P.debug( '%.3f => %s started' % ((time.time()-startTime), elem.upper() ) )
         userinfo = self.nim.userInfo()
-        P.info( '  Populate %s...' % self.nim.get_printElem( elem ).upper() )
-
-        print("0 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
+        # P.info( '  Populate %s...' % self.nim.get_printElem( elem ).upper() )
 
         # Window modes :
         # - Open/Import: FILE
@@ -1385,9 +1382,7 @@ class GUI(QtGui.QMainWindow) :
             return
 
         #  Clear Fields for Empty Dictionaries :
-        pprint(self.nim.Dict( elem ))
         if not self.nim.Dict( elem ) or not len(self.nim.Dict( elem )) :
-            print("Clear UI")
             if elem in self.nim.comboBoxes :
                 self.nim.Input( elem ).clear()
                 self.nim.Input( elem ).addItem( 'None' )
@@ -1412,7 +1407,6 @@ class GUI(QtGui.QMainWindow) :
         self.nim.set_name( elem=elem, name='' )
         self.nim.set_ID( elem=elem, ID=None )
 
-        print("1 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
         #  Clear tasks, if necessary :
         if elem=='task' :
             if self.nim.name('filter')=='Asset Master' : clear=True
@@ -1426,7 +1420,6 @@ class GUI(QtGui.QMainWindow) :
                 self.nim.Input( elem ).addItem('None')
                 self.nim.Input( elem ).setEnabled( False )
                 return
-        print("2 - UI Input name (%s): %s"%(elem, self.nim.name( elem )))
         
         #  Print Population Start :
         # P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
@@ -1477,13 +1470,12 @@ class GUI(QtGui.QMainWindow) :
                     #  Store Name, ID and Task Folder :
                     # if option['name']==self.nimPrefs.name( elem ) :
                     if elem == 'task':
-                        print("Last task: %s"%self.last_task)
                         if self.last_task and option['name'] == self.last_task or\
                                 not self.last_task and option['name'] ==self.nimPrefs.name( elem ):  
                             if self.last_task:
-                                print("For element init name using latest task: %s"%option['name'])
+                                print("Use latest task: %s"%option['name'])
                             else:
-                                print("For element init name using prefs: %s"%option['name'])
+                                print("Use task from Prefs: %s"%option['name'])
                             self.nim.set_name( elem=elem, name=option['name'] )
                             self.nim.set_ID( elem=elem, ID=option['ID'] )
                             # P.info( '  %s Name = "%s"' % (elem.upper(), self.nim.name(elem)) )
@@ -1536,29 +1528,17 @@ class GUI(QtGui.QMainWindow) :
             self.nim.Input( elem ).addItems( elemList )
 
             # Set combobox if it hasnt been set before (element not included in prefs)
-            # FIXME: we need to select first item in combobox if current name is empty or if
-            # current name doesnt exists in the combobox.
-            # And if combobox has more than 1 item
-            # XXX: so it seemstask is always reset task from prefs from, take a look at line 1460
             # We need to store previous task selected and save for later
             items = [self.nim.Input( elem ).itemText(x) for x in range(self.nim.Input( elem ).count())]
-            print(self.nim.name( elem ))
-            print(items)
             if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
                 # Set second element in combobox items, the first one is always Selct ...
-                print("Item that should be selected:")
-                print(self.nim.Input( elem ).itemText(1))
                 toselect = self.nim.Input( elem ).itemText(1)
                 for item in self.nim.Dict( elem ) :
-                    print("Check with: %s"%item['name'])
                     if item['name'] == toselect:
                         self.nim.set_name( elem=elem, name=item['name'] )
                         self.nim.set_ID( elem=elem, ID=item['ID'] )
                         if elem == 'task':
                             self.last_task = toselect
-                            print("Item selected with ID: %d"%int(item['ID']))
-                            print("Name set in the UI: %s"%self.nim.name( elem ))
-                        print(self.nim.Input( elem ))
                         # self.nim.Input( elem ).setItemText(toselect)
                         self.nim.Input( elem ).setCurrentIndex(1)
                         break
@@ -1572,12 +1552,10 @@ class GUI(QtGui.QMainWindow) :
                                 namekey='showname'
                             if item[namekey] == self.nim.name( elem ):
                                 elmid = int(item['ID'])
-                                print("Select elemetn with ID: %d"%elmid)
                                 self.nim.set_ID( elem=elem, ID=elmid )
                         else:
                             if item == self.nim.name( elem ):
                                 elmid = int(self.nim.Dict( elem )[item])
-                                print("Select elemetn with ID: %d"%elmid)
                                 self.nim.set_ID( elem=elem, ID=elmid )
                         if elem == 'task':
                             self.last_task = toselect
@@ -1774,9 +1752,6 @@ class GUI(QtGui.QMainWindow) :
             #  Versions :
             elif elem=='ver' :
                 # print("Update versions ....")
-                # print("Filter:")
-                # print(self.nim.name('filter'))
-                # pprint(self.nim.Dict( elem ) )
                 for option in self.nim.Dict( elem ) :
                     #  Populate "Load" Publish File :
                     # XXX: This looks more like a legacy thing, the
@@ -2226,7 +2201,7 @@ class GUI(QtGui.QMainWindow) :
         
         #  Combo Boxes :
         #===-------------------
-        P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
+        # P.info( '  Updating %s...' % self.nim.get_printElem( elem ).upper() )
 
 
         
