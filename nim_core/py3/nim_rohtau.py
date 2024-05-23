@@ -2495,8 +2495,8 @@ def pubCache(fileID: Union[str,int] ='', filename: str ='', job: Union[str,int] 
             metadata['avg_ram_usage'] = stats['avg_ram_usage']
         if 'peak_ram_usage' in stats:
             metadata['peak_ram_usage'] = stats['peak_ram_usage']
-    print("Cache Metadata")
-    pprint(metadata)
+    # print("Cache Metadata")
+    # pprint(metadata)
     metadata = json.dumps(metadata, sort_keys=True)
     updatefile_res = nimAPI.update_file(fileID, metadata=metadata)
     if updatefile_res['success'] != 'true':
