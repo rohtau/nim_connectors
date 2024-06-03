@@ -1529,37 +1529,56 @@ class GUI(QtGui.QMainWindow) :
 
             # Set combobox if it hasnt been set before (element not included in prefs)
             # We need to store previous task selected and save for later
-            items = [self.nim.Input( elem ).itemText(x) for x in range(self.nim.Input( elem ).count())]
-            if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
-                # Set second element in combobox items, the first one is always Selct ...
+            # for some elements we don't run this fallback, for instance for filter (Publiswhed, Work)
+            elements_not_to_fallback = ('filter',)
+            if elem not in elements_not_to_fallback:
+                items = [self.nim.Input( elem ).itemText(x) for x in range(self.nim.Input( elem ).count())]
                 toselect = self.nim.Input( elem ).itemText(1)
-                for item in self.nim.Dict( elem ) :
-                    if item['name'] == toselect:
-                        self.nim.set_name( elem=elem, name=item['name'] )
-                        self.nim.set_ID( elem=elem, ID=item['ID'] )
-                        if elem == 'task':
-                            self.last_task = toselect
-                        # self.nim.Input( elem ).setItemText(toselect)
-                        self.nim.Input( elem ).setCurrentIndex(1)
-                        break
-            else:
-                if isinstance(self.nim.Dict( elem ), dict):
+                if not self.nim.name( elem ) or self.nim.name( elem ) not in items:
+                    # Set second element in combobox items, the first one is always Selct ...
                     for item in self.nim.Dict( elem ) :
-                        # print(self.nim.Dict( elem )[item])
                         if isinstance(item, dict):
                             namekey = 'name'
                             if elem == 'show':
                                 namekey='showname'
-                            if item[namekey] == self.nim.name( elem ):
-                                elmid = int(item['ID'])
-                                self.nim.set_ID( elem=elem, ID=elmid )
+                            if item[namekey] == toselect:
+                                self.nim.set_name( elem=elem, name=item[namekey] )
+                                self.nim.set_ID( elem=elem, ID=item['ID'] )
+                                if elem == 'task':
+                                    self.last_task = toselect
+                                # self.nim.Input( elem ).setItemText(toselect)
+                                self.nim.Input( elem ).setCurrentIndex(1)
+                                break
                         else:
-                            if item == self.nim.name( elem ):
-                                elmid = int(self.nim.Dict( elem )[item])
-                                self.nim.set_ID( elem=elem, ID=elmid )
+                            # If item is a string then we are dealing with a dictionary directly. item is the key :)
+                            if item == toselect:
+                                self.nim.set_name( elem=elem, name=item )
+                                self.nim.set_ID( elem=elem, ID=self.nim.Dict( elem )[item] )
+                                if elem == 'task':
+                                    self.last_task = toselect
+                                # self.nim.Input( elem ).setItemText(toselect)
+                                self.nim.Input( elem ).setCurrentIndex(1)
+                                break
+
+                else:
+                    if isinstance(self.nim.Dict( elem ), dict):
                         if elem == 'task':
                             self.last_task = toselect
-                        break
+                        for item in self.nim.Dict( elem ) :
+                            # print(self.nim.Dict( elem )[item])
+                            if isinstance(item, dict):
+                                namekey = 'name'
+                                if elem == 'show':
+                                    namekey='showname'
+                                if item[namekey] == self.nim.name( elem ):
+                                    elmid = int(item['ID'])
+                                    self.nim.set_ID( elem=elem, ID=elmid )
+                                    break
+                            else:
+                                if item == self.nim.name( elem ):
+                                    elmid = int(self.nim.Dict( elem )[item])
+                                    self.nim.set_ID( elem=elem, ID=elmid )
+                                    break
 
 
             
