@@ -33,6 +33,7 @@ import nim_core.nim_api as nimAPI
 import nim_core.nim_prefs as nimPrefs
 import nim_core.nim_file as nimFile
 import nim_core.nim as nim
+import nim_core.nim_rohtau_utils as nimUtl
 
 from . import nimHieroConnector
 #END NIM
@@ -127,7 +128,8 @@ class NimProcessorUIBase(IProcessorUI):
 
     #Get NIM Jobs
     self.nim_jobID = None
-    self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    self.nim_jobs = nimUtl.getjobs(self.nim_userID)
     if not self.nim_jobs :
       print("No Jobs Found")
       self.nim_jobs["None"]="0"
@@ -425,7 +427,8 @@ class NimProcessorUIBase(IProcessorUI):
     # JOBS: Add dictionary in ordered list
 
     #Get NIM Jobs
-    self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    # self.nim_jobs = nimAPI.get_jobs(self.nim_userID)
+    self.nim_jobs = nimUtl.getjobs(self.nim_userID)
     if not self.nim_jobs :
       print("No Jobs Found")
       self.nim_jobs["None"]="0"
@@ -483,13 +486,13 @@ class NimProcessorUIBase(IProcessorUI):
         if nimHieroConnector.g_nim_serverID == value:
           self.pref_server = key
           serverIndex = serverIter
-          #print "Found matching serverID, server=", key
-          #print "serverIndex=",serverIndex
+          #print ( "Found matching serverID, server=", key )
+          #print ( "serverIndex=",serverIndex )
 
         serverIter +=1
 
       if self.pref_server != '':
-        #print "self.pref_server=",self.pref_server
+        #print ( "self.pref_server=",self.pref_server )
         self.nim_serverChooser.setCurrentIndex(serverIndex)
 
     self.nim_serverChooser.currentIndexChanged.connect(self.nim_serverChanged)
@@ -528,7 +531,7 @@ class NimProcessorUIBase(IProcessorUI):
       for key, value in sorted(list(self.nim_showDict.items()), reverse=False):
         self.nim_showChooser.addItem(key)
         if nimHieroConnector.g_nim_showID == value:
-          #print "Found matching showID, show=", key
+          #print ( "Found matching showID, show=", key )
           self.pref_show == key
           showIndex = showIter
         showIter += 1
@@ -589,8 +592,10 @@ class NimProcessorUIBase(IProcessorUI):
       
       for key, value in sorted(list(self.nim_elementTypesDict.items()), reverse=False):
         self.nim_elementTypeChooser.addItem(key)
-        if nimHieroConnector.g_nim_elementTypeID == value:
-          #print "Found matching elementTypeID, elementType=", key
+        # Set default elemetn based on name not on ID
+        #if nimHieroConnector.g_nim_elementTypeID == value:
+        if nimHieroConnector.g_nim_element == key:
+          #print ( "Found matching elementTypeID, elementType=", key )
           self.pref_elementType = key
           elemIndex = elemIter
         elemIter += 1
@@ -643,7 +648,10 @@ class NimProcessorUIBase(IProcessorUI):
         self.nim_taskFolderDict[task['ID']] = task['folder']
       for key, value in sorted(list(self.nim_taskTypesDict.items()), reverse=False):
         self.nim_taskTypeChooser.addItem(key)
-        if nimHieroConnector.g_nim_expTaskTypeID == value:
+        # Set default export task for Nuke scripts based on task name
+        #if nimHieroConnector.g_nim_expTaskTypeID == value:
+        print("Look for element %s in %s"%(nimHieroConnector.g_nim_expTask, key))
+        if nimHieroConnector.g_nim_expTask == key:
           self.pref_taskType = key
           taskIndex = taskIter
         taskIter += 1
@@ -965,7 +973,7 @@ class NimProcessorUIBase(IProcessorUI):
 
   def nim_jobChanged(self):
     '''Action when job is selected'''
-    #print "JOB CHANGED"
+    #print ( "JOB CHANGED" )
     job = self.nim_jobChooser.currentText()
     self.nim_jobID = self.nim_jobs[job]
     self.nim_jobPaths = nimAPI.get_paths('job', self.nim_jobID)
@@ -995,7 +1003,7 @@ class NimProcessorUIBase(IProcessorUI):
   def nim_updateServer(self):
     self.nim_servers = {}
     self.nim_servers = nimAPI.get_jobServers(self.nim_jobID)
-    #print self.nim_servers
+    #print ( self.nim_servers )
 
     self.nim_serverDict = {}
     try:
@@ -1012,14 +1020,14 @@ class NimProcessorUIBase(IProcessorUI):
 
   def nim_serverChanged(self):
     '''Action when job is selected'''
-    #print "SERVER CHANGED"
+    #print ( "SERVER CHANGED" )
     serverName = self.nim_serverChooser.currentText()
     if serverName:
       print("NIM: server=%s" % serverName)
       
       serverID = self.nim_serverDict[serverName]
       nimHieroConnector.g_nim_serverID = serverID
-      #print "Setting serverID=",serverID
+      #print ( "Setting serverID=",serverID )
 
       serverInfo = nimAPI.get_serverOSPath(serverID, self.nim_OS)
       if serverInfo:
@@ -1037,7 +1045,7 @@ class NimProcessorUIBase(IProcessorUI):
   def nim_updateShow(self):
     self.nim_shows = {}
     self.nim_shows = nimAPI.get_shows(self.nim_jobID)
-    #print self.nim_shows
+    #print ( self.nim_shows )
 
     self.nim_showDict = {}
     try:
@@ -1054,7 +1062,7 @@ class NimProcessorUIBase(IProcessorUI):
 
   def nim_showChanged(self):
     '''Action when job is selected'''
-    #print "SHOW CHANGED"
+    #print ( "SHOW CHANGED" )
     showname = self.nim_showChooser.currentText()
     if showname:
       print("NIM: show=%s" % showname)
@@ -1078,7 +1086,7 @@ class NimProcessorUIBase(IProcessorUI):
       self.nim_showPaths = nimAPI.get_paths('show', showID)
       if self.nim_showPaths:
         if len(self.nim_showPaths)>0:
-          #print "NIM: showPaths=", self.nim_showPaths
+          #print ( "NIM: showPaths=", self.nim_showPaths )
           self.nim_showFolder = self.nim_showPaths['root']
           #global g_nim_showFolder
           nimHieroConnector.g_nim_showFolder = self.nim_showFolder

@@ -9,6 +9,7 @@
 # *****************************************************************************
 
 import itertools
+from pprint import pprint,pformat
 import hiero.core
 import hiero.ui
 

@@ -470,8 +470,8 @@ class NimShotProcessor(hiero.core.ProcessorBase):
           nim_tag = nimConnect.getNimTag(trackitem)
 
           if nim_tag != False:
-            #print "NIM: Tag Found"
-            #print         nim_tag
+            #print ( "NIM: Tag Found" )
+            #print (         nim_tag )
 
             #update existing shot in NIM
             nim_shotID = nim_tag.metadata().value("tag.shotID")
