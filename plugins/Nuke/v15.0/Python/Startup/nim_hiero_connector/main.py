@@ -15,29 +15,32 @@
 print ("Loading: NIM Connector")
 
 try :
-	from hiero.core import *
-	import hiero.ui
+    from hiero.core import *
+    import hiero.ui
 
-	from PySide2.QtWidgets import *
-	from PySide2.QtGui import *
-	from PySide2.QtCore import *
+    from PySide2.QtWidgets import *
+    from PySide2.QtGui import *
+    from PySide2.QtCore import *
 
-	import nuke
+    import nuke
 
-	import sys,traceback
+    import sys,traceback
 
-	import nim_core.nim_prefs as nimPrefs
-	import nim_core.UI as nimUI
-	import nim_core.nim_api as nimAPI
-	import nim_core.nim_file as nimFile
-	import nim_core.nim_print as P
-	import nim_hiero_connector.core.nim_nukeStudioUI as nimNS_UI
-	import importlib
+    # XXX: this causes a ciscular dependency (import nimPrefs )
+    # import nim_core.nim_prefs as nimPrefs
+    import nim_core.UI as nimUI
+    import nim_core.nim_api as nimAPI
+    import nim_core.nim_file as nimFile
+    import nim_core.nim_print as P
+    import nim_hiero_connector.core.nim_nukeStudioUI as nimNS_UI
+    import importlib
 
 except ImportError as error:
-	print("Failed to load libraries for NIM", error)
-except:
-	print("Failed to load libraries for NIM", sys.exc_info()[0])
+    print(error)
+    print("Failed to load libraries for NIM", error)
+except Exception as error:
+    print(error)
+    print("Failed to load libraries for NIM", sys.exc_info()[0])
 
 # Grab Hiero's MenuBar 
 M = hiero.ui.menuBar() 
@@ -46,11 +49,11 @@ nimMainMenu = M.addMenu('NIM')
 
 # NIM Project Menu --------------------------------------------------------------------
 if nuke.env[ 'studio' ]:
-	print("Adding NIM menus for Nuke Studio")
-	nimProjectMenu = nimMainMenu.addMenu('Project')
+    print("Adding NIM menus for Nuke Studio")
+    nimProjectMenu = nimMainMenu.addMenu('Project')
 else:
-	print("Adding NIM menus for Nuke")
-	nimProjectMenu = nimMainMenu
+    print("Adding NIM menus for Nuke")
+    nimProjectMenu = nimMainMenu
 
 # Create a new QAction
 nimProjectOpenAction = QAction('Open',nimProjectMenu)
@@ -60,7 +63,7 @@ nimProjectSaveAsAction = QAction('Save As',nimProjectMenu)
 nimProjectVersionUpAction = QAction('Version Up',nimProjectMenu) 
 #nimProjectPublishAction = QAction('Publish',nimProjectMenu) 
 
- 
+
 
 def nimProjectOpen(): nimNS_UI.openDialog()
 #ef nimProjectImport(): nimUI.mk("LOAD", _import=True)
@@ -97,136 +100,136 @@ nimProjectMenu.insertAction(None, nimProjectVersionUpAction)
 
 # NIM Comp Menu -----------------------------------------------------------------------
 if nuke.env[ 'studio' ]:
-	nimCompMenu = nimMainMenu.addMenu('Comp')
+    nimCompMenu = nimMainMenu.addMenu('Comp')
 
-	# Create a new QAction
-	nimCompOpenAction = QAction('Open',nimCompMenu)
-	nimCompImportAction = QAction('Import',nimCompMenu) 
-	nimCompSaveAsAction = QAction('Save As',nimCompMenu) 
-	nimCompExportSelectedAction = QAction('Export Selected',nimCompMenu) 
-	nimCompVersionUpAction = QAction('Version Up',nimCompMenu) 
-	nimCompPublishAction = QAction('Publish',nimCompMenu)
+    # Create a new QAction
+    nimCompOpenAction = QAction('Open',nimCompMenu)
+    nimCompImportAction = QAction('Import',nimCompMenu) 
+    nimCompSaveAsAction = QAction('Save As',nimCompMenu) 
+    nimCompExportSelectedAction = QAction('Export Selected',nimCompMenu) 
+    nimCompVersionUpAction = QAction('Version Up',nimCompMenu) 
+    nimCompPublishAction = QAction('Publish',nimCompMenu)
 
-	def nimCompOpen(): nimUI.mk("FILE")
-	def nimCompImport(): nimUI.mk("LOAD", _import=True)
-	def nimCompSaveAs(): nimUI.mk("SAVE")
-	def nimCompExportSelected(): nimUI.mk("SAVE", _export=True)
-	def nimCompVersionUp(): nimAPI.versionUp()
-	def nimCompPublish(): nimUI.mk("PUB")
+    def nimCompOpen(): nimUI.mk("FILE")
+    def nimCompImport(): nimUI.mk("LOAD", _import=True)
+    def nimCompSaveAs(): nimUI.mk("SAVE")
+    def nimCompExportSelected(): nimUI.mk("SAVE", _export=True)
+    def nimCompVersionUp(): nimAPI.versionUp()
+    def nimCompPublish(): nimUI.mk("PUB")
 
-	# Set the QAction to trigger the launchNuke method 
-	nimCompOpenAction.triggered.connect(nimCompOpen)
-	nimCompImportAction.triggered.connect(nimCompImport) 
-	nimCompSaveAsAction.triggered.connect(nimCompSaveAs) 
-	nimCompExportSelectedAction.triggered.connect(nimCompExportSelected)
-	nimCompVersionUpAction.triggered.connect(nimCompVersionUp) 
-	nimCompPublishAction.triggered.connect(nimCompPublish) 
+    # Set the QAction to trigger the launchNuke method 
+    nimCompOpenAction.triggered.connect(nimCompOpen)
+    nimCompImportAction.triggered.connect(nimCompImport) 
+    nimCompSaveAsAction.triggered.connect(nimCompSaveAs) 
+    nimCompExportSelectedAction.triggered.connect(nimCompExportSelected)
+    nimCompVersionUpAction.triggered.connect(nimCompVersionUp) 
+    nimCompPublishAction.triggered.connect(nimCompPublish) 
 
-	# Add the Action to your Nuke Menu
-	nimCompMenu.insertAction(None, nimCompOpenAction)
-	nimCompMenu.insertAction(None, nimCompImportAction)
-	nimCompMenu.insertAction(None, nimCompSaveAsAction)
-	nimCompMenu.insertAction(None, nimCompExportSelectedAction)
-	nimCompMenu.insertAction(None, nimCompVersionUpAction)
-	nimCompMenu.insertAction(None, nimCompPublishAction)
+    # Add the Action to your Nuke Menu
+    nimCompMenu.insertAction(None, nimCompOpenAction)
+    nimCompMenu.insertAction(None, nimCompImportAction)
+    nimCompMenu.insertAction(None, nimCompSaveAsAction)
+    nimCompMenu.insertAction(None, nimCompExportSelectedAction)
+    nimCompMenu.insertAction(None, nimCompVersionUpAction)
+    nimCompMenu.insertAction(None, nimCompPublishAction)
 
-	nimCompMenu.addSeparator()
+    nimCompMenu.addSeparator()
 
-	nimCompWriteMenu = nimCompMenu.addMenu('NIM Write')
-	nimCreateWriteJPGAction = QAction('JPG', nimCompWriteMenu)
-	nimCreateWritePNGAction = QAction('PNG', nimCompWriteMenu)
-	nimCreateWriteEXRAction = QAction('EXR', nimCompWriteMenu)
-	nimCreateWriteDPXAction = QAction('DPX', nimCompWriteMenu)
-	nimCreateWriteTIFAction = QAction('TIF', nimCompWriteMenu)
-	nimCreateWriteMOVAction = QAction('MOV', nimCompWriteMenu)
+    nimCompWriteMenu = nimCompMenu.addMenu('NIM Write')
+    nimCreateWriteJPGAction = QAction('JPG', nimCompWriteMenu)
+    nimCreateWritePNGAction = QAction('PNG', nimCompWriteMenu)
+    nimCreateWriteEXRAction = QAction('EXR', nimCompWriteMenu)
+    nimCreateWriteDPXAction = QAction('DPX', nimCompWriteMenu)
+    nimCreateWriteTIFAction = QAction('TIF', nimCompWriteMenu)
+    nimCreateWriteMOVAction = QAction('MOV', nimCompWriteMenu)
 
-	#nimCompChangeUserAction = QAction('Change user',nimCompMenu) 
-	#nimCompReloadScriptsAction = QAction('Reload Scripts',nimCompMenu) 
+    #nimCompChangeUserAction = QAction('Change user',nimCompMenu) 
+    #nimCompReloadScriptsAction = QAction('Reload Scripts',nimCompMenu) 
 
-	def nimCreateWriteJPG(): nuke.createNode( 'WriteNIM_JPG' )
-	def nimCreateWritePNG(): nuke.createNode( 'WriteNIM_PNG' )
-	def nimCreateWriteEXR(): nuke.createNode( 'WriteNIM_EXR' )
-	def nimCreateWriteDPX(): nuke.createNode( 'WriteNIM_DPX' )
-	def nimCreateWriteTIF(): nuke.createNode( 'WriteNIM_TIF' )
-	def nimCreateWriteMOV(): nuke.createNode( 'WriteNIM_MOV' )
+    def nimCreateWriteJPG(): nuke.createNode( 'WriteNIM_JPG' )
+    def nimCreateWritePNG(): nuke.createNode( 'WriteNIM_PNG' )
+    def nimCreateWriteEXR(): nuke.createNode( 'WriteNIM_EXR' )
+    def nimCreateWriteDPX(): nuke.createNode( 'WriteNIM_DPX' )
+    def nimCreateWriteTIF(): nuke.createNode( 'WriteNIM_TIF' )
+    def nimCreateWriteMOV(): nuke.createNode( 'WriteNIM_MOV' )
 
-	#def nimCompChangeUser(): nimUI.GUI().update_user()
-	#def nimReloadCompScripts(): nimFile.scripts_reload()
+    #def nimCompChangeUser(): nimUI.GUI().update_user()
+    #def nimReloadCompScripts(): nimFile.scripts_reload()
 
-	# Set the QAction to trigger the launchNuke method 
-	nimCreateWriteJPGAction.triggered.connect(nimCreateWriteJPG) 
-	nimCreateWritePNGAction.triggered.connect(nimCreateWritePNG) 
-	nimCreateWriteEXRAction.triggered.connect(nimCreateWriteEXR) 
-	nimCreateWriteDPXAction.triggered.connect(nimCreateWriteDPX) 
-	nimCreateWriteTIFAction.triggered.connect(nimCreateWriteTIF) 
-	nimCreateWriteMOVAction.triggered.connect(nimCreateWriteMOV) 
+    # Set the QAction to trigger the launchNuke method 
+    nimCreateWriteJPGAction.triggered.connect(nimCreateWriteJPG) 
+    nimCreateWritePNGAction.triggered.connect(nimCreateWritePNG) 
+    nimCreateWriteEXRAction.triggered.connect(nimCreateWriteEXR) 
+    nimCreateWriteDPXAction.triggered.connect(nimCreateWriteDPX) 
+    nimCreateWriteTIFAction.triggered.connect(nimCreateWriteTIF) 
+    nimCreateWriteMOVAction.triggered.connect(nimCreateWriteMOV) 
 
-	#nimCompChangeUserAction.triggered.connect(nimCompChangeUser)
-	#nimCompReloadScriptsAction.triggered.connect(nimReloadCompScripts) 
+    #nimCompChangeUserAction.triggered.connect(nimCompChangeUser)
+    #nimCompReloadScriptsAction.triggered.connect(nimReloadCompScripts) 
 
-	# Add the Action to your Nuke Menu
-	nimCompWriteMenu.insertAction(None, nimCreateWriteJPGAction)
-	nimCompWriteMenu.insertAction(None, nimCreateWritePNGAction)
-	nimCompWriteMenu.insertAction(None, nimCreateWriteEXRAction)
-	nimCompWriteMenu.insertAction(None, nimCreateWriteDPXAction)
-	nimCompWriteMenu.insertAction(None, nimCreateWriteTIFAction)
-	nimCompWriteMenu.insertAction(None, nimCreateWriteMOVAction)
+    # Add the Action to your Nuke Menu
+    nimCompWriteMenu.insertAction(None, nimCreateWriteJPGAction)
+    nimCompWriteMenu.insertAction(None, nimCreateWritePNGAction)
+    nimCompWriteMenu.insertAction(None, nimCreateWriteEXRAction)
+    nimCompWriteMenu.insertAction(None, nimCreateWriteDPXAction)
+    nimCompWriteMenu.insertAction(None, nimCreateWriteTIFAction)
+    nimCompWriteMenu.insertAction(None, nimCreateWriteMOVAction)
 
-	#nimCompMenu.addSeparator()
+    #nimCompMenu.addSeparator()
 
-	#nimCompMenu.insertAction(None, nimCompChangeUserAction)
-	#nimCompMenu.insertAction(None, nimCompReloadScriptsAction)
+    #nimCompMenu.insertAction(None, nimCompChangeUserAction)
+    #nimCompMenu.insertAction(None, nimCompReloadScriptsAction)
 
 # END NIM Comp Menu --------------------------------------------------------------------
 
 
 # NIM Settings Menu --------------------------------------------------------------------
 if nuke.env[ 'studio' ]:
-	nimSettingsMenu = nimMainMenu.addMenu('NIM Settings')
+    nimSettingsMenu = nimMainMenu.addMenu('NIM Settings')
 else:
-	nimSettingsMenu = nimMainMenu
-	nimMainMenu.addSeparator()
+    nimSettingsMenu = nimMainMenu
+    nimMainMenu.addSeparator()
 
 nimProjectChangeUserAction = QAction('Change User',nimSettingsMenu)
 nimProjectReloadScriptsAction = QAction('Reload Scripts',nimSettingsMenu)
 
 
 def nimProjectChangeUser():
-	try:
-		nimUI.GUI().update_user()
-	except Exception as e :
-		print('Sorry, there was a problem choosing NIM user...')
-		print('    %s' % traceback.print_exc())
-	return
+    try:
+        nimUI.GUI().update_user()
+    except Exception as e :
+        print('Sorry, there was a problem choosing NIM user...')
+        print('    %s' % traceback.print_exc())
+    return
 
 def nimProjectReloadScripts():
-	try:
-		P.info('Reloading Scripts')
-		import nim_core.nim_prefs as nimPrefs
-		import nim_core.UI as nimUI
-		import nim_core.nim_api as nimAPI
-		import nim_core.nim_file as nimFile
-		import nim_hiero_connector.core.nimHieroConnector as nimHC
-		import nim_hiero_connector.core.nim_nukeStudioUI as nimNS_UI
-		import nim_hiero_connector.core.nimProcessorUI as nimProcessorUI
-		import nim_hiero_connector.core.nimShotProcessor as nimShotProcessor
-		importlib.reload(nimPrefs)
-		importlib.reload(nimUI)
-		importlib.reload(nimAPI)
-		importlib.reload(nimFile)
-		importlib.reload(nimHC)
-		importlib.reload(nimNS_UI)
-		importlib.reload(nimProcessorUI)
-		importlib.reload(nimShotProcessor)
-		
-		if nuke.env[ 'studio' ]:
-			nimFile.scripts_reload()
+    try:
+        P.info('Reloading Scripts')
+        import nim_core.nim_prefs as nimPrefs
+        import nim_core.UI as nimUI
+        import nim_core.nim_api as nimAPI
+        import nim_core.nim_file as nimFile
+        import nim_hiero_connector.core.nimHieroConnector as nimHC
+        import nim_hiero_connector.core.nim_nukeStudioUI as nimNS_UI
+        import nim_hiero_connector.core.nimProcessorUI as nimProcessorUI
+        import nim_hiero_connector.core.nimShotProcessor as nimShotProcessor
+        importlib.reload(nimPrefs)
+        importlib.reload(nimUI)
+        importlib.reload(nimAPI)
+        importlib.reload(nimFile)
+        importlib.reload(nimHC)
+        importlib.reload(nimNS_UI)
+        importlib.reload(nimProcessorUI)
+        importlib.reload(nimShotProcessor)
 
-		P.info('Scripts Reloaded')
-	except Exception as e :
-		print('Sorry, there was a problem reloading the NIM scripts...')
-		print('    %s' % traceback.print_exc())
-	return
+        if nuke.env[ 'studio' ]:
+            nimFile.scripts_reload()
+
+        P.info('Scripts Reloaded')
+    except Exception as e :
+        print('Sorry, there was a problem reloading the NIM scripts...')
+        print('    %s' % traceback.print_exc())
+    return
 
 
 nimProjectChangeUserAction.triggered.connect(nimProjectChangeUser) 
