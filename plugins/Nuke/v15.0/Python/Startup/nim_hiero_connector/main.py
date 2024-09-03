@@ -66,7 +66,7 @@ nimProjectVersionUpAction = QAction('Version Up',nimProjectMenu)
 
 
 def nimProjectOpen(): nimNS_UI.openDialog()
-#ef nimProjectImport(): nimUI.mk("LOAD", _import=True)
+#def nimProjectImport(): nimUI.mk("LOAD", _import=True)
 def nimProjectSaveAs(): nimNS_UI.saveDialog()
 #def nimProjectExportSelected(): nimUI.mk("SAVE", _export=True)
 def nimProjectVersionUp(): nimNS_UI.versionDialog()
