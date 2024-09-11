@@ -603,9 +603,10 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # XXX: careful here these paths to dpython are harcoded. This will be a
     # problem someday ...
     # Use Deadline's python
-    cmd = "/opt/Thinkbox/Deadline10/bin/python3/python" # For unix like systems
+    pycmd = "/opt/Thinkbox/Deadline10/bin/python3/python" # For unix like systems
     if platform.system() == 'Windows':
-        cmd = "C:\\opt\\deadline10\\bin\\python3\\python"
+        pycmd = "C:\\opt\\deadline10\\bin\\python3\\python"
+    cmd = pycmd
     isstillframe = False
     frameslist = frames.split('-')
     if frameslist[0] == frameslist[1]:
@@ -721,12 +722,18 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
     # Setup the next env vars to Draft install location: PYTHONPATH, MAGICK_CONFIGURE_PATH and for linux LD_LIBRARY_PATH
     # This is needed in order to load the Draft module:
     # https://docs.thinkboxsoftware.com/products/deadline/10.2/1_User%20Manual/manual/app-draft.html#draft-standalone-ref-label
+    # Set PYTHONHOME to Deadline's python
     if 'PYTHONPATH' in env:
         env['PYTHONPATH'] = "%s:%s"%(draftloc, env['PYTHONPATH'])
     else:
         env['PYTHONPATH'] = draftloc
     env['MAGICK_CONFIGURE_PATH'] = draftloc
-    env['LD_LIBRARY_PATH'] = draftloc
+    if platform.system() != 'Windows':
+        env['LD_LIBRARY_PATH'] = draftloc
+    env['PYTHONHOME'] = os.path.dirname(pycmd)
+
+    # print("Environment:")
+    # print(env)
     # print(cmd)
     '''
     if not runAsyncCommand( cmd, env=env, timeout=10*60 ):

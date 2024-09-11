@@ -52,6 +52,10 @@ else:
 		# Loading NIM for Nuke 15.0vX
 		nuke.pluginAddPath(nim_root+'/plugins/Nuke/v15.0')
 		nuke.pluginAddPath(nim_root+'/plugins/Nuke/v15.0/gizmos')
+	elif NukeVersionMajor == 15 and NukeVersionMinor >= 1:
+		# Loading NIM for Nuke 15.0vX
+		nuke.pluginAddPath(nim_root+'/plugins/Nuke/v15.1')
+		nuke.pluginAddPath(nim_root+'/plugins/Nuke/v15.1/gizmos')
 	else:
 		# Fall back to loading NIM for Nuke 15.0vX
 		nuke.pluginAddPath(nim_root+'/plugins/Nuke/v15.0')
