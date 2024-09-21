@@ -297,7 +297,7 @@ class NIM( object ) :
         if not filePath :
             filePath=F.get_filePath()
         if not filePath :
-            P.debug( 'File must be saved with a filename that exists in NIM.' )
+            P.error( 'File must be saved with a filename that exists in NIM.' )
             return None
         if not os.path.isfile( os.path.normpath( filePath ) ) and os.path.isfile( \
                 os.path.normpath( filePath ) ) :
@@ -580,8 +580,12 @@ class NIM( object ) :
         if basenameFound and not versionFound:
             if assetFound==True :
                 versions=Api.get_vers( assetID=self.ID( 'asset' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
-            if shotFound==True :
+            elif shotFound==True :
                 versions=Api.get_vers( shotID=self.ID( 'shot' ), showID=self.ID( 'show' ), basename=self.name( 'base' ), username=self.userInfo()['name'] )
+            else:
+                P.error("Filename not detected as part of a shot or asset, is this file published in a project?: %s"%filename)
+                return False
+
             self.set_dict('ver')
             for version in versions :
                 task_abbrev=F.task_toAbbrev( self.name( 'task' ) )
