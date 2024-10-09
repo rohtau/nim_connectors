@@ -1662,7 +1662,7 @@ class GUI(QtGui.QMainWindow) :
             if elem=='shot' and not self.showOverride.isChecked()  :
                 widget = self.nim.Input( elem )
                 # Get shots
-                shots = [widget.itemText(i).split()[0] for i in range(widget.count())]
+                shots = [widget.itemText(i).split()[0] for i in range(widget.count()) if widget.itemText(i).split()]
                 rezshot = nimUtl.hasRezCtxShot( shots )
                 if rezshot:
                     # Set shot according to Rez context
