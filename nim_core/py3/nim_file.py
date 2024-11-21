@@ -93,6 +93,10 @@ def get_app() :
         return 'Cinesync'
     except: pass
     try:
+        import rv
+        return 'RV'
+    except: pass
+    try:
         import Deadline
         return 'Deadline'
     except: pass
