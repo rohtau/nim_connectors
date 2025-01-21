@@ -1722,7 +1722,7 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
 
 
 def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=1, overwrite=pubOverwritePolicy.NOT_ALLOW, 
-            state=pubState.PENDING ,asrender=False, require_task=False, task_status=taskStatusID.IN_PROGRESS, 
+            state=pubState.PENDING ,asrender=False, require_task=False, fallback_task='', task_status=taskStatusID.IN_PROGRESS, 
             source_fileid=0, extradirs=None, extrasufx=None, extracat=None, yes=False, plain=False, jsonout=False, profile=False, dryrun=False, verbose=False):
     '''
     Publish a path pointing to some data in NIM
@@ -1819,6 +1819,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         Create a render publish after publishing the path. Force to have an asset to publish the renders to.
     require_task     : bool
         The data being published requires a proper task to be linked to. This is only used for renders. The option asrender will also force to have task.
+    fallback_task : str
+        Task type name to fallback in case the task couldn't be extracted from the path. This is useful to assign files to a generic task, for instance in a conform process.
     source_fileid : int
         File Id of the published scene/script from DCC app used to generate this file. (Houdini HIP file, Nuke script, etc ...)
     extradirs = str
@@ -1899,7 +1901,12 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
 
     # Get publish task
     if not nim.ID( elem='task' ):
-        res['msg'] = "couldn't find a supported task in the path: %s"%path
+        res['msg'] = "Couldn't find a supported task in the path: %s"%path
+        if fallback_task:
+            fallback_task_id = nimUtl.gettaskTypesIdFromName(fallback_task)
+            nim.set_ID(elem='task', ID=fallback_task_id)
+            nim.set_name(elem='task', name=fallback_task)
+            res['msg'] = f"Using fallback task: {fallback_task}"
     pid = nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')
     if not pid:
         res['msg'] = "Shot or Asset name in file path doesn't exists"
