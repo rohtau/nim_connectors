@@ -1576,6 +1576,9 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
     dict
         Dictionary with all the publishing task info or False.
     '''
+
+
+
     nimFromFile = nim is None
     if not nim and filepath:
         # Dent do extra checkfile, the point is to get a task from the filepath
@@ -1645,8 +1648,10 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
                     \n\nIf you choose Yes a new task for your user will be created and used fro this scene and all data generated from it.\
                     \nOn the other hand if you choose No the current task will be used"%(pubtask['username'])
 
-        nimP.warning( msg )
+
         if not yes:
+            traceback.print_stack()
+            
             res = Win.popup( title='NIM - Task Warning', msg=msg, type='okCancel' )
         else:
             res = 'OK'
@@ -1671,13 +1676,15 @@ def pubTask( nim=None, filepath=None, user=None, yes=False, createTask=True ):
                 else:
                     msg = "Task %s for %s created in %s %s"%(task, user, tab.lower(), entity )
                     nimP.info(msg)
-                    Win.popup( title='NIM - Task', msg=msg )
+                    # Remove redundant pop up
+                    # Win.popup( title='NIM - Task', msg=msg )
                     # TODO: update pubtask here
                     pubtask = nimAPI.get_taskInfo(ID=int(taskres['ID']))[0]
             else:
                 msg = "There is already a task created for your user (#%s)"%mypubtask['taskID']
                 nimP.info(msg)
-                Win.popup( title='NIM - Task', msg=msg )
+                # Remove redundant pop up
+                # Win.popup( title='NIM - Task', msg=msg )
                 pubtask = mypubtask
 
         else:
@@ -1917,7 +1924,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # Pub Task
     pubtask = None
     if require_task:
-        pubtask = pubTask( nim, yes=yes )
+        pubtask = pubTask( nim, yes=True )
         if not pubtask:
             res['success'] = False
             res['errorcode'] = 2
