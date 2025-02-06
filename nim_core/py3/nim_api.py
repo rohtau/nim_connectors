@@ -2503,9 +2503,12 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     userID, jobID, assetID, showID, shotID='', '', '', '', ''
     shotCheck, assetCheck=False, False
 
+    import time
+
     
     #  If not passed a NIM dictionary, get values from the file name :
     if not nim :
+        
         nim=Nim.NIM()
         nim.ingest_filePath( pub=pub )
         if not nim.mode() :
@@ -2513,7 +2516,6 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         #  Set Publish state :
         if pub : nim.set_name( elem='filter', name='Published' )
         else : nim.set_name( elem='filter', name='Work' )
-
 
     # import nuke
     # nuke.tprint("Passed NIM:")
@@ -2878,7 +2880,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             if not F.verUpSaveFile(verUpResult['filepath'], nim, verUpResult['projpath'], selected, pub, symLink ):
                 return False
             '''
-             
+
             return filePath
     
     #  If not successful, fail :
@@ -2989,7 +2991,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
     if not nim.name( 'comment' ) :
         nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
-            P.warning( '\nNo comment entered.  Tsk, tsk...\n' )
+            P.warning( '\nNo comment entered.\n' )
             nim.set_name( elem='comment', name='')
 
     #  Get Asset information :

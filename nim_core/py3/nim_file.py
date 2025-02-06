@@ -437,7 +437,7 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
 
     #  Directories :
     #===---------------
-    
+
     #  Make basename directory :
     if projpath and not os.path.isdir( projpath ) :
         P.info( 'Creating basename directory within...\n    %s' % projpath )
@@ -681,6 +681,7 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
     return filepath
 
 
+# DEPRECATED
 # selected can be removed or deprecated
 def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
     '''

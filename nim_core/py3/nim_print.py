@@ -154,17 +154,18 @@ def warning( msg='', showwindow=False ) :
         msg = ''.join(msg)
     tokens=msg.rstrip().split( '\n' )
     for toke in tokens :
-        if isNuke:
-            nuke.tprint('NIM.Warning ~> %s' % toke)
-            if not nuke.env[ 'studio' ] and not nuke.env[ 'hiero' ]:
-                nuke.warning('NIM.Warning ~> %s' % toke)
-        elif isMaya:
-            om.MGlobal.displayWarning('NIM.Warning ~> %s' % toke)
-        elif isHoudini and hou.isUIAvailable():
-            print('NIM.Warning ~> %s' % toke)
-            hou.ui.setStatusMessage( 'NIM.Warning ~> %s' % toke, hou.severityType.Warning)
-        else:
-            print('NIM.Warning ~> %s' % toke)
+        if toke and toke.strip():
+            if isNuke:
+                nuke.tprint('NIM.Warning ~> %s' % toke)
+                if not nuke.env[ 'studio' ] and not nuke.env[ 'hiero' ]:
+                    nuke.warning('NIM.Warning ~> %s' % toke)
+            elif isMaya:
+                om.MGlobal.displayWarning('NIM.Warning ~> %s' % toke)
+            elif isHoudini and hou.isUIAvailable():
+                print('NIM.Warning ~> %s' % toke)
+                hou.ui.setStatusMessage( 'NIM.Warning ~> %s' % toke, hou.severityType.Warning)
+            else:
+                print('NIM.Warning ~> %s' % toke)
     if showwindow:
         if isNuke and nuke.GUI:
             nuke.alert(msg)
