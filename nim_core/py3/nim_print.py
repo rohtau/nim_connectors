@@ -156,9 +156,10 @@ def warning( msg='', showwindow=False ) :
     for toke in tokens :
         if toke and toke.strip():
             if isNuke:
-                nuke.tprint('NIM.Warning ~> %s' % toke)
                 if not nuke.env[ 'studio' ] and not nuke.env[ 'hiero' ]:
                     nuke.warning('NIM.Warning ~> %s' % toke)
+                else:
+                    nuke.tprint('NIM.Warning ~> %s' % toke)
             elif isMaya:
                 om.MGlobal.displayWarning('NIM.Warning ~> %s' % toke)
             elif isHoudini and hou.isUIAvailable():
