@@ -555,7 +555,7 @@ def runAsyncCommand( cmd, env=None, timeout=120 ):
 
     return True
 
-def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', fileinfo=None, isflipbook=False, verbose=False):
+def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres='', overrideoutcolor='', overridefps=24, fileinfo=None, isflipbook=False, verbose=False):
     '''
     Create a movie or image for review from a image sequence using Deadline's Draft
     
@@ -588,6 +588,8 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         Override draft template resolution, by default ''. Example: 1920x1280
     overrideoutcolor : str, optional
         Override OCIO color role, by default ''. For example: color_picking
+    overridefps : int
+        Override default FPS for quicktime. Default is 24
     fileinfo: dict, optional
         Publish information for the render, needed to add information to slates and watermarks
     isflipbook : bool, optional
@@ -664,6 +666,7 @@ def createDraftMovie( infile, frames, outfile='', drafttemplate='', overrideres=
         cmd += " taskStartFrame=%s "%start
         cmd += " endFrame=%s "%end
         cmd += " taskEndFrame=%s "%end
+        cmd += " fps=%d "%overridefps
 
 
     cmd += " frameList=%s-%s"%(start, end)
