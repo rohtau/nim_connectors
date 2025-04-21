@@ -54,7 +54,10 @@ def statusBar():
 
 hiero.ui.statusBar = statusBar
 
+g_nim_job = ""
+g_nim_jobs = []
 g_nim_jobID = None
+g_nim_job_paths = None
 g_nim_showID = None
 g_nim_showFolder = ''
 # Set default element to be plates
@@ -62,12 +65,14 @@ g_nim_showFolder = ''
 #g_nim_elementTypeID = None
 g_nim_element = 'plates'
 g_nim_elementTypeID = '3'
+g_nim_element_types = []
 # change default for publishing. by default always publish
 #g_nim_publishElement = False
 #g_nim_publishComp = False
 g_nim_publishElement = True
 g_nim_publishComp = True
 
+g_nim_servers = []
 g_nim_serverID = None
 g_nim_serverOSPath = ''
 g_nim_taskID = None
@@ -79,6 +84,7 @@ g_nim_versionID = None
 g_nim_expTask = 'comp'
 g_nim_expTaskTypeID = None
 g_nim_expTaskFolder = ''
+g_nim_task_types = []
 
 class NimHieroConnector():
     def __init__(self):
