@@ -58,6 +58,7 @@ g_nim_job = ""
 g_nim_jobs = []
 g_nim_jobID = None
 g_nim_job_paths = None
+g_nim_show = ''
 g_nim_showID = None
 g_nim_showFolder = ''
 # Set default element to be plates
