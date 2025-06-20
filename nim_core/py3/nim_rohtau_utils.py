@@ -1693,8 +1693,8 @@ def build_extra_elements_paths( mainelmpath, extradirs=None, extrasufx=None, iss
             extra_elm_path = toPosix(os.path.join(dirname, extradir, extra_elm_name))
             extraelmts.append(extra_elm_path)
 
-    # print("Extra elements paths:")
-    # pprint(extraelmts)
+    print("Extra elements paths:")
+    pprint(extraelmts)
 
     return extraelmts
 

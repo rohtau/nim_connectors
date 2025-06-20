@@ -1318,8 +1318,6 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
     nim : NIM Object
         NIM object for main published element
     extradirs = str
-        Subdir name, or list separated  by commas. The names can also be glob patterns like: *,LOD*,^Draft . ^ Negates pattern.
-    extradirs = str
         Suffix name, or list separated  by commas. The names can also be glob patterns like: rgb, sped*,^cryptomatte . ^ Negates pattern.
         Suffix is added at the end of the basename.
     start     : int
@@ -1352,6 +1350,7 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
     pub_elmts = []
     # extra_elmts = nimUtl.find_extra_elements( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx)
     extra_elmts = nimUtl.build_extra_elements_paths( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx, isseq=isseq, hassubsteps=hassubsteps)
+    print(f"Extra elements paths: {extra_elmts}")
     if not extra_elmts:
         return pub_elmts
     metadata = {
@@ -1393,8 +1392,8 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
             else:
                 pub_elmts.append(res)
 
-    # print("Published elements:")
-    # print(pub_elmts)
+    print("Published elements:")
+    print(pub_elmts)
 
     return pub_elmts
 
@@ -1834,8 +1833,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     source_fileid : int
         File Id of the published scene/script from DCC app used to generate this file. (Houdini HIP file, Nuke script, etc ...)
     extradirs = str
-        Subdir name, or list separated  by commas. The names can also be glob patterns like: *,LOD*,^Draft . ^ Negates pattern.
-    extradirs = str
         Suffix name, or list separated  by commas. The names can also be glob patterns like: rgb, sped*,^cryptomatte . ^ Negates pattern.
         Suffix is added at the end of the basename.
     extracat : str
@@ -2056,8 +2053,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     }
  
     extra_elmts = publish_extra_elmts( nim, **kwargs)
-    # print("Extra elements")
-    # pprint(extra_elmts)
     res['extraElements'] = extra_elmts
 
     # Update file
@@ -2077,7 +2072,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     metadata = {
         'elementID':       res['elementID'],
         'extraElements':   res['extraElements'],
-        'extraElementsID': ",".join([elm['ID'] for elm in res['extraElements']]),
+        'extraElementsID': ",".join([str(elm['ID']) for elm in res['extraElements']]),
         'startFrame':      start,
         'endFrame':        end,
         'substeps':        substeps
@@ -3487,7 +3482,7 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
     res['success'] = True
     return res
 
-def find_published_asset( job, parent, parentid, element, name, use_task_priority = True, verbose=False):
+def find_published_asset( job: str|int, parent: str, parentid: str|int, element: str|int, name: str, use_task_priority: bool = True, verbose: bool=False) -> dict:
     '''
     Query the publishing system looking for the "appropriate" asset version if available.
 
@@ -3502,10 +3497,14 @@ def find_published_asset( job, parent, parentid, element, name, use_task_priorit
       - lighting
     - If there are several cameras the published/approved version will be returned.
     - If there are several cameras the latest version will be returned.
-    - If there is a collision between published or latest versions the task
-      priority will be used to decide.
-      - For instance, if there are two published cameras the one with the higher
-        task priority wins
+    - If an asset is published in several tasks (like a camera published in track and anim), the use_task_priority will decide what to do:
+      - If task priority is not sety then the latest published version will be used.
+      - If there is a collision between published or latest versions the task
+        priority will be used to decide.
+        - For instance, if there are two published cameras the one with the higher task priority wins
+
+
+
     - If there is a camera with a higher priority task, but older publishing date than a lower priority the user will be asked.
       - For instance we can have to cameras loaded in the scene, one published a month ago using anim task and another published a week
         ago with task track. In this case we will ask the user which one to select as the shot camera.
@@ -3646,13 +3645,16 @@ def find_published_asset( job, parent, parentid, element, name, use_task_priorit
             criteria = "Latest version for higher priority task"
         else:
             # Look for date in latest published, no matter the task
-            lastest = None
+            latest = None
             last_ver = None
-            for ver in asset_pubs_selected:
-                verdate = datetime.strptime(ver['date'], "%Y-%m-%d %H:%M:%S" )
-                if not lastest or verdate > latest:
+            print(f"Potential candidates for {elementname} assets named {name}:")
+            for key,value in asset_pubs_selected.items():
+                print(f"- {key} - {asset_pubs_selected[key]['basename']} -  {asset_pubs_selected[key]['date']} - {asset_pubs_selected[key]['username']}")
+            for task in asset_pubs_selected:
+                verdate = datetime.strptime(asset_pubs_selected[task]['date'], "%Y-%m-%d %H:%M:%S" )
+                if not latest or verdate > latest:
                     latest = verdate
-                    last_ver = ver
+                    last_ver =asset_pubs_selected[task] 
             appropiate_asset_ver = last_ver
             criteria = "Latest published version from all available"
 
