@@ -1664,7 +1664,6 @@ def build_extra_elements_paths( mainelmpath, extradirs=None, extrasufx=None, iss
             extra_name = extra_name.replace('cam', 'cache', 1)
             # extra_ext = extradir if extradir != 'proxy' else 'bgeo.sc'
             # if extradir != 'proxy':
-            pprint("Process extradir: %s"%extradir)
             if isseq and hassubsteps:
                 extra_elm_name = "%s.####.##.%s"%(extra_name,extra_ext)
             elif isseq:
@@ -1693,8 +1692,6 @@ def build_extra_elements_paths( mainelmpath, extradirs=None, extrasufx=None, iss
             extra_elm_path = toPosix(os.path.join(dirname, extradir, extra_elm_name))
             extraelmts.append(extra_elm_path)
 
-    print("Extra elements paths:")
-    pprint(extraelmts)
 
     return extraelmts
 
@@ -1980,7 +1977,8 @@ def completeFileInfoWithMetadata( fileinfo, elmts):
         # Add extra elements to this fileinfo dict
         fileinfo['extraElements'] = []
         for elmid in extra_elmts_id:
-            fileinfo['extraElements'].append(elmts[elmid])
+            if elmid in elmts:
+                fileinfo['extraElements'].append(elmts[elmid])
     if 'plate' in metadata and metadata['plate']:
         fileinfo['plate'] = metadata['plate']
     if 'src_offset' in metadata and metadata['src_offset']:

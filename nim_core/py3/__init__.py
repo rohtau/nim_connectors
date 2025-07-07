@@ -13,6 +13,7 @@ nimAPIConnectInfoFile = os.path.join(tempfile.gettempdir(), "nimAPIConnectInfo")
 defaultSceneName      = 'main'
 default_frame_range   = 100 # Default frame range. Use this value if frame range is no defined in NIM
 mwtt                  = 1 # Minimum working time for task (MWTT). In minutes. Used to validate time cards
+sep                   = '__' # Caracter used to separate different element in the filename
 
 
 #  END

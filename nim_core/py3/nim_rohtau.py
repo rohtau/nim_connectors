@@ -1350,7 +1350,6 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
     pub_elmts = []
     # extra_elmts = nimUtl.find_extra_elements( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx)
     extra_elmts = nimUtl.build_extra_elements_paths( nim.filePath(), extradirs=extradirs, extrasufx=extrasufx, isseq=isseq, hassubsteps=hassubsteps)
-    print(f"Extra elements paths: {extra_elmts}")
     if not extra_elmts:
         return pub_elmts
     metadata = {
@@ -1392,8 +1391,6 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
             else:
                 pub_elmts.append(res)
 
-    print("Published elements:")
-    print(pub_elmts)
 
     return pub_elmts
 
@@ -1504,8 +1501,6 @@ def createRenderIcon( elementInfo ):
     except FileNotFoundError:
         nimP.error( "Can't find command in path %s"%cmd.split()[0])
         return False
-    print("Output:")
-    print(ret)
     # if not runAsyncCommand( cmd ):
         # nimP.error("Can't create Render Icon: %s"%iconpath)
     
@@ -1979,6 +1974,8 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
                     nimP.warning("File version is already published by a different user: %s. Overwrite policy disallow re-using published items not owned by the user. Please Up the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
                     # pprint(res)
                 return res if not plain and not jsonout else False
+            else:
+                nimP.warning("File is already published by  you. Overwrite you own versions is allowed. Consider increment the version: %s v%s"%(nim.name('base'), nim.version()))
         else:
             nimP.warning("File is already published by %s. Rendering over previous published item is allowed. Consider increment the version: %s v%s"%(file['username'],nim.name('base'), nim.version()))
     
