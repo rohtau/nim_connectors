@@ -25,6 +25,7 @@ import shutil
 import stat
 import getpass
 import copy
+# This is needed because Deadline runs some of these functions and it uses python3.9
 from typing import Union
 from glob import glob
 from subprocess import Popen
@@ -3479,7 +3480,7 @@ def pubImport(job, path, name='', parent='shot', parentID="", task="", element='
     res['success'] = True
     return res
 
-def find_published_asset( job: str|int, parent: str, parentid: str|int, element: str|int, name: str, use_task_priority: bool = True, verbose: bool=False) -> dict:
+def find_published_asset( job: Union[str,int], parent: str, parentid: Union[str,int], element: Union[str,int], name: str, use_task_priority: bool = True, verbose: bool=False) -> dict:
     '''
     Query the publishing system looking for the "appropriate" asset version if available.
 
