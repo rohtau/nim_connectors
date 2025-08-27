@@ -372,14 +372,16 @@ def getjobIdFromNumber(number):
     """
     Using a job number id string, return it's integer id
 
-    Return -1 if job number(int) is not found
+    Return 0 if job number(int) is not found
     """
     id = 0
     jobs = getjobs()
     for jobname in jobs.keys():
         names = jobname.split()
         # print("Given number: %s, jobs labels: %s %s"%(number, str(names[0]), str(names[1])))
-        if number == names[0].strip() or number == names[1].strip():
+        if number == names[0].strip() :
+            id = int(jobs[jobname])
+        elif len(names) == 2 and number == names[1].strip():
             id = int(jobs[jobname])
 
     return id

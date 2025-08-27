@@ -2626,19 +2626,18 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
     #  Version Up File :
     #  [AS] returning nim object from verUp to update if loading exported file
     verUpResult=F.verUp( nim=nim, padding=padding, selected=selected, win_launch=win_launch, pub=pub, symLink=symLink, version=version )
-    filePath = verUpResult['filepath']
-    projPath = verUpResult['projpath']
-    verUpNim = verUpResult['nim']
-    nim.set_fileTypeByExt(nim.name('fileExt'))
-    P.info('Filepath: %s' % filePath)
-    P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
     #  [AS] END
     # print("NIM Object for ver Up:")
     # pprint(nim.get_nim())
     
-    #  Add file to API :
-    # if filePath and os.path.isfile( filePath ) :
     if verUpResult:
+        filePath = verUpResult['filepath']
+        projPath = verUpResult['projpath']
+        verUpNim = verUpResult['nim']
+        nim.set_fileTypeByExt(nim.name('fileExt'))
+        P.info('Filepath: %s' % filePath)
+        P.info('NIM Basename: %s \n' % verUpNim.name(elem='base'))
+
         '''
         # Remove tasks for any saving process, is not needed anmymore, this will
         # be obnly checked in pubPath
@@ -2989,6 +2988,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         P.error( 'api.add_file function needs to be given either a shot, or asset, ID number...  Exiting.' )
         return False
     if not nim.name( 'comment' ) :
+        # Ask for user publishing comment
         nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
             P.warning( '\nNo comment entered.\n' )

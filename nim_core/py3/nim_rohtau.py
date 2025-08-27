@@ -1195,8 +1195,14 @@ def checkFileAndElementPublished( nim ):
         metadata = json.loads(file['metadata'])
         if 'elementID' in metadata:
             # Try to use the element linked to our file
-            elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
-            element = next((elm for elm in elmts if elm['ID']==metadata['elementID']), None)
+            # elmts = nimAPI.get_elements( parent=nim.tab(), parentID=int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')), elementTypeID=int(nim.ID('element')))
+            elmts = nimAPI.find_elements(
+                    name = nim.fileName(),
+                    assetID = nim.ID('asset') if nim.tab() == 'ASSET' else '', 
+                    shotID = nim.ID('shot') if nim.tab() == 'SHOT' else '',
+                    elementTypeID=int(nim.ID('element'))
+                    )
+            element = next((elm for elm in elmts if int(elm['ID'])==int(metadata['elementID'])), None)
     # try to find at least a valid element if file is not published
     if not file and not elmts:
         if not nim.ID('element'):
@@ -1213,7 +1219,7 @@ def checkFileAndElementPublished( nim ):
 
 def publish_elmt( nim, elmpath=None, ID=None, start=1001, end=1001, handles=0, pubtask=None, userid=None, metadata=''):
     '''
-    Publish a file in NIM.
+    Publish or Update an element in NIM.
     In general a new element will be created, but if ID is provided then an existing element will be updated.
 
     Parameters
@@ -1300,8 +1306,8 @@ def publish_elmt( nim, elmpath=None, ID=None, start=1001, end=1001, handles=0, p
     return addelmt_result
 
 
-def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=1001, handles=0, pubtask=None, userid=None,
-                        fileID=0, elementID=0, sourceID=0, isseq=True, hassubsteps=False):
+def publish_extra_elmts( nim, extradirs: str=None, extrasufx: str=None, start: int=1001, end: int=1001, handles: int=0, pubtask=None, userid: int=None,
+                        fileID: int=0, elementID: int=0, sourceID: int=0, file_metadata: dict={}, isseq: bool=True, hassubsteps: bool=False) -> list:
     '''
     Publish all extra elements associated with this publishing.
 
@@ -1335,6 +1341,9 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
         ID for main element published
     sourceID : int
         ID for scene published that generated all these elements
+    file_metadata : dict
+        Metadata from a published file, designated by fileID. This is used in case a published file already exists then we can potentially use extraElementsID in the metadata
+        to find already published extra elements, instead of searching by name
     isseq : bool
         Whether or not the path is for a sequence
     hassubsteps : bool
@@ -1359,23 +1368,35 @@ def publish_extra_elmts( nim, extradirs=None, extrasufx=None, start=1001, end=10
         'sourceFileID':  sourceID
     }
     # try to find element
-    kwargs = {
-        'parent' : nim.tab(),
-        'parentID' : int(nim.ID('shot') if nim.tab() == 'SHOT' else nim.ID('asset')),
-        'elementTypeID' : int(nim.ID('element'))
-    }
-    elmts = nimAPI.get_elements(**kwargs)
+    extra_elmts_names = [os.path.basename(elm) for elm in extra_elmts]
     found_elmts = []
-    if elmts:
-        extra_elmts_names = [os.path.basename(elm) for elm in extra_elmts]
-        found_elmts = [elm for elm in elmts if elm['name'] in extra_elmts_names]
+    for elmname in extra_elmts_names:
+        elmts = nimAPI.find_elements(
+                name = elmname,
+                assetID = nim.ID('asset') if nim.tab() == 'ASSET' else '', 
+                shotID = nim.ID('shot') if nim.tab() == 'SHOT' else ''
+                )
+        if elmts:
+            found_elmts.extend(elmts)
+    metadata_extra_elmts_ids = []
+    if file_metadata and 'extraElementsID' in file_metadata:
+        metadata_extra_elmts_ids = [int(elmid) for elmid in file_metadata['extraElementsID'].split(',')]
+
     for elm in extra_elmts:
         # Need to check name and filepath
-        found_elmt = next((x for x in found_elmts if (x["name"] == os.path.basename(elm) and x["path"] == os.path.dirname(elm))), None)
-        # if elmts and found_elmts:
+        # print(f"Check on element: {elm}")
+        found_elmt = None
+        if found_elmts:
+            if metadata_extra_elmts_ids:
+                # Search extra elements by IDs
+                found_elmt = next((x for x in found_elmts if (x["ID"] in metadata_extra_elmts_ids)), None)
+            else:
+                # Search by name and dirname
+                found_elmt = next((x for x in found_elmts if (x["name"] == os.path.basename(elm) and x["path"] == os.path.dirname(elm))), None)
         if found_elmt:
             # Element already published.
             # print("Element %s already publsihed"%elm)
+            # pprint(found_elmt)
             res = publish_elmt( nim, elmpath=elm, ID=int(found_elmt['ID']), start=start, end=end, handles=handles, pubtask=pubtask, userid=userid, metadata=metadata)
             if res['success'] != 'true':
                 nimP.error("Error updating existing extra element %s v%s"%(file_name, nim.version()))
@@ -1880,6 +1901,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
     # Fix path
     posixpath = nimUtl.toNIMFramePadding(nimUtl.toPosix(path))
     
+    # Build NIM object
     nim=Nim.NIM()
     nim.ingest_filePath( filePath=posixpath, checkfile=False )
     if not nim.mode() :
@@ -1940,7 +1962,6 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         # import nuke
         # nuke.tprint("Publish task:")
         # nuke.tprint(pformat(pubtask))
-
 
 
     # Check if there is no file or element published yet with this basename and version
@@ -2046,6 +2067,7 @@ def pubPath(path, userid, comment="", start=1001, end=1001, handles=0, substeps=
         'fileID':      res['fileID'],
         'elementID':   res['elementID'],
         'sourceID':    source_fileid,
+        'file_metadata':    json.loads(file['metadata']) if file else {},
         'isseq':       start!=end,
         'hassubsteps': substeps>1
     }

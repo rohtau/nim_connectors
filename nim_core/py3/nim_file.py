@@ -776,6 +776,8 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
 
     #  Version Number :
     baseInfo=''
+    ver_baseInfo = 0
+    verNum=1
     if nim.tab()=='SHOT' :
         baseInfo=Api.get_baseVer( shotID=nim.ID('shot'), basename=nim.name('base') )
     elif nim.tab()=='ASSET' :
@@ -783,8 +785,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
     if baseInfo :
         ver_baseInfo=baseInfo[0]['version']
         verNum=int(ver_baseInfo)+1
-    else :
-        verNum=1
 
     if pub:
         print("Basename for publish: %s"%nim.name('base'))
@@ -806,7 +806,8 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
 
     print("Version to publish: %d"%verNum)
 
-    if version and version > verNum:
+    # FIXME: this is causing issues with HIP save from publish tools.
+    if version and version > ver_baseInfo:
         verNum = version # Increment to explicit version
     elif version:
         msg = "Error updating scene version. An explicit version up was set, %d.\n"%version
@@ -927,224 +928,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
 
     # TODO: check that file path and projDir are writable
     
-    '''
-    #  Directories :
-    #===---------------
-    
-    #  Make basename directory :
-    if projDir and not os.path.isdir( projDir ) :
-        P.info( 'Creating basename directory within...\n    %s' % projDir )
-        og_umask=os.umask(0)
-        os.makedirs( projDir )
-        os.umask(og_umask)
-        if os.path.isdir( projDir ) :
-            P.info( '  Successfully created the basename directory!' )
-        else :
-            P.warning( '  Unable to create basename directory' )
-    
-    #  Make render directory :
-    if renDir and not os.path.isdir( renDir ) :
-        P.info( 'Creating render directory...\n      %s' % renDir )
-        
-        og_umask=os.umask(0)
-        os.makedirs( renDir )
-        os.umask(og_umask)
-        
-        if os.path.isdir( renDir ) :
-            P.info( '    Successfully created the render directory!' )
-        else :
-            P.warning( '    Unable to create project directories.' )
-    elif renDir :
-        P.debug( 'Render directory already exists.\n' )
-    
-    #  Make Maya Project directory :
-    if os.path.isdir( projDir ) and nim.app()=='Maya' :
-        from . import nim_maya as M
-        if M.makeProject( projectLocation=projDir, renderPath=renDir ) :
-            P.info( 'Created Maya project directorires within...\n    %s' % projDir )
-        else :
-            P.warning( '    Unable to create Maya project directories.' )
-    elif nim.app()=='Maya' :
-        P.warning( 'Didn\'t create Maya project directories.' )
-
-    #  Make 3dsMax Project directory :
-    if os.path.isdir( projDir ) and nim.app()=='3dsMax' :
-        from . import nim_3dsmax as Max
-        if Max.mk_proj( path=projDir, renPath=renDir ) :
-            P.info( 'Created 3dsMax project directorires within...\n    %s' % projDir )
-        else :
-            P.warning( '    Unable to create 3dsMax project directories.' )
-    elif nim.app()=='3dsMax' :
-        P.warning( 'Didn\'t create 3dsMax project directories.' )
-
-    #  Make Houdini Project directory :
-    # TODO: this wil be removed
-    if os.path.isdir( projDir ) and nim.app()=='Houdini' :
-        from . import nim_houdini as Houdini
-        if Houdini.mk_proj( path=projDir, renPath=renDir ) :
-            P.info( 'Created Houdini project directorires within...\n    %s' % projDir )
-        else :
-            P.warning( '    Unable to create Houdini project directories.' )
-    elif nim.app()=='Houdini' :
-        P.warning( 'Didn\'t create Houdini project directories.' )
-    
-    
-    #  Save :
-    #===------
-    P.info('APP = %s' % nim.app())
-
-    #  Maya :
-    if nim.app()=='Maya' :
-        import maya.cmds as mc
-        
-        #  Save File :
-        if not selected :
-            #  Set Vars :
-            from . import nim_maya as M
-            M.set_vars( nim=nim )
-            
-            P.info( 'Saving file as %s \n' % new_filePath )
-            mc.file(rename=new_filePath)
-            if ext=='.mb' :
-                mc.file( save=True, type='mayaBinary' )
-            elif ext=='.ma' :
-                mc.file( save=True, type='mayaAscii' )
-        else :
-            P.info( 'Saving selected items as %s \n' % new_filePath )
-            if ext=='.mb' :
-                mc.file( new_filePath, exportSelected=True, type='mayaBinary' )
-            elif ext=='.ma' :
-                mc.file( new_filePath, exportSelected=True, type='mayaAscii' )
-    
-    #  Nuke :
-    elif nim.app()=='Nuke' :
-        
-        import nuke
-        
-        #  Save File :
-        if not selected :
-            #  Set Vars :
-            from . import nim_nuke as N
-            N.set_vars( nim=nim )
-            P.info( 'Saving file as %s \n' % new_filePath )
-            nuke.scriptSaveAs( new_filePath )
-        elif selected :
-            P.info( 'Saving selected items as %s \n' % new_filePath )
-            try :
-                nuke.nodeCopy( new_filePath )
-            except RuntimeError:
-                P.info( 'Failed to selected items... Possibly no items selected.' )
-                return False
-
-    
-    #  Cinema 4D :
-    elif nim.app()=='C4D' :
-        import c4d
-        
-        #  Set Vars :
-        nim_plugin_ID=1032427
-        
-        #  Save File :
-        if not selected :
-            P.info( 'Saving file as %s \n' % new_filePath )
-            from . import nim_c4d as C
-            C.set_vars( nim=nim, ID=nim_plugin_ID )
-            doc=c4d.documents.GetActiveDocument()
-            doc.SetDocumentName( new_fileName )
-            doc.SetDocumentPath( fileDir )
-            c4d.documents.SaveDocument( doc, str(new_filePath),
-                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
-                c4d.FORMAT_C4DEXPORT )
-            P.info( 'Saving File Complete')
-        #  Save Selected :
-        else :
-            P.info( 'Saving selected items as %s \n' % new_filePath )
-            doc=c4d.documents.GetActiveDocument()
-            sel=doc.GetActiveObjects( False )
-            baseDoc=c4d.documents.IsolateObjects(doc, sel)
-            c4d.documents.SaveDocument( baseDoc, str(new_filePath),
-                c4d.SAVEDOCUMENTFLAGS_DIALOGSALLOWED,
-                c4d.FORMAT_C4DEXPORT)
-    
-    #  Hiero :
-    elif nim.app()=='Hiero' :
-        import hiero.core
-        projects=hiero.core.projects()
-        proj=projects[0]
-        curFilePath=proj.path()
-        proj.saveAs( new_filePath )
-        #proj=hiero.core.project( projName )
-        #proj=hiero.core.Project
-        #proj=self._get_current_project()
-    
-    #  3dsMax :
-    if nim.app()=='3dsMax' :
-        from pymxs import runtime as maxRT
-        #  Save File :
-        if not selected :
-            #  Set Vars :
-            from . import nim_3dsmax as Max
-            Max.set_vars( nim=nim )
-            #Save File
-            P.info( 'Saving file as %s \n' % new_filePath )
-            maxRT.saveMaxFile(new_filePath)
-        else :
-            #Save Selected Items
-            P.info( 'Saving selected items as %s \n' % new_filePath )
-            maxRT.saveNodes(maxRT.selection, new_filePath)
-
-    #  Houdini :
-    if nim.app()=='Houdini' :
-        import hou
-        #  Save File :
-        if not selected :
-            #  Set Vars :
-            from . import nim_houdini as Houdini
-            Houdini.set_vars( nim=nim )
-            #Save File
-            if _os.lower() in ['windows', 'win32'] :
-                hipFilePath = new_filePath.replace('\\','/')
-            P.info( 'Saving file as %s \n' % hipFilePath )
-            hou.hipFile.save(file_name=str(hipFilePath))
-            #Set $HIP var to location of current file
-            if _os.lower() in ['windows', 'win32'] :
-                hipProj = projDir.replace('\\','/')
-            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
-            #Set $HIPNAME var to current file
-            hipName = os.path.splitext(new_fileName)[0]
-            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
-        else :
-            #Save Selected Items
-            #TODO: set to saveSelect items... currently saving entire scene
-            if _os.lower() in ['windows', 'win32'] :
-                hipFilePath = new_filePath.replace('\\','/')
-            P.info( 'Saving selected items as %s \n' % hipFilePath )
-            hou.hipFile.save(file_name=str(hipFilePath))
-            #Set $HIP var to location of current file
-            if _os.lower() in ['windows', 'win32'] :
-                hipProj = projDir.replace('\\','/')
-            hou.hscript("set -g HIP = '" + str(hipProj) + "'")
-            #Set $HIPNAME var to current file
-            hipName = os.path.splitext(new_fileName)[0]
-            hou.hscript("set -g HIPNAME = '" + str(hipName) + "'")
-
-    #  Make a copy of the file, if publishing :
-    if pub and not symLink :
-        pub_fileName=basename+ext
-        pub_fileDir=Api.to_nimDir( nim=nim )
-        pub_filePath=os.path.join( pub_fileDir, pub_fileName )
-        #  Delete any pre-existing published file :
-        if os.path.isfile( pub_filePath ) :
-            os.chmod( pub_filePath, stat.S_IWRITE )
-            os.remove( pub_filePath )
-        #  Copy file and make it read-only :
-        shutil.copyfile( new_filePath, pub_filePath )
-        os.chmod( pub_filePath, stat.S_IREAD )
-        
-    #  Print save success :
-    P.info( '\nFile successfully saved to...\n    %s\n' % new_filePath )
-    
-    '''
 
     #  [AS]  returning nim object with current dictionary settings
     #return new_filePath
