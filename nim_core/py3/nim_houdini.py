@@ -360,7 +360,7 @@ def get_vars( nim=None ) :
     nim_user = h_root.userData("nim_user")
     if nim_user is not None:
         nim.set_user( userName=nim_user )
-        P.info('Reading userName')
+        # P.info('Reading userName')
     else:
         P.error('Failed reading userName')
 
@@ -370,7 +370,7 @@ def get_vars( nim=None ) :
     nim_userID = h_root.userData("nim_userID")
     if nim_userID is not None:
         nim.set_userID( userID=nim_userID )
-        P.info('Reading userID')
+        # P.info('Reading userID')
     else:
         P.error('Failed reading userID')
 
@@ -378,7 +378,7 @@ def get_vars( nim=None ) :
     nim_class = h_root.userData("nim_class")
     if nim_class is not None:
         nim.set_tab( nim_class )
-        P.info('Reading nim_class')
+        # P.info('Reading nim_class')
     else:
         P.error('Failed reading nim_class')
 
@@ -387,14 +387,14 @@ def get_vars( nim=None ) :
     nim_server = h_root.userData("nim_server")
     if nim_server is not None:
         nim.set_server( path=nim_server )
-        P.info('Reading nim_server')
+        # P.info('Reading nim_server')
     else:
         P.error('Failed reading nim_server')
     #  Server ID :
     nim_serverID = h_root.userData("nim_serverID")
     if nim_serverID is not None:
         nim.set_ID( elem='server', ID=nim_serverID )
-        P.info('Reading nim_serverID')
+        # P.info('Reading nim_serverID')
     else:
         P.error('Failed reading nim_serverID')
 
@@ -403,7 +403,7 @@ def get_vars( nim=None ) :
     nim_jobName = h_root.userData("nim_jobName")
     if nim_jobName is not None:
         nim.set_name( elem='job', name=nim_jobName )
-        P.info('Reading nim_jobName')
+        # P.info('Reading nim_jobName')
     else:
         P.error('Failed reading nim_jobName')
 
@@ -412,7 +412,7 @@ def get_vars( nim=None ) :
     nim_jobID = h_root.userData("nim_jobID")
     if nim_jobID is not None:
         nim.set_ID( elem='job', ID=nim_jobID )
-        P.info('Reading nim_jobID')
+        # P.info('Reading nim_jobID')
     else:
         P.error('Failed reading nim_jobID')
 
@@ -421,7 +421,7 @@ def get_vars( nim=None ) :
     nim_showName = h_root.userData("nim_showName")
     if nim_showName is not None:
         nim.set_name( elem='show', name=nim_showName )
-        P.info('Reading nim_showName')
+        # P.info('Reading nim_showName')
     else:
         P.error('Failed reading nim_showName')
 
@@ -431,7 +431,7 @@ def get_vars( nim=None ) :
     nim_showID = h_root.userData("nim_showID")
     if nim_showID is not None:
         nim.set_ID( elem='show', ID=nim_showID )
-        P.info('Reading nim_showID')
+        # P.info('Reading nim_showID')
     else:
         P.error('Failed reading nim_showID')
 
@@ -440,7 +440,7 @@ def get_vars( nim=None ) :
     nim_shot = h_root.userData("nim_shot")
     if nim_shot is not None:
         nim.set_name( elem='shot', name=nim_shot )
-        P.info('Reading nim_shot')
+        # P.info('Reading nim_shot')
     else:
         P.error('Failed reading nim_shot')
 
@@ -449,7 +449,7 @@ def get_vars( nim=None ) :
     nim_shotID = h_root.userData("nim_shotID")
     if nim_shotID is not None:
         nim.set_ID( elem='shot', ID=nim_shotID )
-        P.info('Reading nim_shotID')
+        # P.info('Reading nim_shotID')
     else:
         P.error('Failed reading nim_shotID')
 
@@ -459,7 +459,7 @@ def get_vars( nim=None ) :
     nim_asset = h_root.userData("nim_asset")
     if nim_asset is not None:
         nim.set_name( elem='asset', name=nim_asset )
-        P.info('Reading nim_asset')
+        # P.info('Reading nim_asset')
     else:
         P.error('Failed reading nim_asset')
 
@@ -468,7 +468,7 @@ def get_vars( nim=None ) :
     nim_assetID = h_root.userData("nim_assetID")
     if nim_assetID is not None:
         nim.set_ID( elem='asset', ID=nim_assetID )
-        P.info('Reading nim_assetID')
+        # P.info('Reading nim_assetID')
     else:
         P.error('Failed reading nim_assetID')
 
@@ -477,7 +477,7 @@ def get_vars( nim=None ) :
     nim_fileID = h_root.userData("nim_fileID")
     if nim_fileID is not None:
         nim.set_ID( elem='file', ID=nim_fileID )
-        P.info('Reading nim_fileID')
+        # P.info('Reading nim_fileID')
     else:
         P.error('Failed reading nim_fileID')
 
@@ -500,7 +500,7 @@ def get_vars( nim=None ) :
     nim_basename = h_root.userData("nim_basename")
     if nim_basename is not None:
         nim.set_name( elem='base', name=nim_basename )
-        P.info('Reading nim_basename')
+        # P.info('Reading nim_basename')
     else:
         P.error('Failed reading nim_basename')
 
@@ -510,7 +510,7 @@ def get_vars( nim=None ) :
     nim_type = h_root.userData("nim_type")
     if nim_type is not None:
         nim.set_name( elem='task', name=nim_type )
-        P.info('Reading nim_type')
+        # P.info('Reading nim_type')
     else:
         P.error('Failed reading nim_type')
 
@@ -520,7 +520,7 @@ def get_vars( nim=None ) :
     nim_typeID = h_root.userData("nim_typeID")
     if nim_typeID is not None:
         nim.set_ID( elem='task', ID=nim_typeID )
-        P.info('Reading nim_typeID')
+        # P.info('Reading nim_typeID')
     else:
         P.error('Failed reading nim_typeID')
 
@@ -530,7 +530,7 @@ def get_vars( nim=None ) :
     nim_typeFolder = h_root.userData("nim_typeFolder")
     if nim_typeFolder is not None:
         nim.set_taskFolder( folder=nim_typeFolder )
-        P.info('Reading nim_typeFolder')
+        # P.info('Reading nim_typeFolder')
     else:
         P.error('Failed reading nim_typeFolder')
 
@@ -539,7 +539,7 @@ def get_vars( nim=None ) :
     nim_tag = h_root.userData("nim_tag")
     if nim_tag is not None:
         nim.set_name( elem='tag', name=nim_tag )
-        P.info('Reading nim_tag')
+        # P.info('Reading nim_tag')
     else:
         P.error('Failed reading nim_tag')
 
@@ -548,7 +548,7 @@ def get_vars( nim=None ) :
     nim_fileType = h_root.userData("nim_fileType")
     if nim_fileType is not None:
         nim.set_name( elem='file', name=nim_fileType )
-        P.info('Reading nim_fileType')
+        # P.info('Reading nim_fileType')
     else:
         P.error('Failed reading nim_fileType')
 

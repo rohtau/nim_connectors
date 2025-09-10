@@ -2474,10 +2474,17 @@ def get_verInfo( verID=None, username=None ) :
     result = connect( method='get', params=params )
     return result
 
-def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, symLink=True, version=0 ) :
+def versionUp( nim=None, padding: int=2, selected: bool=False, win_launch: bool=False, pub: bool=False, symLink: bool=True, version: int=0, comment: str='' ) -> bool :
     '''
     NIM Connector Function used to save/publish/version up files
     The version parameter can be used to explicitelly force to save under a particular version
+
+    Comments
+    ----------
+    There are two ways to pass comments to the file publishing:
+    - Mandatory automatic comment, just set the 'comment' attribute in the nim object: nim.name('comment')
+    - Initial comment: pass a comment to this function and it will be used as the initial comment when the user is been prompted.
+      If there is any comment in the nim object this will take precedence and use won't be asked
 
     Parameters
     ----------
@@ -2493,6 +2500,8 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
         Create symlinks for published file
     version : int
         Force to save under this version. If 0 (default) save using next available version
+    comment : str
+        Optional initial string for file publishing comment.
 
     Returns
     -------
@@ -2672,7 +2681,10 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             return False
 
         # Publish file
-        result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
+        # result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
+        print(f"Comment pass to the function: {comment}")
+        print(f"Comment in nim object: {nim.name('comment')}")
+        result_addFile=add_file( nim=nim, filePath=filePath, comment=comment, pub=pub )
         if result_addFile :
             action=''
             if nim.mode().lower() in ['pub', 'publish'] :
@@ -2702,6 +2714,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
 
             
             P.info( 'File has been %s successfully.\n' % action.lower() )
+            """
             if not pub :
                 if nim.mode().lower() in ['save', 'saveas'] :
                     Win.popup( title=winTitle+' - Versioned Up', msg='File has been saved successfully.' )
@@ -2710,6 +2723,7 @@ def versionUp( nim=None, padding=2, selected=False, win_launch=False, pub=False,
             else :
                 #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
                 pass
+            """
             
             #  Publish Sym-Links :
             if pub and symLink :
@@ -2989,6 +3003,7 @@ def add_file( nim=None, filePath='', comment='', pub=False ) :
         return False
     if not nim.name( 'comment' ) :
         # Ask for user publishing comment
+        print("Asking for comment")
         nim.set_name( elem='comment', name=nim_tools.get_comment( app=app, num_requests=1, comment=comment ) )
         if not nim.name( 'comment' ) :
             P.warning( '\nNo comment entered.\n' )

@@ -201,6 +201,9 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
             inputDialog.setWindowTitle(title)
             inputDialog.setLabelText(msg)
             inputDialog.setFont(inputFont)
+            inputDialog.setTextValue(defaultInput)
+            if defaultInput:
+                inputDialog.setFixedWidth(400)
             ok = inputDialog.exec_()
             if(ok):
                 userInput = inputDialog.textValue()
@@ -251,7 +254,7 @@ def popup( title='', msg='', type='ok', defaultInput='', pyside=False, _list=[],
             else :
                 userInput=None
 
-    #  Deadline :
+    #  RV :
     elif app=='RV' :
         if type=='ok' :
             dialog=QtGui.QMessageBox.information( None, title, msg, \

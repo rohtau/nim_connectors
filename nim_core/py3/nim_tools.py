@@ -61,8 +61,10 @@ def ui2py( uiFile='', pyFile='') :
 
 def get_comment( app='', num_requests=3, comment='' ) :
     'Gets a comment from the user'
-    msgs=['Please enter a comment:                                    ']
-    comment=comment
+    msgs=['Please enter a comment:']
+    user_comment=comment
+
+    print(f"Initial comment in get_comment(): {comment}")
     
     for i in range(0,num_requests) :
         #  Prompt user for comment, in Maya :
@@ -75,26 +77,26 @@ def get_comment( app='', num_requests=3, comment='' ) :
         #  Prompt user for comment, in Nuke :
         elif app=='Nuke' :
             import nuke
-            comment=nuke.getInput( 'Enter Note :' )
+            user_comment=nuke.getInput( 'Enter Note :' )
         elif app=='C4D' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
+            user_comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Hiero' :
-            comment=nim_win.popup( app='Hiero', title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
+            user_comment=nim_win.popup( app='Hiero', title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='3dsMax' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
+            user_comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Houdini' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
+            user_comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         elif app=='Flame' :
-            comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
+            user_comment=nim_win.popup( title='NIM - Input Comment', msg=msgs[i], defaultInput=comment, type='input' )
         else :
             nim_print.info( 'Couldn\'t determine the application to prompt for a user comment.  :\'(' )
         #  Stop, once a comment has been input :
-        if comment : break
+        if user_comment : break
     
-    if not comment :
+    if not user_comment :
         nim_print.info( 'Consider entering a comment next time.' )
     
-    return comment
+    return user_comment
 
 
 def get_home() :

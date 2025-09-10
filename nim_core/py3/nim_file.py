@@ -787,10 +787,10 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
         verNum=int(ver_baseInfo)+1
 
     if pub:
-        print("Basename for publish: %s"%nim.name('base'))
-        print("Base info for latest version:")
-        print(baseInfo)
-        print("Version to publish: %d"%verNum)
+        P.info("Basename for publish: %s"%nim.name('base'))
+        P.info("Base info for latest version:")
+        P.info(baseInfo)
+        P.info("Version to publish: %d"%verNum)
 
     # Double check if there is a file with a greater version than the published
     # one
@@ -803,8 +803,6 @@ def verUp( nim=None, padding=2, selected=False, win_launch=False, pub=False, sym
                     if int(numSrch.group()) >verNum :
                         verNum=int(numSrch.group())
     except : pass
-
-    print("Version to publish: %d"%verNum)
 
     # FIXME: this is causing issues with HIP save from publish tools.
     if version and version > ver_baseInfo:
