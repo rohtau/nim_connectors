@@ -861,7 +861,7 @@ def buildBasename( shot, task, name, elemtype='', layer='', isfolder=False):
     else:
         return basename
 
-def getNextPublishVer ( filename, parent='SHOT', parentID=''):
+def getNextPublishVer ( filename: str, parent: str='SHOT', parentID: str='') -> int:
     '''
     Query NIM's database to get what would be the next version to be publish for the element.
 
@@ -1096,9 +1096,9 @@ def publishOutputPath ( baseloc, shot, name, ver, task, elem='', ext='exr', laye
     if len(subfolder):
         path = os.path.join( loc, subfolder, filename )
         loc = os.path.join( loc, subfolder )
-    if platform.system() == 'Windows' and force_posix:
-        path = nimUtl.toPosix( path )
-        loc  = nimUtl.toPosix( loc )
+    # Convert to Posix
+    path = nimUtl.toPosix( path, force=force_posix )
+    loc  = nimUtl.toPosix( loc, force=force_posix  )
 
     if only_loc:
         return loc

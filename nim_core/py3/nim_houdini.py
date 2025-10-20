@@ -831,6 +831,7 @@ def set_shot_range():
         P.error("HIP file doesn't have publishing info. Has this scene been published?")
         return False
     jobid = int(h_root.userData("nim_jobID"))
+    msg = ""
 
     # Shot
     # Set frame range. Check if frame range is actually y bigger in any of sides,
