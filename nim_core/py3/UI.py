@@ -1437,7 +1437,7 @@ class GUI(QtGui.QMainWindow) :
                 return
         
         #  Print Population Start :
-        # P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
+        P.info( '  Populating %s...' % self.nim.get_printElem( elem ).upper() )
         
         # print("NIM Object before populate:")
         # pprint(self.nim.get_nim())
@@ -3592,12 +3592,14 @@ class GUI(QtGui.QMainWindow) :
 
         #  Version up file and add to API :
         try : 
-            Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding )
+            if not Api.versionUp( nim=self.nim, selected=selected, win_launch=True, padding=padding ):
+                return False
         except Exception as e :
             P.error(traceback.format_exc())
             # P.error(sys.exc_info()[2])
             P.error("Failed to Save File: %s"%str(e))
             nimRt.DisplayMessage.get_btn( "Error saving file", title= 'NIM Save Error')
+            return False
         
         # Start Maya Undo Queue
         if self.app=='Maya' :    
@@ -3652,11 +3654,13 @@ class GUI(QtGui.QMainWindow) :
         #  Version Up :
         try :
             if self.nim.tab()=='SHOT' :
-                Api.versionUp( projPath=self.nim.Input('server').currentText(), app=self.app, shotID=self.nim.ID('shot'), \
-                    task=self.nim.name('task'), basename=self.nim.name('base'), ext=ext )
+                if not Api.versionUp( projPath=self.nim.Input('server').currentText(), app=self.app, shotID=self.nim.ID('shot'), \
+                        task=self.nim.name('task'), basename=self.nim.name('base'), ext=ext ):
+                    return False
             elif self.nim.tab()=='ASSET' :
-                Api.versionUp( projPath=self.nim.Input('server').currentText(), app=self.app, assetID=self.nim.ID('asset'), \
-                    task=self.nim.name('task'), basename=self.nim.name('base'), ext=ext )
+                if not Api.versionUp( projPath=self.nim.Input('server').currentText(), app=self.app, assetID=self.nim.ID('asset'), \
+                        task=self.nim.name('task'), basename=self.nim.name('base'), ext=ext ):
+                    return False
         except :
             P.error("Failed to Version File")
 

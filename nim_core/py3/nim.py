@@ -980,9 +980,10 @@ class NIM( object ) :
 
         elif elem=='base' :
             if not self.nim['task']['ID']:
+                # Reset dict if task doesnt exists
                 self.nim[elem]['Dict']={}
             else:
-                bases = None
+                bases = {}
                 if self.nim['filter']['name']=='Published' :
                     if self.nim['class']=='SHOT' and self.nim['task']['name'] :
                         bases=Api.get_basesAllPub( shotID=self.nim['shot']['ID'], taskID=self.nim['task']['ID'], username=self.userInfo()['name'] )
@@ -993,9 +994,9 @@ class NIM( object ) :
                         bases=Api.get_bases( shotID=self.nim['shot']['ID'], taskID=self.nim['task']['ID'] )
                     elif self.nim['class']=='ASSET' and self.nim['task']['name'] :
                         bases=Api.get_bases( assetID=self.nim['asset']['ID'], taskID=self.nim['task']['ID'] )
-                if bases:
-                    self.nim[elem]['Dict']=bases
-                
+                # if bases:
+                self.nim[elem]['Dict']=bases
+
         elif elem=='ver' :
             if not self.nim['base']['name']:
                 self.nim[elem]['Dict']={}

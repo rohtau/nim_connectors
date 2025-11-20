@@ -2584,14 +2584,14 @@ def versionUp( nim=None, padding: int=2, selected: bool=False, win_launch: bool=
 
 
     # Check tag name is correct according with pub task
-    comptasks = ('comp', 'roto', 'prep', 'conform')
+    comptasks = ('comp', 'roto', 'prep', 'conform', 'clean')
     comptools = ('Nuke', 'Flame')
     pubtask   = nim.name('task')
     pubtag    = nim.name('tag')
     if nim.app() in comptools:
         if pubtask not in comptasks and pubtag == 'main':
             msg=("Using tag '%s' for non comp tasks (%s) from a comp tool (%s) is not recommended.\nPlease use something like 'slap' for your comp scene for 3D tasks"%( pubtag, pubtask, nim.app() ))
-            nimRt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
+            Rt.DisplayMessage.get_btn( msg, title= 'NIM Save Error')
             P.error(msg)
             P.error("Abort file save")
             return False
@@ -2902,6 +2902,8 @@ def versionUp( nim=None, padding: int=2, selected: bool=False, win_launch: bool=
         Win.popup( title=winTitle+' - Version Up Failure', \
             msg='Failed to save the file.\n\nPlease check the application logs for more details.' )
         return False
+
+    return True
 
 
 def clear_pubFlags( shotID=None, assetID=None, showID=None, fileID=None, basename='' ) :
