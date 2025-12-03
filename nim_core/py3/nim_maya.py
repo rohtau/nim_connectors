@@ -42,24 +42,26 @@ except ImportError as e:
 #  Maya Imports :
 import maya.cmds as mc
 import maya.mel as mm
+import maya.mel as mel
 import maya.OpenMaya as om
-from pymel.core import *
 #  Import Python GUI packages :
 try : 
     from PySide2 import QtWidgets as QtGui
+    from PySide2 import QtGui as QtGui2
     from PySide2 import QtCore
 except ImportError :
     try : 
-        from PySide import QtCore, QtGui
+        from PySide6 import QtWidgets as QtGui
+        from PySide6 import QtGui as QtGui2
+        from PySide6 import QtCore
     except ImportError :
-        try : 
-            from PyQt4 import QtCore, QtGui
-        except ImportError : 
-            try :
-                from PyQt5 import QtWidgets as QtGui
-                from PyQt5 import QtCore
-            except ImportError :
-                print("NIM: Failed to load UI Modules - Maya")
+        try :
+            from PyQt5 import QtWidgets as QtGui
+            from PyQt5 import QtGui as QtGui2
+            from PyQt5 import QtCore
+        except ImportError as e:
+            raise RuntimeError(f"NIM: Failed to load UI Modules - Maya: {e}")
+
 # Import rohtau's mayacore
 import pipe
 
@@ -87,16 +89,16 @@ def get_mainWin() :
     import maya.OpenMayaUI as omUI
     #from PySide import QtGui
     try : 
-        from PySide2 import QtWidgets as QtGui
+        from PySide6 import QtWidgets as QtGui
     except ImportError :
         try : 
-            from PySide import QtGui
-        except ImportError :
-            pass
+            from PySide2 import QtGui
+        except ImportError as e :
+            raise RuntimeError(f"NIM: Failed to load UI Modules - Maya: {e}")
     try:
+        from shiboken6 import wrapInstance
+    except :
         from shiboken2 import wrapInstance
-    except ImportError :
-        from shiboken import wrapInstance
     #  Get the main maya window as a QMainWindow instance :
     mayaWin=wrapInstance( int( omUI.MQtUtil.mainWindow() ), QtGui.QWidget )
     return mayaWin
@@ -527,10 +529,10 @@ def stash_frame_range():
     playend   = mc.playbackOptions(maxTime=True, query=True)
     start     = mc.playbackOptions(ast=True, query=True)
     end       = mc.playbackOptions(aet=True, query=True)
-    mel.putenv('SHOTSTART_STASH',    str(int(start)))
-    mel.putenv('SHOTEND_STASH',      str(int(end)))
-    mel.putenv('SHOTSTARTCUT_STASH', str(int(playstart)))
-    mel.putenv('SHOTENDCUT_STASH',   str(int(playend)))
+    mel.eval(f"putenv \"SHOTSTART_STASH\" \"{str(int(start))}\";")
+    mel.eval(f"putenv \"SHOTEND_STASH\" \"{str(int(end))}\";")
+    mel.eval(f"putenv \"SHOTSTARTCUT_STASH\" \"{str(int(playstart))}\";")
+    mel.eval(f"putenv \"SHOTENDCUT_STASH\" \"{str(int(playend))}\";")
 
     return True
 
@@ -566,7 +568,7 @@ def set_globals():
     # Set output format.
     # If format doesn't match, create format for show.
     if 'output_res' in jobglobals:
-        mel.putenv('SHOWOUTPUT', jobglobals['output_res'])
+        mel.eval(f"putenv \"SHOWOUTPUT\" \"{jobglobals['output_res']}\";")
         (resx, resy) = jobglobals['output_res'].split('x')
         resx = int(resx)
         resy = int(resy)
@@ -577,10 +579,10 @@ def set_globals():
     
     # Set FPS
     if 'fps' in jobglobals:
-        mel.putenv('FPS', str(jobglobals['fps']))
+        mel.eval(f"putenv \"FPS\" \"{str(jobglobals['fps'])}\";")
         # cmds.currentUnit( time='ntsc' )
         if jobglobals['fps'] in fps_names:
-            mel.currentUnit( time=fps_names[jobglobals['fps']] )
+            mc.currentUnit( time=fps_names[jobglobals['fps']] )
         msg += "- FPS set to %d\n"%jobglobals['fps']
 
     # Shot
@@ -606,15 +608,14 @@ def set_globals():
         mc.playbackOptions(minTime=first+handles)
         mc.playbackOptions(maxTime=last-handles)
         mel.currentTime( first+handles )
-        mel.putenv('SHOTSTART', str(first))
-        mel.putenv('SHOTEND', str(last))
-        mel.putenv('SHOTSTARTCUT', str(first+handles))
-        mel.putenv('SHOTENDCUT', str(last-handles))
-        mel.putenv('SHOTFRAMES', str(frames))
-        mel.putenv('SHOTHANDLES', str(shotglobals['handles']))
+        mel.eval(f"putenv \"SHOTSTART\" \"{str(first)}\";")
+        mel.eval(f"putenv \"SHOTEND\" \"{str(last)}\";")
+        mel.eval(f"putenv \"SHOTSTARTCUT\" \"{str(first+handles)}\";")
+        mel.eval(f"putenv \"SHOTENDCUT\" \"{str(last-handles)}\";")
+        mel.eval(f"putenv \"SHOTFRAMES\" \"{str(frames)}\";")
+        mel.eval(f"putenv \"SHOTHANDLES\" \"{str(shotglobals['handles'])}\";")
         if not mel.getenv('SHOTPREROLL'):
-            mel.putenv('SHOTPREROLL', str(0))
-        mel.putenv('SHOTSIMSTART', str(first - int(mel.getenv('SHOTPREROLL'))))
+            mel.eval(f"putenv \"SHOTPREROLL\" \"{str(0)}\";")
 
 
         msg += "- Frame range set to %d-%d\n- Cut Range set to: %d - %d\n- Shot length: %d\n"%(first, last, first+handles, last-handles, frames)
@@ -726,8 +727,8 @@ def set_preroll():
             mc.playbackOptions(minTime=first)
             mc.playbackOptions(maxTime=last)
             mel.currentTime( first)
-            mel.putenv('SHOTPREROLL', str(preroll))
-            mel.putenv('SHOTSIMSTART', str(first))
+            mel.eval(f"putenv \"SHOTPREROLL\" \"{str(preroll)}\";")
+            mel.eval(f"putenv \"SHOTSIMSTART\" \"{str(first)}\";")
             msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
             om.MGlobal.displayInfo(msg)
     else:
@@ -775,7 +776,7 @@ def set_sim_range():
             mc.playbackOptions(minTime=first)
             mc.playbackOptions(maxTime=last)
             mel.currentTime( first)
-            mel.putenv('SHOTSIMSTART', str(first))
+            mel.eval(f"putenv \"SHOTSIMSTART\" \"{str(first)}\";")
             msg = "Simulation shot frame range set to %d-%d (%d Preroll frames)"%(first, last, preroll)
             om.MGlobal.displayInfo(msg)
         else:
@@ -829,12 +830,11 @@ def rtShowScriptPubInfo():
     '''
     Show scene publishing info
     '''
-    mel.select('defaultRenderGlobals')
+    mc.select('defaultRenderGlobals')
 
 def rtCopyScenePathToClipboard():
     """Copy current scene path to clipboard"""
-    from PySide2 import QtGui as QtGui2
-    path = mel.file(q=True, sn=True)
+    path = mc.file(q=True, sn=True)
     if platform.system() == 'Windows':
         if path.startswith('/') or path.startswith('\\'):
             path = "C:" + path
@@ -842,8 +842,8 @@ def rtCopyScenePathToClipboard():
     else:
         path = Utl.toPosix(path)
     cb = QtGui2.QGuiApplication.clipboard()
-    cb.clear(mode=cb.Clipboard )
-    cb.setText(path, mode=cb.Clipboard)
+    cb.clear(mode=QtGui2.QClipboard.Mode.Clipboard )
+    cb.setText(path, mode=QtGui2.QClipboard.Mode.Clipboard)
 
     P.info("Script path copied to clipboard: %s"%path)
 
@@ -1030,7 +1030,7 @@ def rtDebugSentinel( menuitem):
 
     '''
     toggle = mc.menuItem(menuitem, query=True, checkBox=True)
-    mel.putenv('RT_SENTINEL_VERBOSE', str(int(toggle)))
+    mel.eval(f"putenv \"RT_SENTINEL_VERBOSE\" \"{str(int(toggle))}\";")
     P.info("%s sentinel process debug"%('Disable', 'Enable')[int(toggle)])
 
     pass
@@ -1044,7 +1044,7 @@ def makeProject(projectLocation='', renderPath='') :
     createDirectories = True
 
     # Get list of all standard file rules
-    fileRules = mm.eval('np_getDefaultFileRuleWidgets')
+    fileRules = mel.eval('np_getDefaultFileRuleWidgets')
     try:
         #Update with NIM Render Directory
         if renderPath:
@@ -1066,7 +1066,7 @@ def makeProject(projectLocation='', renderPath='') :
         ruleName  = fileRules[i]
         ruleValue = fileRules[i+1]
         mc.workspace(fr=(ruleName,ruleValue))
-        if createDirectories :
+        if createDirectories and  ruleValue:
             mc.workspace(create=ruleValue)
 
     #Adding images folder to project
@@ -1074,8 +1074,8 @@ def makeProject(projectLocation='', renderPath='') :
 
     mc.workspace(saveWorkspace=True)
     mc.workspace(projectLocation,o=True)
-    mm.eval('if (`window -ex projectWindow`){print "Window Open"; deleteUI projectWindow;projectWindow;}')
-    mm.eval('np_resetBrowserPrefs;');
+    mel.eval('if (`window -ex projectWindow`){print "Window Open"; deleteUI projectWindow;projectWindow;}')
+    mel.eval('np_resetBrowserPrefs;');
 
     return True
 
@@ -1261,20 +1261,20 @@ class Pub_Chex( QtGui.QWidget ) :
         if self.applyShaders.isChecked() :
             P.info('Applying default shaders...')
             mc.select( all=True )
-            mm.eval( 'hyperShade -assign initialShadingGroup' )
+            mel.eval( 'hyperShade -assign initialShadingGroup' )
             mc.select( sel, replace=True )
             P.info('    Default shaders applied successfully.')
         
         #  Delete Unused Shaders :
         if self.delUnusedShaders.isChecked() :
             P.info('Deleting unused shaders...')
-            mm.eval( 'hyperShadePanelMenuCommand("hyperShadePanel1", "deleteUnusedNodes")' )
+            mel.eval( 'hyperShadePanelMenuCommand("hyperShadePanel1", "deleteUnusedNodes")' )
             P.info('    Unused shaders have been deleted successfully.')
         
         #  Delete history :
         if self.delHist.isChecked() :
             P.info( 'Deleteing all history...' )
-            mm.eval( 'DeleteAllHistory' )
+            mel.eval( 'DeleteAllHistory' )
             P.info('    All history deleted successfully.')
         
         
@@ -1299,11 +1299,11 @@ class Pub_Chex( QtGui.QWidget ) :
             except : P.info('      No Clusters found.')
             #  Sculpt Deformers :
             P.info('    Deleting Sculpts...')
-            try : mm.eval('DeleteAllSculptObjects')
+            try : mel.eval('DeleteAllSculptObjects')
             except : P.info('      No Sculpts found.')
             #  Non-Linear Deformers :
             P.info('    Deleting non-linear deformers...')
-            try : mm.eval('DeleteAllNonLinearDeformers')
+            try : mel.eval('DeleteAllNonLinearDeformers')
             except : P.info('      No non-linear deformers found.')
             #  Wire Defomers :
             P.info('    Deleting Wires...')
@@ -1369,7 +1369,7 @@ class Pub_Chex( QtGui.QWidget ) :
         #  Delete Constraints :
         if conn_opt=='All' :
             P.info( 'Deleteing all constraints....' )
-            mm.eval('DeleteAllConstraints')
+            mel.eval('DeleteAllConstraints')
         elif conn_opt=='Unsel' :
             P.info( 'Deleting un-sel constraints....' )
             try :
@@ -1428,7 +1428,7 @@ class Pub_Chex( QtGui.QWidget ) :
         #  Delete Cameras :
         if cam_opt=='All' :
             P.info( 'Deleteing all cameras....' )
-            mm.eval( 'DeleteAllCameras' )
+            mel.eval( 'DeleteAllCameras' )
         elif cam_opt=='Unsel' :
             try :
                 mc.select( mc.ls( type='camera' ) )
@@ -1443,7 +1443,7 @@ class Pub_Chex( QtGui.QWidget ) :
         #  Delete Imageplanes :
         if ip_opt=='All' :
             P.info( 'Deleteing all ImagePlanes....' )
-            mm.eval( 'DeleteAllImagePlanes' )
+            mel.eval( 'DeleteAllImagePlanes' )
         elif ip_opt=='Unsel' :
             try :
                 mc.select( mc.ls( type='imagePlane' ) )
@@ -1458,7 +1458,7 @@ class Pub_Chex( QtGui.QWidget ) :
         #  Delete Lights :
         if light_opt=='All' :
             P.info( 'Deleteing all lights....' )
-            mm.eval( 'DeleteAllLights' )
+            mel.eval( 'DeleteAllLights' )
             for vrayLight in vrayLights :
                 try :
                     mc.select( mc.ls( type=vrayLight ) )		    
@@ -1562,7 +1562,11 @@ class UIUtils(MayaQWidgetBaseMixin, QtGui.QWidget):
     def get_maya_window(self):
         """Grabs the Maya window."""
         pointer = mui.MQtUtil.mainWindow()
-        return shiboken.wrapInstance(int(pointer), QtGui.QWidget)
+        try:
+            from shiboken6 import wrapInstance
+        except :
+            from shiboken2 import wrapInstance
+        return wrapInstance(int(pointer), QtGui.QWidget)
 
 
 #  End

@@ -56,19 +56,21 @@ try :
     from PySide2 import QtWidgets as QtGui
     from PySide2 import QtGui as QtGui2
     from PySide2 import QtCore
+    from PySide2.QtWidgets import QAction, QActionGroup
 except ImportError :
     try : 
-        from PySide import QtCore, QtGui
+        from PySide6 import QtWidgets as QtGui
+        from PySide6 import QtGui as QtGui2
+        from PySide6 import QtCore
+        from PySide6.QtGui import QAction, QActionGroup
     except ImportError :
-        try : 
-            from PyQt4 import QtCore, QtGui
-        except ImportError : 
-            try :
-                from PyQt5 import QtWidgets as QtGui
-                from PyQt5 import QtGui as QtGui2
-                from PyQt5 import QtCore
-            except ImportError :
-                print("NIM UI: Failed to UI Modules")
+        try :
+            from PyQt5 import QtWidgets as QtGui
+            from PyQt5 import QtGui as QtGui2
+            from PyQt5 import QtCore
+            from PyQt5.QtWidgets import QAction, QActionGroup
+        except ImportError :
+            print("NIM UI: Failed to UI Modules")
 
 #  Variables :
 WIN=''
@@ -108,9 +110,9 @@ def mk( mode='open', _import=False, _export=False, ref=False, pub=False ) :
                 import maya.OpenMayaUI as omUI
                 import maya.cmds as mc
                 try:
-                    from shiboken2 import wrapInstance
+                    from shiboken6 import wrapInstance
                 except :
-                    from shiboken import wrapInstance
+                    from shiboken2 import wrapInstance
                 from . import nim_maya as M
                 win_parent=M.get_mainWin()
                 WIN=GUI( parent=win_parent, mode=mode )
@@ -624,8 +626,14 @@ class GUI(QtGui.QMainWindow) :
         self.tagLabel = QtGui.QLabel("Tag:")
         self.nim.set_input( elem='tag', widget=QtGui.QLineEdit() )
 
-        regex=QtCore.QRegExp("^[a-z-A-Z0-9][a-z-A-Z0-9_]+")
-        validator = QtGui2.QRegExpValidator(regex)
+          # email_regex = QRegularExpression(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        # email_regex.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
+        # validator2 = QRegularExpressionValidator(email_regex)
+        # line_edit2.setValidator(validator2)
+        # line_edit2.setPlaceholderText("user@example.com")
+
+        regex = QtCore.QRegularExpression("^[a-z-A-Z0-9][a-z-A-Z0-9_]+")
+        validator = QtGui2.QRegularExpressionValidator(regex)
         self.nim.Input('tag').setValidator(validator)
 
         self.tagPresets = QtGui.QComboBox()
@@ -719,7 +727,8 @@ class GUI(QtGui.QMainWindow) :
         #===-------------------------------
         
         userMenu=QtGui.QMenu( 'User', self )
-        self.changeUserAction=QtGui.QAction( 'Change User', self )
+        # self.changeUserAction=QtGui.QAction( 'Change User', self )
+        self.changeUserAction = QAction( 'Change User', self )
         self.changeUser=userMenu.addAction( self.changeUserAction )
 
         #Remove from shared menu in Houdini
@@ -733,13 +742,19 @@ class GUI(QtGui.QMainWindow) :
         #===--------------------------------
         
         modeMenu=QtGui.QMenu( 'Mode', self )
-        modeGroup=QtGui.QActionGroup( self, exclusive=True )
+        # modeGroup=QtGui.QActionGroup( self, exclusive=True )
+        modeGroup = QActionGroup( self, exclusive=True )
         #  Make menu items :
-        self.openWin=modeGroup.addAction( QtGui.QAction( 'Open', self, checkable=True ) )
-        self.loadWin=modeGroup.addAction( QtGui.QAction( 'Load', self, checkable=True ) )
-        self.saveWin=modeGroup.addAction( QtGui.QAction( 'Save', self, checkable=True ) )
-        self.verWin=modeGroup.addAction( QtGui.QAction( 'Version Up', self, checkable=True ) )
-        self.pubWin=modeGroup.addAction( QtGui.QAction( 'Publish', self, checkable=True ) )
+        # self.openWin=modeGroup.addAction( QtGui.QAction( 'Open', self, checkable=True ) )
+        # self.loadWin=modeGroup.addAction( QtGui.QAction( 'Load', self, checkable=True ) )
+        # self.saveWin=modeGroup.addAction( QtGui.QAction( 'Save', self, checkable=True ) )
+        # self.verWin=modeGroup.addAction( QtGui.QAction( 'Version Up', self, checkable=True ) )
+        # self.pubWin=modeGroup.addAction( QtGui.QAction( 'Publish', self, checkable=True ) )
+        self.openWin=modeGroup.addAction( QAction( 'Open', self, checkable=True ) )
+        self.loadWin=modeGroup.addAction( QAction( 'Load', self, checkable=True ) )
+        self.saveWin=modeGroup.addAction( QAction( 'Save', self, checkable=True ) )
+        self.verWin=modeGroup.addAction( QAction( 'Version Up', self, checkable=True ) )
+        self.pubWin=modeGroup.addAction( QAction( 'Publish', self, checkable=True ) )
         #  Set shortcuts :
         self.openWin.setShortcut('Ctrl+O')
         self.loadWin.setShortcut('Ctrl+L')
