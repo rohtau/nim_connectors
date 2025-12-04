@@ -3765,7 +3765,8 @@ if 'PySide2.QtGui' in sys.modules or 'PySide6.QtGui' in sys.modules or 'PyQt5.Qt
             
             #  Button Layout :
             self.btn_layout=QtGui.QHBoxLayout()
-            self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+            # self.layout.addLayout( self.btn_layout, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom )
+            self.layout.addLayout( self.btn_layout)
             self.btn_layout.addStretch()
 
             #  Create Buttons :

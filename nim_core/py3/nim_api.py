@@ -2682,8 +2682,6 @@ def versionUp( nim=None, padding: int=2, selected: bool=False, win_launch: bool=
 
         # Publish file
         # result_addFile=add_file( nim=nim, filePath=filePath, comment=nim.name( 'comment' ), pub=pub )
-        print(f"Comment pass to the function: {comment}")
-        print(f"Comment in nim object: {nim.name('comment')}")
         result_addFile=add_file( nim=nim, filePath=filePath, comment=comment, pub=pub )
         if result_addFile :
             action=''
@@ -2714,16 +2712,6 @@ def versionUp( nim=None, padding: int=2, selected: bool=False, win_launch: bool=
 
             
             P.info( 'File has been %s successfully.\n' % action.lower() )
-            """
-            if not pub :
-                if nim.mode().lower() in ['save', 'saveas'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been saved successfully.' )
-                elif nim.mode().lower() in ['ver', 'verup', 'version', 'versionup'] :
-                    Win.popup( title=winTitle+' - Versioned Up', msg='File has been versioned up successfully.' )
-            else :
-                #Win.popup( title=winTitle+' - Version\'ed Up', msg='File has been Published successfully.' )
-                pass
-            """
             
             #  Publish Sym-Links :
             if pub and symLink :

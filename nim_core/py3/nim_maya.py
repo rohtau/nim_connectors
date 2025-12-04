@@ -302,7 +302,7 @@ def set_vars( nim=None ) :
     
     # Open/Close scene script nodes
     if not mc.objExists( 'rtOpenScene' ) :
-        openSceneNodeName = cmds.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
+        openSceneNodeName = mc.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
 
     mc.undoInfo(closeChunk=True)
     return
@@ -486,7 +486,7 @@ def get_vars( nim=None ) :
 
     # Open/Close scene script nodes
     if not mc.objExists( 'rtOpenScene' ) :
-        openSceneNodeName = cmds.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
+        openSceneNodeName = mc.scriptNode( st=2, bs='import nim_core.nim_maya as M; M.rtOpenScene()', n='rtOpenScene', stp='python')
 
     mc.undoInfo(closeChunk=True)
     return
@@ -580,7 +580,6 @@ def set_globals():
     # Set FPS
     if 'fps' in jobglobals:
         mel.eval(f"putenv \"FPS\" \"{str(jobglobals['fps'])}\";")
-        # cmds.currentUnit( time='ntsc' )
         if jobglobals['fps'] in fps_names:
             mc.currentUnit( time=fps_names[jobglobals['fps']] )
         msg += "- FPS set to %d\n"%jobglobals['fps']
@@ -607,14 +606,15 @@ def set_globals():
         mc.playbackOptions(aet=last)
         mc.playbackOptions(minTime=first+handles)
         mc.playbackOptions(maxTime=last-handles)
-        mel.currentTime( first+handles )
+        mc.currentTime( first+handles )
         mel.eval(f"putenv \"SHOTSTART\" \"{str(first)}\";")
         mel.eval(f"putenv \"SHOTEND\" \"{str(last)}\";")
         mel.eval(f"putenv \"SHOTSTARTCUT\" \"{str(first+handles)}\";")
         mel.eval(f"putenv \"SHOTENDCUT\" \"{str(last-handles)}\";")
         mel.eval(f"putenv \"SHOTFRAMES\" \"{str(frames)}\";")
         mel.eval(f"putenv \"SHOTHANDLES\" \"{str(shotglobals['handles'])}\";")
-        if not mel.getenv('SHOTPREROLL'):
+        # if not mel.getenv('SHOTPREROLL'):
+        if not mel.eval(f"getenv \"SHOTPREROLL\";"):
             mel.eval(f"putenv \"SHOTPREROLL\" \"{str(0)}\";")
 
 
@@ -624,7 +624,7 @@ def set_globals():
 
     if msg:
         msg = "The next changes have been apply in the script:\n\n" + msg
-        mel.confirmDialog(title='Set Globals ...', message=msg, button=['Ok'], defaultButton='Ok')
+        mc.confirmDialog(title='Set Globals ...', message=msg, button=['Ok'], defaultButton='Ok')
 
 
     return True

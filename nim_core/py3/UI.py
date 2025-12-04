@@ -3495,7 +3495,7 @@ class GUI(QtGui.QMainWindow) :
         #  Set Selected flag for saving only the selected objects :
         selected=False
         if self.app in ['Maya', 'Nuke', '3dsMax','Houdini'] :
-            selected=self.checkBox.checkState()
+            selected=self.checkBox.isChecked()
         
         #  Variables :
         self.update_server()

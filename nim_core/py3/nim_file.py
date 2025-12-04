@@ -514,10 +514,6 @@ def verUpSaveFile( filepath, nim, projpath='', selected=False, pub=False, symLin
         import maya.cmds as mc
         
         #  Save File :
-        import traceback
-        print("How we got here")
-        traceback.print_stack()
-        print(f"--- Selected: {selected}")
         if not selected :
             #  Set Vars :
             try:
