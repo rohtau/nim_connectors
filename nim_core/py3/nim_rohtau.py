@@ -61,14 +61,17 @@ try :
     from PySide2 import QtGui as QtGui2
     from PySide2 import QtCore
 except ImportError :
-    try : from PySide import QtCore, QtGui
+    try : 
+        from PySide6 import QtWidgets as QtGui
+        from PySide6 import QtGui as QtGui2
+        from PySide6 import QtCore
     except ImportError :
-        try : from PyQt4 import QtCore, QtGui
-        except ImportError : 
-            # Only print error if we re inside a DCC tool
-            # print("NIM: Failed to UI Modules - UI")
-            pass
-
+        try :
+            from PyQt5 import QtWidgets as QtGui
+            from PyQt5 import QtGui as QtGui2
+            from PyQt5 import QtCore
+        except ImportError :
+            print("NIM Rohtau: Failed to UI Modules")
 
 #
 # Globals
@@ -3693,7 +3696,7 @@ def find_published_asset( job: Union[str,int], parent: str, parentid: Union[str,
 # UI
 #
 # if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtGui' in sys.modules:
-if 'PySide2.QtGui' in sys.modules or 'Pyside6.QtGui' in sys.modules or 'PyQt5.QtGui' in sys.modules:
+if 'PySide2.QtGui' in sys.modules or 'PySide6.QtGui' in sys.modules or 'PyQt5.QtGui' in sys.modules:
 
     def getNukeMainWindow():
         """Get the Nuke main window.
