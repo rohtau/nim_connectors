@@ -3692,7 +3692,8 @@ def find_published_asset( job: Union[str,int], parent: str, parentid: Union[str,
 #
 # UI
 #
-if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtGui' in sys.modules:
+# if 'PySide2.QtGui' in sys.modules or 'Pyside.QtGui' in sys.modules or 'PyQt4.QtGui' in sys.modules:
+if 'PySide2.QtGui' in sys.modules or 'Pyside6.QtGui' in sys.modules or 'PyQt5.QtGui' in sys.modules:
 
     def getNukeMainWindow():
         """Get the Nuke main window.
