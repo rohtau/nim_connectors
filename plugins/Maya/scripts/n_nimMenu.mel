@@ -56,8 +56,12 @@ global proc n_nimMenu()
     }
     $name += " ||";
 	string $nimMenuCtrl = `menu -p MayaWindow -to true -l $name`;
-		//menuItem -label "Open" -c $nimOpen -ctrlModifier true -keyEquivalent "o";
-	    menuItem -label "Open" -c $nimOpen ;
+        //menuItem -label "Open" -c $nimOpen -ctrlModifier true -keyEquivalent "o";
+        //string $cmdName = `nameCommand -ann "Open" -command $nimOpen -sourceType "mel" openCmd`;
+        //menuItem -label "Open" -c $cmdName ;
+        //hotkey -keyShortcut "o" -name $cmdName -alt false -ctl true;
+        menuItem -label "Open" -c $nimOpen ;
+
 	    menuItem -label "Import" -c $nimImport;
 	    menuItem -label "Reference" -c $nimReferece;
 	    menuItem -divider true;
