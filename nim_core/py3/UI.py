@@ -3124,12 +3124,18 @@ class GUI(QtGui.QMainWindow) :
 
         if open_file_versionInfo:
             open_file_serverID = open_file_versionInfo[0]['serverID']
+            if not Api.get_serverOSPath( open_file_serverID, platform.system()):
+                # There is a problem with the server ID, probably project has been restored in a new server. Try Fix it
+                open_file_serverID = nimUtl.fix_file_serverid( open_file_versionInfo[0]['fileID'])
+                if open_file_serverID == -1:
+                    P.error(f"Couldn't get a server for file {open_file_versionInfo[0]['filepath']}{open_file_versionInfo[0]['filename']}. Wrong server ID: {open_file_versionInfo[0]['serverID']}. It could be using a wrong Server ID if the show has been restored in a new server.", showwindow=True)
+                    return False
             self.nim.set_server( ID=open_file_serverID )
-            P.debug("ServerID: %s" % open_file_serverID)
+            # P.info("ServerID: %s" % open_file_serverID)
             serverOsPathInfo = Api.get_serverOSPath( open_file_serverID, platform.system() )
-            P.debug("Server OS Path Info: %s" % serverOsPathInfo)
+            # P.info("Server OS Path Info: %s" % serverOsPathInfo)
             serverOSPath = serverOsPathInfo[0]['serverOSPath']
-            P.info("Server OS Path: %s" % serverOSPath)
+            # P.info("Server OS Path: %s" % serverOSPath)
             self.nim.set_server( path=serverOSPath )
             self.saveServerPref = True
 

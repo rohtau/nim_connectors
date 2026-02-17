@@ -2023,9 +2023,42 @@ def get_baseVerInfo( shotID=None, assetID=None, showID=None, basenames=None, use
     result = nimAPI.connect(method='get', params=params, nimURL=custom_api_url )
     return result
 
+def fix_file_serverid ( fileID: int ) -> int:
+    """Sometimes after a show restore the server ID  in the file info doesnt match the current server
+    for the show. This function tries to fix.
+    It uses the part in the file to work out the project name and then use it to find a correct server ID.
+    If it can find a new suitable server then the publish is updated with the new server ID and this ID is returned.
+    If it can find any suitable server ID ir will return -1
 
-    
+    Parameters
+    ------------
+    fileID : int
+        File ID in database
 
+    Return
+    ----------
+    int
+        New server ID or -1 if error
+    """
+    file_info = nimAPI.get_verInfo( fileID )
+    if not file_info:
+        nimP.error(f"Can't fix server ID in file because given File ID doesnt exists: {fileID}")
+        return -1
+    file_info = file_info[0]
+    path = toPosix(file_info['filepath'])
+    jobs_idx = path.split('/').index('jobs')
+    prj_name = path.split('/')[jobs_idx+1]
+    # Usually the project name is the same as the server name, so try to find aserver with this name:
+    servers = nimAPI.get_allServers(locationID=1) # Location ID = 1 is London
+    server = [server for server in servers if server['server'] == prj_name]
+    if server:
+        new_server_id  = server[0]['ID']
+        # Update File Info
+        updatefile_res = nimAPI.update_file( fileID, serverID=new_server_id)
+        nimP.info(f"server ID {new_server_id} fixed for file: {file_info['filepath']}{file_info['filename']}")
+        return new_server_id
+
+    return -1
 
     
 
