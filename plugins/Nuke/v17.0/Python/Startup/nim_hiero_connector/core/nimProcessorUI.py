@@ -16,7 +16,10 @@ import traceback
 import hiero.core
 import hiero.core.FnExporterBase as FnExporterBase
 from hiero.ui.FnElidedLabel import ElidedLabel
-from PySide2 import (QtCore, QtWidgets)
+try:
+    from PySide6 import (QtCore, QtWidgets)
+except  ImportError:
+    from PySide2 import (QtCore, QtWidgets)
 from ui import IProcessorUI
 from hiero.core.FnCompSourceInfo import CompSourceInfo
 from hiero.core.util import filesystem

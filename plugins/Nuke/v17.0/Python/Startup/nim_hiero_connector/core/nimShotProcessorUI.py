@@ -13,7 +13,10 @@ from pprint import pprint,pformat
 import hiero.core
 import hiero.ui
 
-from PySide2 import (QtCore, QtGui, QtWidgets)
+try:
+    from PySide6 import (QtCore, QtGui, QtWidgets)
+except ImportError:
+    from PySide2 import (QtCore, QtGui, QtWidgets)
 
 from hiero.ui.FnTagFilterWidget import TagFilterWidget
 from .nimShotProcessor import NimShotProcessorPreset, NimShotProcessor, findTrackItemExportTag, buildTagsData

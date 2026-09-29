@@ -1,7 +1,10 @@
 # Derived from projectHelpers.py
 # Original Source: https://github.com/antiero/dotHiero.git
 
-from PySide2 import QtGui, QtCore, QtWidgets
+try:
+    from PySide6 import QtGui, QtCore, QtWidgets
+except ImportError:
+    from PySide2 import QtGui, QtCore, QtWidgets
 from hiero.core.util import uniquify, version_get, version_set
 import hiero.core
 import hiero.ui
